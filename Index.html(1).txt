@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Consulting | Smart Solutions for Businesses</title>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #121212;
+            color: white;
+        }
+        header {
+            background: linear-gradient(90deg, #2c3e50, #4ca1af);
+            color: white;
+            padding: 40px;
+            text-align: center;
+            font-size: 24px;
+        }
+        nav {
+            display: flex;
+            justify-content: center;
+            background: #1a1a1a;
+            padding: 15px;
+        }
+        nav a {
+            color: white;
+            text-decoration: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            transition: 0.3s;
+        }
+        nav a:hover {
+            background: #4ca1af;
+            border-radius: 5px;
+        }
+        .container {
+            width: 80%;
+            margin: 40px auto;
+            background: #1e1e1e;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 20px rgba(255,255,255,0.1);
+        }
+        h2 {
+            color: #4ca1af;
+        }
+        ul li {
+            margin: 10px 0;
+        }
+        .cta-button {
+            display: block;
+            width: 200px;
+            margin: 20px auto;
+            padding: 15px;
+            text-align: center;
+            background: #4ca1af;
+            color: white;
+            font-size: 18px;
+            border-radius: 5px;
+            text-decoration: none;
+            transition: 0.3s;
+        }
+        .cta-button:hover {
+            background: #2c3e50;
+        }
+        .image-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .image-container img {
+            width: 80%;
+            border-radius: 10px;
+            box-shadow: 0px 0px 15px rgba(255,255,255,0.2);
+        }
+        footer {
+            text-align: center;
+            padding: 30px;
+            background: #1a1a1a;
+            color: white;
+            margin-top: 40px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>AI Consulting Solutions</h1>
+        <p>Empowering Businesses with Cutting-Edge AI Technologies</p>
+    </header>
+    <nav>
+        <a href="#about">About</a>
+        <a href="#services">Services</a>
+        <a href="#solutions">Solutions</a>
+        <a href="#rates">Rates</a>
+        <a href="#contact">Contact</a>
+    </nav>
+    <div class="container">
+        <section id="about">
+            <h2>About Us</h2>
+            <div class="image-container">
+                <img src="https://source.unsplash.com/800x400/?technology,AI" alt="AI Consulting Image">
+            </div>
+            <p>We provide innovative AI-driven solutions tailored to enhance business efficiency and drive growth. From machine learning to automation, we harness AI's power to streamline operations and maximize profits.</p>
+        </section>
+        <section id="services">
+            <h2>Our Services</h2>
+            <div class="image-container">
+                <img src="https://source.unsplash.com/800x400/?data,analytics" alt="Data Analytics">
+            </div>
+            <ul>
+                <li><strong>AI-powered Data Analytics:</strong> Data-driven insights to optimize business decisions.</li>
+                <li><strong>Marketing Automation:</strong> AI-enhanced customer engagement and targeted campaigns.</li>
+                <li><strong>Custom AI Strategy:</strong> Tailored solutions to fit your business needs.</li>
+                <li><strong>AI Chatbots:</strong> Intelligent virtual assistants for customer service automation.</li>
+            </ul>
+            <a href="#contact" class="cta-button">Get a Free Consultation</a>
+        </section>
+        <section id="solutions">
+            <h2>Our AI Solutions</h2>
+            <div class="image-container">
+                <img src="https://source.unsplash.com/800x400/?robotics,automation" alt="AI Solutions">
+            </div>
+            <ul>
+                <li>Advanced Predictive Analytics</li>
+                <li>Smart Business Process Automation</li>
+                <li>Personalized AI-driven Marketing Strategies</li>
+                <li>Fraud Detection and Risk Management</li>
+            </ul>
+        </section>
+        <section id="rates">
+            <h2>Our Pricing Plans</h2>
+            <div class="image-container">
+                <img src="https://source.unsplash.com/800x400/?business,finance" alt="Pricing Plans">
+            </div>
+            <ul>
+                <li><strong>Starter:</strong> $500/month - Basic AI consulting & automation.</li>
+                <li><strong>Growth:</strong> $1,500/month - AI analytics & marketing automation.</li>
+                <li><strong>Enterprise:</strong> Custom pricing - Full-scale AI transformation.</li>
+            </ul>
+            <a href="#contact" class="cta-button">Request a Quote</a>
+        </section>
+        <section id="contact">
+            <h2>Contact Us</h2>
+            <p>Email: <a href="mailto:info@aiconsulting.com">info@aiconsulting.com</a></p>
+            <p>Phone: <a href="tel:+11234567890">(123) 456-7890</a></p>
+            <a href="#" class="cta-button">Schedule a Call</a>
+        </section>
+    </div>
+    <footer>
+        <p>&copy; 2025 AI Consulting Solutions. All rights reserved.</p>
+    </footer>
+</body>
+</html>
