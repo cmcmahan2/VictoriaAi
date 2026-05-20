@@ -1,155 +1,2198 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Consulting | Smart Solutions for Businesses</title>
-    <style>
-        body {
-            font-family: 'Poppins', sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #121212;
-            color: white;
-        }
-        header {
-            background: linear-gradient(90deg, #2c3e50, #4ca1af);
-            color: white;
-            padding: 40px;
-            text-align: center;
-            font-size: 24px;
-        }
-        nav {
-            display: flex;
-            justify-content: center;
-            background: #1a1a1a;
-            padding: 15px;
-        }
-        nav a {
-            color: white;
-            text-decoration: none;
-            padding: 15px 30px;
-            font-size: 18px;
-            transition: 0.3s;
-        }
-        nav a:hover {
-            background: #4ca1af;
-            border-radius: 5px;
-        }
-        .container {
-            width: 80%;
-            margin: 40px auto;
-            background: #1e1e1e;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0px 0px 20px rgba(255,255,255,0.1);
-        }
-        h2 {
-            color: #4ca1af;
-        }
-        ul li {
-            margin: 10px 0;
-        }
-        .cta-button {
-            display: block;
-            width: 200px;
-            margin: 20px auto;
-            padding: 15px;
-            text-align: center;
-            background: #4ca1af;
-            color: white;
-            font-size: 18px;
-            border-radius: 5px;
-            text-decoration: none;
-            transition: 0.3s;
-        }
-        .cta-button:hover {
-            background: #2c3e50;
-        }
-        .image-container {
-            text-align: center;
-            margin: 20px 0;
-        }
-        .image-container img {
-            width: 80%;
-            border-radius: 10px;
-            box-shadow: 0px 0px 15px rgba(255,255,255,0.2);
-        }
-        footer {
-            text-align: center;
-            padding: 30px;
-            background: #1a1a1a;
-            color: white;
-            margin-top: 40px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clear Renovations | Greater Vancouver Renovation Specialists</title>
+  <meta name="description" content="Clear Renovations delivers premium kitchen, bathroom, deck, basement, and laneway home renovations across Greater Vancouver, BC. Clear expectations. Clear outcomes. Operating since 2009.">
+  <meta name="keywords" content="renovation Vancouver, kitchen renovation Vancouver, bathroom renovation, laneway home, basement development, Clear Renovations, Greater Vancouver contractor">
+  <link rel="canonical" href="https://www.clearrenovations.com/">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Clear Renovations | Greater Vancouver Renovation Specialists">
+  <meta property="og:description" content="Premium renovation services across Greater Vancouver since 2009. Clear expectations. Clear outcomes.">
+  <meta property="og:type" content="website">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=Source+Sans+3:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet">
+
+  <style>
+    /* ================================================================
+       DESIGN TOKENS
+    ================================================================ */
+    :root {
+      --c-charcoal:      #1a1a1a;
+      --c-near-black:    #0d0d0d;
+      --c-dark-surface:  #1e1e1e;
+      --c-dark-card:     #222222;
+      --c-linen:         #f5f0e8;
+      --c-linen-deep:    #ede7da;
+      --c-white:         #ffffff;
+      --c-brass:         #b87333;
+      --c-brass-light:   #cc8f52;
+      --c-brass-dark:    #9a5e22;
+      --c-muted:         #6b6560;
+      --c-muted-light:   #9a9490;
+      --c-border:        #ddd6ca;
+      --c-border-dark:   rgba(255,255,255,0.08);
+
+      --f-display: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+      --f-body:    'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
+
+      --nav-h: 80px;
+      --max-w: 1340px;
+
+      --ease-smooth: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      --ease-expo:   cubic-bezier(0.19, 1, 0.22, 1);
+    }
+
+    /* ================================================================
+       RESET & BASE
+    ================================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      font-size: 16px;
+      scroll-behavior: smooth;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      font-family: var(--f-body);
+      font-weight: 400;
+      font-size: 1rem;
+      line-height: 1.7;
+      color: var(--c-charcoal);
+      background-color: var(--c-linen);
+      overflow-x: hidden;
+    }
+
+    img, video { display: block; max-width: 100%; height: auto; }
+    a { color: inherit; text-decoration: none; }
+    ul, ol { list-style: none; }
+    button { font-family: inherit; cursor: pointer; }
+
+    /* ================================================================
+       TYPOGRAPHY UTILITIES
+    ================================================================ */
+    .u-label {
+      font-family: var(--f-body);
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+    }
+
+    .u-brass { color: var(--c-brass); }
+
+    .u-display {
+      font-family: var(--f-display);
+      font-weight: 300;
+      line-height: 1.05;
+      letter-spacing: -0.025em;
+    }
+
+    .u-heading {
+      font-family: var(--f-display);
+      font-weight: 400;
+      line-height: 1.15;
+    }
+
+    /* ================================================================
+       LAYOUT
+    ================================================================ */
+    .wrap {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      padding: 0 2rem;
+    }
+
+    .section-pad { padding: 7rem 0; }
+
+    /* ================================================================
+       BUTTONS
+    ================================================================ */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.9rem 2.25rem;
+      font-family: var(--f-body);
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      border: 2px solid transparent;
+      transition: background 0.3s var(--ease-smooth), color 0.3s var(--ease-smooth), border-color 0.3s var(--ease-smooth);
+      white-space: nowrap;
+    }
+
+    .btn-brass {
+      background: var(--c-brass);
+      color: var(--c-white);
+      border-color: var(--c-brass);
+    }
+    .btn-brass:hover {
+      background: transparent;
+      color: var(--c-brass);
+    }
+
+    .btn-ghost-light {
+      background: transparent;
+      color: rgba(255,255,255,0.9);
+      border-color: rgba(255,255,255,0.4);
+    }
+    .btn-ghost-light:hover {
+      background: var(--c-white);
+      color: var(--c-charcoal);
+      border-color: var(--c-white);
+    }
+
+    .btn-ghost-dark {
+      background: transparent;
+      color: var(--c-charcoal);
+      border-color: var(--c-charcoal);
+    }
+    .btn-ghost-dark:hover {
+      background: var(--c-charcoal);
+      color: var(--c-white);
+    }
+
+    .btn-ghost-dark-sm {
+      background: transparent;
+      color: var(--c-charcoal);
+      border-color: var(--c-charcoal);
+      padding: 0.7rem 1.75rem;
+      font-size: 0.73rem;
+    }
+    .btn-ghost-dark-sm:hover {
+      background: var(--c-charcoal);
+      color: var(--c-white);
+    }
+
+    /* ================================================================
+       DIVIDER
+    ================================================================ */
+    .divider {
+      width: 2.5rem;
+      height: 2px;
+      background: var(--c-brass);
+      margin: 1.4rem 0;
+    }
+
+    /* ================================================================
+       SCROLL ANIMATION
+    ================================================================ */
+    .reveal {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity 0.85s var(--ease-smooth), transform 0.85s var(--ease-smooth);
+    }
+    .reveal.visible { opacity: 1; transform: none; }
+    .reveal-d1 { transition-delay: 0.10s; }
+    .reveal-d2 { transition-delay: 0.20s; }
+    .reveal-d3 { transition-delay: 0.30s; }
+    .reveal-d4 { transition-delay: 0.40s; }
+    .reveal-d5 { transition-delay: 0.55s; }
+
+    /* ================================================================
+       HEADER & NAV
+    ================================================================ */
+    #hdr {
+      position: fixed;
+      inset: 0 0 auto;
+      z-index: 200;
+      height: var(--nav-h);
+      display: flex;
+      align-items: center;
+      transition: background 0.45s var(--ease-smooth),
+                  box-shadow 0.45s var(--ease-smooth),
+                  backdrop-filter 0.45s;
+    }
+
+    #hdr.solid {
+      background: rgba(15, 15, 15, 0.97);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 1px 0 rgba(255,255,255,0.04);
+    }
+
+    .hdr-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+    }
+
+    /* Logo */
+    .logo {
+      display: flex;
+      flex-direction: column;
+      line-height: 1;
+      gap: 0.2rem;
+    }
+    .logo-mark {
+      font-family: var(--f-display);
+      font-size: 1.4rem;
+      font-weight: 500;
+      color: var(--c-white);
+      letter-spacing: 0.01em;
+    }
+    .logo-sub {
+      font-family: var(--f-body);
+      font-size: 0.58rem;
+      font-weight: 300;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--c-brass);
+    }
+
+    /* Desktop Nav */
+    .main-nav {
+      display: flex;
+      align-items: center;
+      gap: 2.25rem;
+    }
+
+    .nav-link {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.78);
+      position: relative;
+      transition: color 0.2s;
+    }
+    .nav-link::after {
+      content: '';
+      position: absolute;
+      bottom: -3px; left: 0;
+      width: 0; height: 1px;
+      background: var(--c-brass);
+      transition: width 0.3s var(--ease-smooth);
+    }
+    .nav-link:hover { color: var(--c-white); }
+    .nav-link:hover::after { width: 100%; }
+
+    .nav-btn {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      background: var(--c-brass);
+      color: var(--c-white);
+      padding: 0.55rem 1.5rem;
+      transition: background 0.3s;
+    }
+    .nav-btn:hover { background: var(--c-brass-dark); }
+
+    /* Hamburger */
+    .burger {
+      display: none;
+      flex-direction: column;
+      justify-content: space-between;
+      width: 26px;
+      height: 18px;
+      background: none;
+      border: none;
+      padding: 0;
+    }
+    .burger span {
+      display: block;
+      height: 1.5px;
+      background: var(--c-white);
+      border-radius: 2px;
+      transition: transform 0.35s var(--ease-smooth), opacity 0.35s;
+    }
+    .burger.open span:nth-child(1) { transform: translateY(8.25px) rotate(45deg); }
+    .burger.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+    .burger.open span:nth-child(3) { transform: translateY(-8.25px) rotate(-45deg); }
+
+    /* Mobile drawer */
+    #mob-nav {
+      position: fixed;
+      inset: 0;
+      z-index: 190;
+      background: var(--c-near-black);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s var(--ease-smooth);
+    }
+    #mob-nav.open { opacity: 1; pointer-events: all; }
+    .mob-link {
+      font-family: var(--f-display);
+      font-size: 2.8rem;
+      font-weight: 300;
+      color: var(--c-white);
+      letter-spacing: -0.01em;
+      transition: color 0.2s;
+    }
+    .mob-link:hover { color: var(--c-brass); }
+    .mob-contact {
+      margin-top: 1rem;
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.4);
+      letter-spacing: 0.1em;
+    }
+
+    /* ================================================================
+       HERO
+    ================================================================ */
+    #hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-end;
+      padding-bottom: 8rem;
+      overflow: hidden;
+      /* Rich dark atmospheric gradient — replace bg-image below with real photo */
+      background:
+        linear-gradient(155deg,
+          rgba(55, 33, 15, 0.5) 0%,
+          rgba(10, 10, 10, 0) 55%
+        ),
+        linear-gradient(to bottom right,
+          #1c1208 0%,
+          #0d0b09 40%,
+          #0a0a0c 100%
+        );
+    }
+
+    /* ─── HERO BACKGROUND PHOTO ─────────────────────────────────────
+       REPLACE: Set this src to a high-resolution (1920×1280+) photo
+       of a completed Clear Renovations project — open kitchen, living
+       space, or hero exterior shot. Download from the Google Maps
+       listing and host on your server.
+    ─────────────────────────────────────────────────────────────── */
+    .hero-photo {
+      position: absolute;
+      inset: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      object-position: center;
+      opacity: 0.32;
+      transform: scale(1.06);
+      transition: transform 9s var(--ease-expo), opacity 1.2s;
+    }
+    .hero-photo.ready { transform: scale(1); }
+
+    /* Subtle grid texture overlay */
+    .hero-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(184,115,51,0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(184,115,51,0.035) 1px, transparent 1px);
+      background-size: 70px 70px;
+      pointer-events: none;
+    }
+
+    /* Gradient vignette */
+    .hero-vignette {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(to top,
+          rgba(5,5,5,0.96) 0%,
+          rgba(5,5,5,0.45) 45%,
+          rgba(5,5,5,0.12) 100%
+        ),
+        linear-gradient(to right, rgba(5,5,5,0.25) 0%, transparent 60%);
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      max-width: 860px;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 2.25rem;
+    }
+    .hero-eyebrow::before {
+      content: '';
+      width: 2.5rem; height: 1px;
+      background: var(--c-brass);
+    }
+
+    .hero-h1 {
+      font-family: var(--f-display);
+      font-size: clamp(3.8rem, 9vw, 8rem);
+      font-weight: 300;
+      line-height: 0.98;
+      letter-spacing: -0.03em;
+      color: var(--c-white);
+      margin-bottom: 2rem;
+    }
+    .hero-h1 em {
+      font-style: italic;
+      color: var(--c-brass);
+    }
+
+    .hero-sub {
+      font-size: clamp(1rem, 1.5vw, 1.15rem);
+      font-weight: 300;
+      color: rgba(255,255,255,0.65);
+      max-width: 520px;
+      line-height: 1.85;
+      margin-bottom: 2.75rem;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    /* Scroll indicator */
+    .scroll-cue {
+      position: absolute;
+      right: 2.5rem;
+      bottom: 3.5rem;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .scroll-word {
+      font-size: 0.6rem;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.3);
+      writing-mode: vertical-rl;
+    }
+    .scroll-bar {
+      width: 1px;
+      height: 64px;
+      background: linear-gradient(to bottom, var(--c-brass), transparent);
+      animation: scrollPulse 2.2s ease-in-out infinite;
+    }
+    @keyframes scrollPulse {
+      0%   { opacity: 1; transform: scaleY(1) translateY(0); }
+      100% { opacity: 0; transform: scaleY(0.4) translateY(16px); }
+    }
+
+    /* ================================================================
+       STATS BAR
+    ================================================================ */
+    #stats {
+      background: var(--c-brass);
+      padding: 2.75rem 0;
+    }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    .stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1rem 1.5rem;
+      border-right: 1px solid rgba(255,255,255,0.22);
+      text-align: center;
+    }
+    .stat:last-child { border-right: none; }
+
+    .stat-val {
+      font-family: var(--f-display);
+      font-size: 3.25rem;
+      font-weight: 300;
+      color: var(--c-white);
+      line-height: 1;
+      letter-spacing: -0.025em;
+    }
+    .stat-lbl {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.72);
+      margin-top: 0.4rem;
+    }
+
+    /* ================================================================
+       ABOUT SECTION
+    ================================================================ */
+    #about { background: var(--c-linen); }
+
+    .about-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6rem;
+      align-items: center;
+    }
+
+    .about-h2 {
+      font-family: var(--f-display);
+      font-size: clamp(2.4rem, 4.5vw, 3.75rem);
+      font-weight: 400;
+      line-height: 1.12;
+      color: var(--c-charcoal);
+      margin-bottom: 0.5rem;
+    }
+    .about-h2 em { font-style: italic; color: var(--c-brass); }
+
+    .about-p {
+      color: var(--c-muted);
+      font-size: 1.03rem;
+      line-height: 1.88;
+      margin-bottom: 1.4rem;
+    }
+
+    /* Image with decorative border */
+    .img-frame {
+      position: relative;
+    }
+    .img-frame::before {
+      content: '';
+      position: absolute;
+      top: -1.4rem; right: -1.4rem;
+      bottom: 1.4rem; left: 1.4rem;
+      border: 1.5px solid var(--c-brass);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .img-frame img {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      aspect-ratio: 4/5;
+      object-fit: cover;
+      /* REPLACE: About/studio photo — craftsman at work or finished interior detail */
+      background: var(--c-dark-surface);
+    }
+
+    /* ================================================================
+       SERVICES SECTION
+    ================================================================ */
+    #services { background: var(--c-charcoal); }
+
+    .svcs-hdr {
+      text-align: center;
+      max-width: 640px;
+      margin: 0 auto 5rem;
+    }
+    .svcs-h2 {
+      font-family: var(--f-display);
+      font-size: clamp(2.4rem, 4.5vw, 3.75rem);
+      font-weight: 400;
+      color: var(--c-white);
+      margin-bottom: 0.75rem;
+    }
+    .svcs-sub {
+      color: rgba(255,255,255,0.52);
+      font-size: 1rem;
+      line-height: 1.8;
+    }
+
+    .svcs-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2px;
+    }
+
+    .svc-card {
+      background: var(--c-dark-card);
+      padding: 2.5rem 2.25rem;
+      position: relative;
+      overflow: hidden;
+      transition: background 0.35s;
+    }
+    .svc-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0;
+      height: 2px; width: 0;
+      background: var(--c-brass);
+      transition: width 0.45s var(--ease-smooth);
+    }
+    .svc-card:hover { background: #282828; }
+    .svc-card:hover::after { width: 100%; }
+
+    .svc-num {
+      position: absolute;
+      top: 1.25rem; right: 1.5rem;
+      font-family: var(--f-display);
+      font-size: 4.5rem;
+      font-weight: 300;
+      color: rgba(255,255,255,0.03);
+      line-height: 1;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    .svc-icon {
+      width: 44px; height: 44px;
+      margin-bottom: 1.5rem;
+      color: var(--c-brass);
+    }
+
+    .svc-name {
+      font-family: var(--f-display);
+      font-size: 1.55rem;
+      font-weight: 500;
+      color: var(--c-white);
+      margin-bottom: 0.6rem;
+      line-height: 1.2;
+    }
+
+    .svc-desc {
+      font-size: 0.88rem;
+      color: rgba(255,255,255,0.5);
+      line-height: 1.78;
+    }
+
+    /* Last card full-width accent */
+    .svc-card--wide {
+      grid-column: 1 / -1;
+      display: flex;
+      gap: 3rem;
+      align-items: flex-start;
+      background: linear-gradient(135deg, #222 0%, #1c1c1c 100%);
+    }
+    .svc-card--wide .svc-desc { max-width: 600px; }
+
+    /* ================================================================
+       PORTFOLIO / PROJECTS
+    ================================================================ */
+    #projects { background: var(--c-linen); }
+
+    .proj-hdr {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-bottom: 3.5rem;
+      gap: 2rem;
+    }
+
+    .proj-h2 {
+      font-family: var(--f-display);
+      font-size: clamp(2.4rem, 4vw, 3.5rem);
+      font-weight: 400;
+      color: var(--c-charcoal);
+      line-height: 1.15;
+    }
+
+    /* Asymmetric 12-col portfolio grid */
+    .portfolio {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      grid-template-rows: 340px 300px 280px;
+      gap: 0.875rem;
+    }
+
+    .pcard { position: relative; overflow: hidden; background: #1e1e1e; }
+    .pcard:nth-child(1) { grid-column: 1 / 8;  grid-row: 1 / 2; }
+    .pcard:nth-child(2) { grid-column: 8 / 13; grid-row: 1 / 2; }
+    .pcard:nth-child(3) { grid-column: 1 / 5;  grid-row: 2 / 3; }
+    .pcard:nth-child(4) { grid-column: 5 / 13; grid-row: 2 / 3; }
+    .pcard:nth-child(5) { grid-column: 1 / 7;  grid-row: 3 / 4; }
+    .pcard:nth-child(6) { grid-column: 7 / 13; grid-row: 3 / 4; }
+
+    .pcard-img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      transition: transform 0.7s var(--ease-expo);
+    }
+    .pcard:hover .pcard-img { transform: scale(1.06); }
+
+    .pcard-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0) 55%);
+      opacity: 0.55;
+      transition: opacity 0.4s;
+    }
+    .pcard:hover .pcard-overlay { opacity: 1; }
+
+    .pcard-info {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      padding: 1.5rem 2rem;
+      transform: translateY(4px);
+      transition: transform 0.4s var(--ease-smooth);
+    }
+    .pcard:hover .pcard-info { transform: none; }
+
+    .pcard-cat {
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--c-brass);
+      margin-bottom: 0.2rem;
+    }
+    .pcard-title {
+      font-family: var(--f-display);
+      font-size: 1.35rem;
+      font-weight: 400;
+      color: var(--c-white);
+      line-height: 1.25;
+    }
+
+    /* ================================================================
+       KITCHENS & BATHROOMS — SPECIALTY SECTIONS
+    ================================================================ */
+    #kitchens  { background: var(--c-white); }
+    #bathrooms { background: var(--c-linen); }
+
+    .spc-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5.5rem;
+      align-items: center;
+    }
+
+    /* Image stack with floating inset */
+    .img-stack { position: relative; }
+
+    .img-stack-main {
+      width: 100%;
+      aspect-ratio: 3/4;
+      object-fit: cover;
+      display: block;
+      /* REPLACE: Main section photo */
+      background: var(--c-dark-surface);
+    }
+
+    .img-stack-inset {
+      position: absolute;
+      bottom: -2.5rem; right: -2.5rem;
+      width: 48%;
+      aspect-ratio: 1;
+      object-fit: cover;
+      border: 6px solid var(--c-white);
+      display: block;
+      /* REPLACE: Secondary detail photo */
+      background: var(--c-brass);
+      opacity: 0.85;
+    }
+
+    #bathrooms .img-stack-inset { border-color: var(--c-linen); }
+
+    .spc-content { padding: 2rem 0; }
+
+    .spc-h2 {
+      font-family: var(--f-display);
+      font-size: clamp(2.2rem, 4vw, 3.5rem);
+      font-weight: 400;
+      line-height: 1.12;
+      color: var(--c-charcoal);
+      margin-bottom: 0.5rem;
+    }
+    .spc-h2 em { font-style: italic; color: var(--c-brass); }
+
+    .spc-p {
+      color: var(--c-muted);
+      font-size: 1.02rem;
+      line-height: 1.88;
+      margin-bottom: 1.5rem;
+    }
+
+    .feature-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.7rem;
+      margin: 1.75rem 0 2.25rem;
+    }
+    .feature-item {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      font-size: 0.94rem;
+      color: var(--c-muted);
+    }
+    .feature-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--c-brass);
+      flex-shrink: 0;
+    }
+
+    /* ================================================================
+       TEAM SECTION
+    ================================================================ */
+    #team { background: var(--c-charcoal); }
+
+    .team-hdr {
+      text-align: center;
+      max-width: 540px;
+      margin: 0 auto 5rem;
+    }
+    .team-h2 {
+      font-family: var(--f-display);
+      font-size: clamp(2.4rem, 4.5vw, 3.75rem);
+      font-weight: 400;
+      color: var(--c-white);
+      line-height: 1.12;
+    }
+    .team-h2 em { font-style: italic; color: var(--c-brass); }
+
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 2.5rem;
+    }
+
+    .team-card {
+      background: var(--c-dark-card);
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 2.5rem;
+      align-items: start;
+      padding: 2.5rem;
+    }
+
+    .team-portrait {
+      width: 100%;
+      aspect-ratio: 3/4;
+      object-fit: cover;
+      object-position: top;
+      display: block;
+      /* REPLACE: Professional headshot */
+      background: #2a2a2a;
+    }
+
+    .team-name {
+      font-family: var(--f-display);
+      font-size: 1.85rem;
+      font-weight: 400;
+      color: var(--c-white);
+      line-height: 1.1;
+    }
+
+    .team-role {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--c-brass);
+      margin: 0.3rem 0 1rem;
+    }
+
+    .team-bio {
+      font-size: 0.9rem;
+      line-height: 1.85;
+      color: rgba(255,255,255,0.55);
+      margin-bottom: 0.9rem;
+    }
+
+    .team-email {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.8rem;
+      color: var(--c-brass);
+      transition: opacity 0.2s;
+    }
+    .team-email:hover { opacity: 0.7; }
+    .team-email svg { flex-shrink: 0; }
+
+    /* ================================================================
+       CONTACT SECTION
+    ================================================================ */
+    #contact { background: var(--c-linen); }
+
+    .contact-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.35fr;
+      gap: 6rem;
+      align-items: start;
+    }
+
+    .contact-h2 {
+      font-family: var(--f-display);
+      font-size: clamp(2.4rem, 4.5vw, 3.75rem);
+      font-weight: 400;
+      line-height: 1.1;
+      color: var(--c-charcoal);
+      margin-bottom: 1.25rem;
+    }
+    .contact-h2 em { font-style: italic; color: var(--c-brass); }
+
+    .contact-lead {
+      color: var(--c-muted);
+      font-size: 1rem;
+      line-height: 1.85;
+      margin-bottom: 2.5rem;
+    }
+
+    .contact-details {
+      display: flex;
+      flex-direction: column;
+      gap: 1.1rem;
+      margin-bottom: 2.25rem;
+    }
+
+    .cdet {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .cdet-icon {
+      width: 42px; height: 42px;
+      background: var(--c-charcoal);
+      color: var(--c-white);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .cdet-icon svg { width: 17px; height: 17px; }
+
+    .cdet-lbl {
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--c-muted);
+    }
+    .cdet-val {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--c-charcoal);
+    }
+    .cdet-val a { transition: color 0.2s; }
+    .cdet-val a:hover { color: var(--c-brass); }
+
+    .service-area-note {
+      padding: 1.25rem 1.5rem;
+      background: var(--c-white);
+      border-left: 3px solid var(--c-brass);
+      font-size: 0.9rem;
+      color: var(--c-muted);
+      line-height: 1.7;
+    }
+
+    /* Form */
+    .form-box {
+      background: var(--c-white);
+      padding: 3rem;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.07);
+    }
+
+    .form-h3 {
+      font-family: var(--f-display);
+      font-size: 1.9rem;
+      font-weight: 500;
+      color: var(--c-charcoal);
+      margin-bottom: 2rem;
+    }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .form-group { margin-bottom: 1.4rem; }
+
+    .form-lbl {
+      display: block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--c-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .form-ctrl {
+      width: 100%;
+      padding: 0.85rem 1rem;
+      font-family: var(--f-body);
+      font-size: 0.95rem;
+      color: var(--c-charcoal);
+      background: var(--c-linen);
+      border: 1.5px solid var(--c-border);
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+      transition: border-color 0.2s;
+    }
+    .form-ctrl:focus { border-color: var(--c-brass); }
+    .form-ctrl::placeholder { color: var(--c-muted-light); }
+
+    .form-select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b6560' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 1rem center;
+      padding-right: 2.5rem;
+      cursor: pointer;
+    }
+
+    textarea.form-ctrl { height: 128px; resize: vertical; }
+
+    .form-submit {
+      width: 100%;
+      padding: 1rem;
+      background: var(--c-charcoal);
+      color: var(--c-white);
+      font-family: var(--f-body);
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      border: 2px solid var(--c-charcoal);
+      transition: all 0.3s;
+      margin-top: 0.25rem;
+    }
+    .form-submit:hover { background: transparent; color: var(--c-charcoal); }
+
+    .form-success {
+      display: none;
+      text-align: center;
+      padding: 3rem 2rem;
+    }
+    .form-success svg { margin: 0 auto 1rem; color: var(--c-brass); }
+    .form-success-h { font-family: var(--f-display); font-size: 1.6rem; color: var(--c-charcoal); margin-bottom: 0.5rem; }
+    .form-success-p { color: var(--c-muted); font-size: 0.9rem; }
+
+    /* ================================================================
+       FOOTER
+    ================================================================ */
+    #footer {
+      background: #0b0b0b;
+      color: rgba(255,255,255,0.45);
+      padding: 5rem 0 2.5rem;
+    }
+
+    .footer-top {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr 1fr 1fr;
+      gap: 3rem;
+      padding-bottom: 3.5rem;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      margin-bottom: 2.5rem;
+    }
+
+    .footer-logo .logo-mark { font-size: 1.35rem; }
+    .footer-logo .logo-sub  { font-size: 0.58rem; }
+
+    .footer-tagline {
+      font-size: 0.88rem;
+      line-height: 1.8;
+      color: rgba(255,255,255,0.35);
+      margin-top: 1rem;
+      max-width: 240px;
+    }
+
+    .footer-col-ttl {
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--c-brass);
+      margin-bottom: 1.25rem;
+    }
+
+    .footer-links { display: flex; flex-direction: column; gap: 0.55rem; }
+    .footer-link {
+      font-size: 0.86rem;
+      color: rgba(255,255,255,0.42);
+      transition: color 0.2s;
+    }
+    .footer-link:hover { color: var(--c-white); }
+
+    .footer-citem {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      font-size: 0.86rem;
+      color: rgba(255,255,255,0.42);
+      margin-bottom: 0.55rem;
+    }
+    .footer-citem svg { width: 13px; height: 13px; margin-top: 3px; flex-shrink: 0; }
+    .footer-citem a { transition: color 0.2s; }
+    .footer-citem a:hover { color: var(--c-white); }
+
+    .footer-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+    }
+
+    .footer-copy { font-size: 0.78rem; color: rgba(255,255,255,0.28); }
+
+    .footer-end-links {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .bbb-link {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.38);
+      transition: color 0.2s;
+    }
+    .bbb-link:hover { color: rgba(255,255,255,0.7); }
+    .bbb-link svg { width: 15px; height: 15px; }
+
+    .social-icon {
+      width: 34px; height: 34px;
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255,255,255,0.42);
+      transition: border-color 0.3s, color 0.3s;
+    }
+    .social-icon:hover { border-color: var(--c-brass); color: var(--c-brass); }
+    .social-icon svg { width: 15px; height: 15px; }
+
+    /* ================================================================
+       RESPONSIVE — TABLET (≤1100px)
+    ================================================================ */
+    @media (max-width: 1100px) {
+      .team-grid { grid-template-columns: 1fr; }
+      .team-card { grid-template-columns: 160px 1fr; }
+
+      .footer-top { grid-template-columns: 1fr 1fr; }
+
+      .portfolio {
+        grid-template-rows: 280px 260px 240px;
+      }
+    }
+
+    /* ================================================================
+       RESPONSIVE — MOBILE (≤768px)
+    ================================================================ */
+    @media (max-width: 768px) {
+      :root { --nav-h: 64px; }
+
+      .section-pad { padding: 5rem 0; }
+      .wrap { padding: 0 1.25rem; }
+
+      /* Nav */
+      .main-nav { display: none; }
+      .burger    { display: flex; }
+
+      /* Stats */
+      .stats-row {
+        grid-template-columns: 1fr 1fr;
+      }
+      .stat:nth-child(1) { border-bottom: 1px solid rgba(255,255,255,0.22); }
+      .stat:nth-child(2) { border-bottom: 1px solid rgba(255,255,255,0.22); border-right: none; }
+      .stat:nth-child(3) { border-right: 1px solid rgba(255,255,255,0.22); }
+      .stat:nth-child(4) { border-right: none; }
+
+      /* About */
+      .about-grid { grid-template-columns: 1fr; gap: 4rem; }
+      .img-frame { margin-top: 1rem; }
+
+      /* Services */
+      .svcs-grid { grid-template-columns: 1fr; }
+      .svc-card--wide { flex-direction: column; gap: 1.5rem; }
+
+      /* Portfolio */
+      .portfolio {
+        display: flex;
+        flex-direction: column;
+      }
+      .pcard { height: 260px; }
+
+      /* Specialty sections */
+      .spc-grid { grid-template-columns: 1fr; gap: 3.5rem; }
+      .img-stack-inset { right: 0; bottom: -2rem; }
+
+      /* Team */
+      .team-grid { grid-template-columns: 1fr; }
+      .team-card {
+        grid-template-columns: 110px 1fr;
+        padding: 1.5rem;
+        gap: 1.5rem;
+      }
+
+      /* Contact */
+      .contact-grid { grid-template-columns: 1fr; gap: 3.5rem; }
+      .form-box { padding: 2rem 1.5rem; }
+      .form-row { grid-template-columns: 1fr; }
+
+      /* Footer */
+      .footer-top { grid-template-columns: 1fr; gap: 2.5rem; }
+      .footer-bottom { flex-direction: column; align-items: flex-start; }
+
+      /* Hero */
+      .scroll-cue { display: none; }
+      .proj-hdr { flex-direction: column; align-items: flex-start; }
+
+      /* Reverse layout stays normal on mobile */
+      .spc-grid .img-stack { order: -1; }
+    }
+  </style>
 </head>
 <body>
-    <header>
-        <h1>AI Consulting Solutions</h1>
-        <p>Empowering Businesses with Cutting-Edge AI Technologies</p>
-    </header>
-    <nav>
-        <a href="#about">About</a>
-        <a href="#services">Services</a>
-        <a href="#solutions">Solutions</a>
-        <a href="#rates">Rates</a>
-        <a href="#contact">Contact</a>
-    </nav>
-    <div class="container">
-        <section id="about">
-            <h2>About Us</h2>
-            <div class="image-container">
-                <img src="https://source.unsplash.com/800x400/?technology,AI" alt="AI Consulting Image">
-            </div>
-            <p>We provide innovative AI-driven solutions tailored to enhance business efficiency and drive growth. From machine learning to automation, we harness AI's power to streamline operations and maximize profits.</p>
-        </section>
-        <section id="services">
-            <h2>Our Services</h2>
-            <div class="image-container">
-                <img src="https://source.unsplash.com/800x400/?data,analytics" alt="Data Analytics">
-            </div>
-            <ul>
-                <li><strong>AI-powered Data Analytics:</strong> Data-driven insights to optimize business decisions.</li>
-                <li><strong>Marketing Automation:</strong> AI-enhanced customer engagement and targeted campaigns.</li>
-                <li><strong>Custom AI Strategy:</strong> Tailored solutions to fit your business needs.</li>
-                <li><strong>AI Chatbots:</strong> Intelligent virtual assistants for customer service automation.</li>
-            </ul>
-            <a href="#contact" class="cta-button">Get a Free Consultation</a>
-        </section>
-        <section id="solutions">
-            <h2>Our AI Solutions</h2>
-            <div class="image-container">
-                <img src="https://source.unsplash.com/800x400/?robotics,automation" alt="AI Solutions">
-            </div>
-            <ul>
-                <li>Advanced Predictive Analytics</li>
-                <li>Smart Business Process Automation</li>
-                <li>Personalized AI-driven Marketing Strategies</li>
-                <li>Fraud Detection and Risk Management</li>
-            </ul>
-        </section>
-        <section id="rates">
-            <h2>Our Pricing Plans</h2>
-            <div class="image-container">
-                <img src="https://source.unsplash.com/800x400/?business,finance" alt="Pricing Plans">
-            </div>
-            <ul>
-                <li><strong>Starter:</strong> $500/month - Basic AI consulting & automation.</li>
-                <li><strong>Growth:</strong> $1,500/month - AI analytics & marketing automation.</li>
-                <li><strong>Enterprise:</strong> Custom pricing - Full-scale AI transformation.</li>
-            </ul>
-            <a href="#contact" class="cta-button">Request a Quote</a>
-        </section>
-        <section id="contact">
-            <h2>Contact Us</h2>
-            <p>Email: <a href="mailto:info@aiconsulting.com">info@aiconsulting.com</a></p>
-            <p>Phone: <a href="tel:+11234567890">(123) 456-7890</a></p>
-            <a href="#" class="cta-button">Schedule a Call</a>
-        </section>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       MOBILE NAV DRAWER
+  ══════════════════════════════════════════════════════════════ -->
+  <nav id="mob-nav" aria-label="Mobile navigation" aria-hidden="true">
+    <a class="mob-link" href="#about">About</a>
+    <a class="mob-link" href="#services">Services</a>
+    <a class="mob-link" href="#projects">Projects</a>
+    <a class="mob-link" href="#kitchens">Kitchens</a>
+    <a class="mob-link" href="#bathrooms">Bathrooms</a>
+    <a class="mob-link" href="#team">Team</a>
+    <a class="mob-link" href="#contact">Contact</a>
+    <p class="mob-contact u-label">778.996.9031</p>
+  </nav>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       HEADER
+  ══════════════════════════════════════════════════════════════ -->
+  <header id="hdr">
+    <div class="wrap hdr-inner">
+
+      <a href="#" class="logo" aria-label="Clear Renovations — home">
+        <span class="logo-mark">Clear Renovations</span>
+        <span class="logo-sub">Division of Clear Development Ltd</span>
+      </a>
+
+      <nav class="main-nav" aria-label="Primary navigation">
+        <a class="nav-link" href="#about">About</a>
+        <a class="nav-link" href="#services">Services</a>
+        <a class="nav-link" href="#projects">Projects</a>
+        <a class="nav-link" href="#kitchens">Kitchens</a>
+        <a class="nav-link" href="#bathrooms">Bathrooms</a>
+        <a class="nav-link" href="#team">Team</a>
+        <a class="nav-btn" href="#contact">Get in Touch</a>
+      </nav>
+
+      <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+
     </div>
-    <footer>
-        <p>&copy; 2025 AI Consulting Solutions. All rights reserved.</p>
-    </footer>
+  </header>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       HERO
+  ══════════════════════════════════════════════════════════════ -->
+  <section id="hero" aria-label="Hero">
+
+    <!-- ─── HERO BACKGROUND IMAGE ─────────────────────────────────
+         REPLACE: Download a high-resolution project photo (1920×1280+)
+         from the Clear Renovations Google Maps listing, host it on your
+         server, and update the src attribute below. Also update the alt
+         text to describe the specific project shown.
+         Recommended: a dramatic wide-angle kitchen or open living space.
+    ──────────────────────────────────────────────────────────────── -->
+    <img class="hero-photo"
+         id="hero-photo"
+         src="https://picsum.photos/seed/clearrenovations-hero/1920/1080"
+         alt="Clear Renovations completed project — Vancouver custom renovation"
+         loading="eager"
+         fetchpriority="high">
+
+    <div class="hero-grid" aria-hidden="true"></div>
+    <div class="hero-vignette" aria-hidden="true"></div>
+
+    <div class="wrap">
+      <div class="hero-content">
+
+        <div class="hero-eyebrow">
+          <span class="u-label u-brass">Greater Vancouver · Est. 2009</span>
+        </div>
+
+        <h1 class="hero-h1">
+          Renovation<br>
+          that <em>speaks</em><br>
+          for itself.
+        </h1>
+
+        <p class="hero-sub">
+          From custom kitchens to laneway homes, Clear Renovations brings master-trade precision and refined design sensibility to every project across Greater Vancouver.
+        </p>
+
+        <div class="hero-actions">
+          <a href="#projects" class="btn btn-brass">View Our Work</a>
+          <a href="#contact"  class="btn btn-ghost-light">Start Your Project</a>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="scroll-cue" aria-hidden="true">
+      <span class="scroll-word">Scroll</span>
+      <div class="scroll-bar"></div>
+    </div>
+
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       STATS BAR
+  ══════════════════════════════════════════════════════════════ -->
+  <section id="stats" aria-label="At a glance">
+    <div class="wrap">
+      <div class="stats-row">
+        <div class="stat reveal">
+          <span class="stat-val">15+</span>
+          <span class="stat-lbl">Years in Business</span>
+        </div>
+        <div class="stat reveal reveal-d1">
+          <span class="stat-val">500+</span>
+          <span class="stat-lbl">Projects Completed</span>
+        </div>
+        <div class="stat reveal reveal-d2">
+          <span class="stat-val">BBB</span>
+          <span class="stat-lbl">Accredited Business</span>
+        </div>
+        <div class="stat reveal reveal-d3">
+          <span class="stat-val">GVA</span>
+          <span class="stat-lbl">Greater Vancouver Area</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       ABOUT
+  ══════════════════════════════════════════════════════════════ -->
+  <section id="about" class="section-pad" aria-labelledby="about-h2">
+    <div class="wrap">
+      <div class="about-grid">
+
+        <div class="reveal">
+          <p class="u-label u-brass" style="margin-bottom:0.9rem;">Who We Are</p>
+          <h2 id="about-h2" class="about-h2">
+            The detail is<br>in the <em>difference</em>.
+          </h2>
+          <div class="divider"></div>
+          <p class="about-p">
+            Clear Renovations has been transforming Greater Vancouver homes since 2009. As a division of Clear Development Ltd, we combine developer-level project management with the precision of master tradespeople — delivering spaces that feel both considered and built to last.
+          </p>
+          <p class="about-p">
+            Our work spans kitchens, bathrooms, decks, basements, garages, and full laneway homes. Whether refreshing a single room or undertaking a whole-home renovation, our process is built around clear communication, honest timelines, and craftsmanship that speaks for itself.
+          </p>
+          <p class="about-p" style="font-style:italic; color: var(--c-charcoal); font-size:1.08rem;">
+            Clear expectations. Clear outcomes.
+          </p>
+          <a href="#contact" class="btn btn-ghost-dark" style="margin-top:1.25rem;">Discuss Your Project</a>
+        </div>
+
+        <div class="img-frame reveal reveal-d2">
+          <!-- ─── ABOUT IMAGE ────────────────────────────────────────
+               REPLACE: Photo of craftsman at work, a detail shot of
+               fine millwork, or a polished interior. Download from
+               the Clear Renovations Google Maps listing.
+          ─────────────────────────────────────────────────────────── -->
+          <img src="https://picsum.photos/seed/clearrenovations-craft/800/1000"
+               alt="Clear Renovations — master craftsman working on fine finishing detail"
+               loading="lazy">
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SERVICES
+  ══════════════════════════════════════════════════════════════ -->
+  <section id="services" class="section-pad" aria-labelledby="svcs-h2">
+    <div class="wrap">
+
+      <div class="svcs-hdr reveal">
+        <p class="u-label u-brass" style="margin-bottom:0.85rem;">What We Build</p>
+        <h2 id="svcs-h2" class="svcs-h2">Full-scope renovation services</h2>
+        <p class="svcs-sub">Every trade, managed under one roof. From design intent to final finish, we bring expertise to every stage of your project.</p>
+      </div>
+
+      <div class="svcs-grid">
+
+        <!-- Kitchens -->
+        <div class="svc-card reveal">
+          <span class="svc-num" aria-hidden="true">01</span>
+          <svg class="svc-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <rect x="5" y="14" width="38" height="28" rx="1.5"/>
+            <path d="M5 22h38"/>
+            <circle cx="16" cy="8.5" r="3"/>
+            <circle cx="32" cy="8.5" r="3"/>
+            <path d="M16 11.5v2.5M32 11.5v2.5"/>
+            <rect x="12" y="29" width="9" height="8" rx="1"/>
+            <path d="M29 29h8M29 33h8M29 37h8"/>
+          </svg>
+          <h3 class="svc-name">Kitchen Renovations</h3>
+          <p class="svc-desc">Custom millwork, bespoke cabinetry, stone countertops, and complete kitchen transformations — designed to work as beautifully as they look.</p>
+        </div>
+
+        <!-- Bathrooms -->
+        <div class="svc-card reveal reveal-d1">
+          <span class="svc-num" aria-hidden="true">02</span>
+          <svg class="svc-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path d="M8 26h32"/>
+            <path d="M8 26v10a4 4 0 004 4h24a4 4 0 004-4V26"/>
+            <path d="M8 26V15a4 4 0 018 0v5"/>
+            <path d="M18 40v5M30 40v5"/>
+            <circle cx="12" cy="13" r="2"/>
+          </svg>
+          <h3 class="svc-name">Bathroom Renovations</h3>
+          <p class="svc-desc">Spa-inspired master ensuites, functional family bathrooms, and powder rooms finished with precision tile-work, custom vanities, and quality fixtures.</p>
+        </div>
+
+        <!-- Decks -->
+        <div class="svc-card reveal reveal-d2">
+          <span class="svc-num" aria-hidden="true">03</span>
+          <svg class="svc-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <rect x="5" y="30" width="38" height="12" rx="1"/>
+            <path d="M10 30V17M18 30V17M26 30V17M34 30V17M40 30V17"/>
+            <path d="M5 17h38"/>
+            <path d="M8 17v-4M40 17v-4"/>
+          </svg>
+          <h3 class="svc-name">Decks &amp; Outdoor</h3>
+          <p class="svc-desc">Composite and hardwood decks, pergolas, and outdoor living spaces designed to extend your home into Vancouver's mild climate year-round.</p>
+        </div>
+
+        <!-- Basements -->
+        <div class="svc-card reveal">
+          <span class="svc-num" aria-hidden="true">04</span>
+          <svg class="svc-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path d="M6 42V20L24 8l18 12v22"/>
+            <path d="M6 42h36"/>
+            <rect x="17" y="26" width="14" height="16"/>
+            <path d="M24 26v16"/>
+          </svg>
+          <h3 class="svc-name">Basement Development</h3>
+          <p class="svc-desc">Unlocking the full potential of below-grade space — family rooms, home offices, suites, and legal secondary units completed with full permits.</p>
+        </div>
+
+        <!-- Garages -->
+        <div class="svc-card reveal reveal-d1">
+          <span class="svc-num" aria-hidden="true">05</span>
+          <svg class="svc-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path d="M5 42V22l19-14 19 14v20"/>
+            <path d="M5 42h38"/>
+            <rect x="13" y="28" width="22" height="14"/>
+            <path d="M13 32h22M13 36h22M24 28v14"/>
+          </svg>
+          <h3 class="svc-name">Garages</h3>
+          <p class="svc-desc">Functional garage builds and conversions — epoxy floors, custom storage systems, and full conversions for living space or professional workshop use.</p>
+        </div>
+
+        <!-- Laneway Homes -->
+        <div class="svc-card reveal reveal-d2">
+          <span class="svc-num" aria-hidden="true">06</span>
+          <svg class="svc-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path d="M3 42V22L24 6l21 16v20"/>
+            <path d="M3 42h42"/>
+            <rect x="17" y="26" width="14" height="16"/>
+            <path d="M24 26v16"/>
+            <rect x="6" y="26" width="7" height="8"/>
+            <rect x="35" y="26" width="7" height="8"/>
+          </svg>
+          <h3 class="svc-name">Laneway Homes</h3>
+          <p class="svc-desc">Complete laneway home construction from permits through final finishes. Maximise your property's potential with a thoughtfully designed secondary dwelling.</p>
+        </div>
+
+        <!-- General — full-width card -->
+        <div class="svc-card svc-card--wide reveal">
+          <div>
+            <span class="svc-num" aria-hidden="true" style="position:static; font-size:3rem; color:rgba(255,255,255,0.06);">07</span>
+            <svg class="svc-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <rect x="5" y="5" width="38" height="30" rx="2"/>
+              <path d="M5 42h38M14 42v-7M24 42v-7M34 42v-7"/>
+              <path d="M12 18l5 5 8-10 8 10 5-5"/>
+            </svg>
+            <h3 class="svc-name">General Alterations &amp; Renovations</h3>
+          </div>
+          <p class="svc-desc">No project is too specific or too broad. From opening up walls and installing hardwood floors to full-home restorations and targeted alterations — we bring the same standard of craft to every scope of work, residential or light commercial.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       PORTFOLIO / FEATURE PROJECTS
+  ══════════════════════════════════════════════════════════════ -->
+  <section id="projects" class="section-pad" aria-labelledby="proj-h2">
+    <div class="wrap">
+
+      <div class="proj-hdr reveal">
+        <div>
+          <p class="u-label u-brass" style="margin-bottom:0.6rem;">Feature Projects</p>
+          <h2 id="proj-h2" class="proj-h2">Selected work across<br>Greater Vancouver</h2>
+        </div>
+        <a href="#contact" class="btn btn-ghost-dark-sm">Start Your Project</a>
+      </div>
+
+      <div class="portfolio" role="list">
+
+        <!-- ─── PORTFOLIO CARD 1 (large) ────────────────────────────
+             REPLACE: Download kitchen project photo from Google Maps
+             listing. Recommended size: 1400×900+
+        ─────────────────────────────────────────────────────────── -->
+        <article class="pcard reveal" role="listitem">
+          <img class="pcard-img"
+               src="https://picsum.photos/seed/clearrenovations-kitchen1/1400/900"
+               alt="Kitchen Renovation Project — Custom cabinetry and stone countertops, West Vancouver"
+               loading="lazy">
+          <div class="pcard-overlay" aria-hidden="true"></div>
+          <div class="pcard-info">
+            <p class="pcard-cat">Kitchen Renovation</p>
+            <h3 class="pcard-title">West Side Custom Kitchen</h3>
+          </div>
+        </article>
+
+        <!-- ─── PORTFOLIO CARD 2 ─────────────────────────────────────
+             REPLACE: Bathroom or ensuite project photo
+        ─────────────────────────────────────────────────────────── -->
+        <article class="pcard reveal reveal-d1" role="listitem">
+          <img class="pcard-img"
+               src="https://picsum.photos/seed/clearrenovations-bath1/800/900"
+               alt="Bathroom Renovation Project — Spa-style master ensuite, Kerrisdale"
+               loading="lazy">
+          <div class="pcard-overlay" aria-hidden="true"></div>
+          <div class="pcard-info">
+            <p class="pcard-cat">Bathroom Renovation</p>
+            <h3 class="pcard-title">Kerrisdale Master Ensuite</h3>
+          </div>
+        </article>
+
+        <!-- ─── PORTFOLIO CARD 3 ─────────────────────────────────────
+             REPLACE: Deck or outdoor project photo
+        ─────────────────────────────────────────────────────────── -->
+        <article class="pcard reveal reveal-d2" role="listitem">
+          <img class="pcard-img"
+               src="https://picsum.photos/seed/clearrenovations-deck/800/900"
+               alt="Deck Project — Custom composite deck, Kitsilano"
+               loading="lazy">
+          <div class="pcard-overlay" aria-hidden="true"></div>
+          <div class="pcard-info">
+            <p class="pcard-cat">Deck &amp; Outdoor</p>
+            <h3 class="pcard-title">Kitsilano Rooftop Deck</h3>
+          </div>
+        </article>
+
+        <!-- ─── PORTFOLIO CARD 4 (wide) ──────────────────────────────
+             REPLACE: Open-plan living / full-home renovation photo
+        ─────────────────────────────────────────────────────────── -->
+        <article class="pcard reveal" role="listitem">
+          <img class="pcard-img"
+               src="https://picsum.photos/seed/clearrenovations-open/1400/800"
+               alt="Full Home Renovation Project — Open-plan living space, Dunbar"
+               loading="lazy">
+          <div class="pcard-overlay" aria-hidden="true"></div>
+          <div class="pcard-info">
+            <p class="pcard-cat">Full Home Renovation</p>
+            <h3 class="pcard-title">Dunbar Open-Plan Living</h3>
+          </div>
+        </article>
+
+        <!-- ─── PORTFOLIO CARD 5 ─────────────────────────────────────
+             REPLACE: Laneway home exterior or interior photo
+        ─────────────────────────────────────────────────────────── -->
+        <article class="pcard reveal reveal-d1" role="listitem">
+          <img class="pcard-img"
+               src="https://picsum.photos/seed/clearrenovations-laneway/900/800"
+               alt="Laneway Home Project — New construction laneway suite, Point Grey"
+               loading="lazy">
+          <div class="pcard-overlay" aria-hidden="true"></div>
+          <div class="pcard-info">
+            <p class="pcard-cat">Laneway Home</p>
+            <h3 class="pcard-title">Point Grey Laneway Suite</h3>
+          </div>
+        </article>
+
+        <!-- ─── PORTFOLIO CARD 6 ─────────────────────────────────────
+             REPLACE: Basement development or media room photo
+        ─────────────────────────────────────────────────────────── -->
+        <article class="pcard reveal reveal-d2" role="listitem">
+          <img class="pcard-img"
+               src="https://picsum.photos/seed/clearrenovations-basement/900/800"
+               alt="Basement Development Project — Finished media room, Shaughnessy"
+               loading="lazy">
+          <div class="pcard-overlay" aria-hidden="true"></div>
+          <div class="pcard-info">
+            <p class="pcard-cat">Basement Development</p>
+            <h3 class="pcard-title">Shaughnessy Media Room</h3>
+          </div>
+        </article>
+
+      </div><!-- /.portfolio -->
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       KITCHENS
+  ══════════════════════════════════════════════════════════════ -->
+  <section id="kitchens" class="section-pad" aria-labelledby="kitchens-h2">
+    <div class="wrap">
+      <div class="spc-grid">
+
+        <div class="img-stack reveal">
+          <!-- ─── KITCHEN MAIN IMAGE ───────────────────────────────
+               REPLACE: Primary kitchen project photo from Google Maps
+               listing. Portrait orientation preferred (3:4 ratio).
+          ──────────────────────────────────────────────────────── -->
+          <img class="img-stack-main"
+               src="https://picsum.photos/seed/clearrenovations-kitchen-main/800/1067"
+               alt="Kitchen Renovation Project — Clear Renovations Vancouver"
+               loading="lazy">
+          <!-- ─── KITCHEN DETAIL IMAGE ─────────────────────────────
+               REPLACE: Close-up detail photo — countertop edge,
+               cabinet hardware, backsplash tile, or pull handle.
+          ──────────────────────────────────────────────────────── -->
+          <img class="img-stack-inset"
+               src="https://picsum.photos/seed/clearrenovations-kitchen-detail/600/600"
+               alt="Kitchen Detail — Custom millwork and brass hardware"
+               loading="lazy">
+        </div>
+
+        <div class="spc-content reveal reveal-d2">
+          <p class="u-label u-brass" style="margin-bottom:0.85rem;">Kitchen Renovations</p>
+          <h2 id="kitchens-h2" class="spc-h2">
+            The heart of<br>the home, <em>refined</em>.
+          </h2>
+          <div class="divider"></div>
+          <p class="spc-p">
+            Damien's background delivering custom millwork for display homes, residential lobbies, and exclusive penthouse kitchens for BOSA, Townline, Parklane, and Polygon informs the elevated standard every Clear Renovations kitchen is held to.
+          </p>
+          <p class="spc-p">
+            We design and build kitchens that balance genuine beauty with real-world function — spaces you'll want to spend time in, and that will endure for decades.
+          </p>
+          <ul class="feature-list" aria-label="Kitchen renovation services">
+            <li class="feature-item"><span class="feature-dot" aria-hidden="true"></span>Custom cabinetry and precision millwork</li>
+            <li class="feature-item"><span class="feature-dot" aria-hidden="true"></span>Stone, quartz, and butcher-block countertops</li>
+            <li class="feature-item"><span class="feature-dot" aria-hidden="true"></span>Appliance integration and specification support</li>
+            <li class="feature-item"><span class="feature-dot" aria-hidden="true"></span>Tile backsplash and hardwood flooring</li>
+            <li class="feature-item"><span class="feature-dot" aria-hidden="true"></span>Lighting design and installation</li>
+            <li class="feature-item"><span class="feature-dot" aria-hidden="true"></span>Plumbing relocation and fixture upgrades</li>
+          </ul>
+          <a href="#contact" class="btn btn-ghost-dark">Plan Your Kitchen</a>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       BATHROOMS
+  ══════════════════════════════════════════════════════════════ -->
+  <section id="bathrooms" class="section-pad" aria-labelledby="bathrooms-h2">
+    <div class="wrap">
+      <div class="spc-grid" style="direction:rtl;">
+
+        <div class="img-stack reveal" style="direction:ltr;">
+          <!-- ─── BATHROOM MAIN IMAGE ──────────────────────────────
+               REPLACE: Primary bathroom project photo from Google Maps
+               listing. Portrait orientation preferred.
+          ──────────────────────────────────────────────────────── -->
+          <img class="img-stack-main"
+               src="https://picsum.photos/seed/clearrenovations-bath-main/800/1067"
+               alt="Bathroom Renovation Project — Clear Renovations Vancouver"
+               loading="lazy">
+          <!-- ─── BATHROOM DETAIL IMAGE ────────────────────────────
+               REPLACE: Detail photo — tile pattern, vanity hardware,
+               shower fixture, or soaking tub.
+          ──────────────────────────────────────────────────────── -->
+          <img class="img-stack-inset"
+               src="https://picsum.photos/seed/clearrenovations-bath-detail/600/600"
+               alt="Bathroom Detail — Custom tile work and fixture finish"
+               loading="lazy">
+        </div>
+
+        <div class="spc-content reveal reveal-d2" style="direction:ltr;">
+          <p class="u-label u-brass" style="margin-bottom:0.85rem;">Bathroom Renovations</p>
+          <h2 id="bathrooms-h2" class="spc-h2">
+            Where precision<br><em>meets</em> comfort.
+          </h2>
+          <div class="divider"></div>
+          <p class="spc-p">
+            Tyrone's mastery of fine finish carpentry and our team's meticulous tile work combine to create bathrooms that feel as thoughtful as they are functional. From guest powder rooms to full spa master ensuites, every surface is considered.
+          </p>
+          <p class="spc-p">
+            We manage the full scope — design, permits, demo, plumbing, tile, cabinetry, and finish — so your renovation runs smoothly from first consultation to final inspection.
+          </p>
+          <ul class="feature-list" aria-label="Bathroom renovation services">
+            <li class="feature-item"><span class="feature-dot" aria-hidden="true"></span>Custom vanities and built-in storage</li>
+            <li class="feature-item"><span class="feature-dot" aria-hidden="true"></span>Large-format and mosaic tile work</li>
+            <li class="feature-item"><span class="feature-dot" aria-hidden="true"></span>Walk-in showers and freestanding soaking tubs</li>
+            <li class="feature-item"><span class="feature-dot" aria-hidden="true"></span>In-floor radiant heating systems</li>
+            <li class="feature-item"><span class="feature-dot" aria-hidden="true"></span>Fixture and hardware specification</li>
+            <li class="feature-item"><span class="feature-dot" aria-hidden="true"></span>Waterproofing and ventilation systems</li>
+          </ul>
+          <a href="#contact" class="btn btn-ghost-dark">Plan Your Bathroom</a>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       TEAM
+  ══════════════════════════════════════════════════════════════ -->
+  <section id="team" class="section-pad" aria-labelledby="team-h2">
+    <div class="wrap">
+
+      <div class="team-hdr reveal">
+        <p class="u-label u-brass" style="margin-bottom:0.85rem;">The People</p>
+        <h2 id="team-h2" class="team-h2">Built by hands<br>that <em>care</em>.</h2>
+      </div>
+
+      <div class="team-grid">
+
+        <!-- Damien Pym -->
+        <article class="team-card reveal">
+          <!-- ─── TEAM PHOTO: DAMIEN PYM ──────────────────────────
+               REPLACE: Professional headshot of Damien Pym.
+               Portrait orientation, neutral background preferred.
+          ──────────────────────────────────────────────────────── -->
+          <img class="team-portrait"
+               src="https://picsum.photos/seed/clearrenovations-damien/400/533"
+               alt="Damien Pym — Principal, Clear Renovations"
+               loading="lazy">
+          <div>
+            <h3 class="team-name">Damien Pym</h3>
+            <p class="team-role">Principal</p>
+            <p class="team-bio">
+              Originally from Australia, Damien brings an international perspective on design — and an exacting passion for fine detail — to every Clear Renovations project. His background delivering custom millwork for display homes, residential lobbies, and exclusive penthouse kitchens for BOSA, Townline, Parklane, and Polygon informs the elevated standard we hold every renovation to.
+            </p>
+            <p class="team-bio">
+              Since founding Clear Renovations in 2009, Damien has built a reputation for clear communication, honest pricing, and work that speaks for itself.
+            </p>
+            <a class="team-email" href="mailto:Damien.Pym@ClearRenovations.com">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+              Damien.Pym@ClearRenovations.com
+            </a>
+          </div>
+        </article>
+
+        <!-- Tyrone Critchley -->
+        <article class="team-card reveal reveal-d2">
+          <!-- ─── TEAM PHOTO: TYRONE CRITCHLEY ───────────────────
+               REPLACE: Professional headshot of Tyrone Critchley.
+               Portrait orientation preferred.
+          ──────────────────────────────────────────────────────── -->
+          <img class="team-portrait"
+               src="https://picsum.photos/seed/clearrenovations-tyrone/400/533"
+               alt="Tyrone Critchley — Finish Carpenter, Clear Renovations"
+               loading="lazy">
+          <div>
+            <h3 class="team-name">Tyrone Critchley</h3>
+            <p class="team-role">Finish Carpenter</p>
+            <p class="team-bio">
+              Born and raised in British Columbia, Tyrone grew up building alongside his father — absorbing a lifelong love of wood, craft, and the deep satisfaction of a perfectly fitted joint. Today he is one of the most skilled finish carpenters working in the Lower Mainland.
+            </p>
+            <p class="team-bio">
+              Tyrone's work is visible in the places you look closest: the fit of a door, the profile of a baseboard, the way a cabinet drawer closes with a whisper. His mastery of fine finishing is the signature detail that sets Clear Renovations apart.
+            </p>
+            <a class="team-email" href="mailto:Tyrone.Critchley@ClearRenovations.com">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+              Tyrone.Critchley@ClearRenovations.com
+            </a>
+          </div>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       CONTACT
+  ══════════════════════════════════════════════════════════════ -->
+  <section id="contact" class="section-pad" aria-labelledby="contact-h2">
+    <div class="wrap">
+      <div class="contact-grid">
+
+        <!-- Contact Info -->
+        <div class="reveal">
+          <p class="u-label u-brass" style="margin-bottom:0.85rem;">Get in Touch</p>
+          <h2 id="contact-h2" class="contact-h2">
+            Let's talk about<br>your <em>renovation</em>.
+          </h2>
+          <p class="contact-lead">
+            Whether you have a clear vision or a blank canvas, we're here to listen and guide. Reach out to discuss your project — we offer straightforward consultations with no obligation.
+          </p>
+
+          <div class="contact-details">
+            <div class="cdet">
+              <div class="cdet-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.01 1.19 2 2 0 012 1h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L6.91 8.14a16 16 0 006.95 6.95l.62-.62a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/>
+                </svg>
+              </div>
+              <div>
+                <p class="cdet-lbl">Phone</p>
+                <p class="cdet-val"><a href="tel:7789969031">778.996.9031</a></p>
+              </div>
+            </div>
+            <div class="cdet">
+              <div class="cdet-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <polyline points="22,6 12,13 2,6"/>
+                </svg>
+              </div>
+              <div>
+                <p class="cdet-lbl">Email</p>
+                <p class="cdet-val"><a href="mailto:Damien.Pym@ClearRenovations.com">Damien.Pym@ClearRenovations.com</a></p>
+              </div>
+            </div>
+            <div class="cdet">
+              <div class="cdet-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="4" width="18" height="16" rx="2"/>
+                  <path d="M16 2v4M8 2v4M3 10h18"/>
+                </svg>
+              </div>
+              <div>
+                <p class="cdet-lbl">Fax</p>
+                <p class="cdet-val">604.263.3142</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="service-area-note">
+            <strong>Service Area:</strong> We serve the Greater Vancouver area including the City of Vancouver, West Vancouver, North Vancouver, Burnaby, Richmond, New Westminster, and surrounding Lower Mainland municipalities.
+          </div>
+        </div>
+
+        <!-- Contact Form -->
+        <div class="reveal reveal-d2">
+          <div class="form-box">
+            <h3 class="form-h3">Send us a message</h3>
+            <form id="contact-form" novalidate>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-lbl" for="f-name">Your Name</label>
+                  <input class="form-ctrl" type="text" id="f-name" name="name" placeholder="Jane Smith" required autocomplete="name">
+                </div>
+                <div class="form-group">
+                  <label class="form-lbl" for="f-email">Email Address</label>
+                  <input class="form-ctrl" type="email" id="f-email" name="email" placeholder="jane@example.com" required autocomplete="email">
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-lbl" for="f-phone">Phone (Optional)</label>
+                <input class="form-ctrl" type="tel" id="f-phone" name="phone" placeholder="604-555-0100" autocomplete="tel">
+              </div>
+              <div class="form-group">
+                <label class="form-lbl" for="f-project">Project Type</label>
+                <select class="form-ctrl form-select" id="f-project" name="project_type">
+                  <option value="" disabled selected>Select a project type…</option>
+                  <option value="kitchen">Kitchen Renovation</option>
+                  <option value="bathroom">Bathroom Renovation</option>
+                  <option value="deck">Deck &amp; Outdoor</option>
+                  <option value="basement">Basement Development</option>
+                  <option value="garage">Garage</option>
+                  <option value="laneway">Laneway Home</option>
+                  <option value="general">General Renovation / Alterations</option>
+                  <option value="other">Other — I'll Describe Below</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-lbl" for="f-msg">Tell Us About Your Project</label>
+                <textarea class="form-ctrl" id="f-msg" name="message" placeholder="Describe your project, timeline, and any specific requirements or questions…" required></textarea>
+              </div>
+              <!-- TODO: Replace form action with Formspree endpoint, EmailJS, or server-side handler -->
+              <!-- Example Formspree: <form action="https://formspree.io/f/YOUR_FORM_ID" method="POST"> -->
+              <button type="submit" class="form-submit">Send Message &rarr;</button>
+            </form>
+            <div class="form-success" id="form-success" role="alert">
+              <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="8 12 11 15 16 9"/>
+              </svg>
+              <p class="form-success-h">Message received.</p>
+              <p class="form-success-p">Thank you — we'll be in touch within one business day.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       FOOTER
+  ══════════════════════════════════════════════════════════════ -->
+  <footer id="footer">
+    <div class="wrap">
+
+      <div class="footer-top">
+
+        <!-- Brand -->
+        <div>
+          <a href="#" class="logo footer-logo" aria-label="Clear Renovations — back to top">
+            <span class="logo-mark">Clear Renovations</span>
+            <span class="logo-sub">Division of Clear Development Ltd</span>
+          </a>
+          <p class="footer-tagline">
+            Clear expectations. Clear outcomes.<br>
+            Greater Vancouver's trusted renovation specialists since 2009.
+          </p>
+        </div>
+
+        <!-- Navigation -->
+        <div>
+          <p class="footer-col-ttl">Navigation</p>
+          <ul class="footer-links">
+            <li><a class="footer-link" href="#about">About Us</a></li>
+            <li><a class="footer-link" href="#services">Services</a></li>
+            <li><a class="footer-link" href="#projects">Feature Projects</a></li>
+            <li><a class="footer-link" href="#kitchens">Kitchens</a></li>
+            <li><a class="footer-link" href="#bathrooms">Bathrooms</a></li>
+            <li><a class="footer-link" href="#team">Our Team</a></li>
+            <li><a class="footer-link" href="#contact">Contact</a></li>
+          </ul>
+        </div>
+
+        <!-- Services -->
+        <div>
+          <p class="footer-col-ttl">Services</p>
+          <ul class="footer-links">
+            <li><a class="footer-link" href="#kitchens">Kitchen Renovations</a></li>
+            <li><a class="footer-link" href="#bathrooms">Bathroom Renovations</a></li>
+            <li><a class="footer-link" href="#services">Decks &amp; Outdoor</a></li>
+            <li><a class="footer-link" href="#services">Basement Development</a></li>
+            <li><a class="footer-link" href="#services">Garages</a></li>
+            <li><a class="footer-link" href="#services">Laneway Homes</a></li>
+            <li><a class="footer-link" href="#services">General Renovations</a></li>
+          </ul>
+        </div>
+
+        <!-- Contact -->
+        <div>
+          <p class="footer-col-ttl">Contact</p>
+          <div class="footer-citem">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.01 1.19 2 2 0 012 1h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L6.91 8.14a16 16 0 006.95 6.95l.62-.62a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/>
+            </svg>
+            <a href="tel:7789969031" class="footer-link">778.996.9031</a>
+          </div>
+          <div class="footer-citem">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <rect x="2" y="4" width="20" height="16" rx="2"/>
+              <path d="M22 7l-10 7L2 7"/>
+            </svg>
+            <a href="mailto:Damien.Pym@ClearRenovations.com" class="footer-link" style="word-break:break-all;">Damien.Pym@ClearRenovations.com</a>
+          </div>
+          <div class="footer-citem">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/>
+              <circle cx="12" cy="10" r="3"/>
+            </svg>
+            <span>Greater Vancouver, BC, Canada</span>
+          </div>
+        </div>
+
+      </div><!-- /.footer-top -->
+
+      <div class="footer-bottom">
+        <p class="footer-copy">
+          &copy; 2024 Clear Renovations — Division of Clear Development Ltd. All rights reserved.
+        </p>
+        <div class="footer-end-links">
+          <!-- BBB Accredited Business badge -->
+          <a class="bbb-link"
+             href="http://www.bbb.org/mbc/business-reviews/contractors-alteration-and-renovation/clear-renovations-in-vancouver-bc-1264721"
+             target="_blank"
+             rel="noopener noreferrer"
+             aria-label="Clear Renovations BBB Accredited Business profile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <polyline points="9 12 11 14 15 10"/>
+            </svg>
+            BBB Accredited
+          </a>
+
+          <!-- Facebook -->
+          <a class="social-icon"
+             href="https://www.facebook.com/ClearRenovationsBC/"
+             target="_blank"
+             rel="noopener noreferrer"
+             aria-label="Clear Renovations on Facebook">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"/>
+            </svg>
+          </a>
+
+          <!-- LinkedIn -->
+          <a class="social-icon"
+             href="https://www.linkedin.com/profile/view?id=AAIAAAyybwcBPoQXspu1kYOTgKGoCaZ84N1b5uk"
+             target="_blank"
+             rel="noopener noreferrer"
+             aria-label="Clear Renovations on LinkedIn">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6z"/>
+              <rect x="2" y="9" width="4" height="12"/>
+              <circle cx="4" cy="4" r="2"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </footer>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       JAVASCRIPT
+  ══════════════════════════════════════════════════════════════ -->
+  <script>
+    'use strict';
+
+    /* ─── STICKY HEADER ─────────────────────────────────────────── */
+    const hdr = document.getElementById('hdr');
+    window.addEventListener('scroll', () => {
+      hdr.classList.toggle('solid', window.scrollY > 40);
+    }, { passive: true });
+
+    /* ─── HERO PHOTO ENTRANCE ───────────────────────────────────── */
+    const heroPhoto = document.getElementById('hero-photo');
+    if (heroPhoto) {
+      if (heroPhoto.complete) {
+        heroPhoto.classList.add('ready');
+      } else {
+        heroPhoto.addEventListener('load', () => heroPhoto.classList.add('ready'));
+      }
+    }
+
+    /* ─── HAMBURGER / MOBILE NAV ────────────────────────────────── */
+    const burger  = document.getElementById('burger');
+    const mobNav  = document.getElementById('mob-nav');
+    let navOpen   = false;
+
+    function toggleNav(force) {
+      navOpen = typeof force === 'boolean' ? force : !navOpen;
+      burger.classList.toggle('open', navOpen);
+      mobNav.classList.toggle('open', navOpen);
+      mobNav.setAttribute('aria-hidden', String(!navOpen));
+      burger.setAttribute('aria-expanded', String(navOpen));
+      document.body.style.overflow = navOpen ? 'hidden' : '';
+    }
+
+    burger.addEventListener('click', () => toggleNav());
+
+    mobNav.querySelectorAll('.mob-link').forEach(link => {
+      link.addEventListener('click', () => toggleNav(false));
+    });
+
+    /* Close on Escape */
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && navOpen) toggleNav(false);
+    });
+
+    /* ─── SCROLL REVEAL ─────────────────────────────────────────── */
+    const revealEls = document.querySelectorAll('.reveal');
+
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            io.unobserve(entry.target);
+          }
+        });
+      }, { rootMargin: '-40px 0px', threshold: 0.08 });
+
+      revealEls.forEach(el => io.observe(el));
+    } else {
+      /* Fallback: show everything immediately */
+      revealEls.forEach(el => el.classList.add('visible'));
+    }
+
+    /* ─── SMOOTH SCROLL FOR ANCHOR LINKS ───────────────────────── */
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        const id     = this.getAttribute('href');
+        const target = id === '#' ? document.body : document.querySelector(id);
+        if (!target) return;
+        e.preventDefault();
+        const top = id === '#' ? 0 : target.getBoundingClientRect().top + window.scrollY - 76;
+        window.scrollTo({ top, behavior: 'smooth' });
+      });
+    });
+
+    /* ─── CONTACT FORM (demo — wire up to real endpoint) ─────────
+       TODO: Replace this submit handler with a real integration:
+         Option A — Formspree: change <form> action attr, remove JS handler
+         Option B — EmailJS: call emailjs.send() here
+         Option C — Server: POST JSON to your backend route
+    ─────────────────────────────────────────────────────────────── */
+    const cForm   = document.getElementById('contact-form');
+    const cSuccss = document.getElementById('form-success');
+
+    cForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      /* Basic client-side validation */
+      const name  = document.getElementById('f-name').value.trim();
+      const email = document.getElementById('f-email').value.trim();
+      const msg   = document.getElementById('f-msg').value.trim();
+
+      if (!name || !email || !msg) {
+        alert('Please fill in your name, email, and message before sending.');
+        return;
+      }
+
+      /* Simulate send — replace with real fetch/emailjs call */
+      const btn = cForm.querySelector('.form-submit');
+      btn.textContent = 'Sending…';
+      btn.disabled = true;
+
+      setTimeout(() => {
+        cForm.style.display = 'none';
+        cSuccss.style.display = 'block';
+      }, 800);
+    });
+
+    /* ─── ANIMATED STAT COUNTERS ────────────────────────────────── */
+    function animateCounter(el, target, suffix, duration) {
+      const start     = performance.now();
+      const isDecimal = String(target).includes('.');
+
+      function step(now) {
+        const elapsed  = now - start;
+        const progress = Math.min(elapsed / duration, 1);
+        const ease     = 1 - Math.pow(1 - progress, 3); /* ease-out cubic */
+        const current  = Math.round(ease * target);
+        el.textContent = current + suffix;
+        if (progress < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }
+
+    /* Observe stats section and fire counters once */
+    const statsSection = document.getElementById('stats');
+    let countersRun = false;
+
+    if ('IntersectionObserver' in window && statsSection) {
+      const statsIO = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && !countersRun) {
+          countersRun = true;
+          const vals = statsSection.querySelectorAll('.stat-val');
+          /* vals[0] = 15+, vals[1] = 500+, vals[2] = BBB, vals[3] = GVA */
+          animateCounter(vals[0], 15, '+', 1200);
+          animateCounter(vals[1], 500, '+', 1800);
+          /* vals[2] and [3] are text — leave them alone */
+          statsIO.disconnect();
+        }
+      }, { threshold: 0.5 });
+      statsIO.observe(statsSection);
+    }
+  </script>
+
 </body>
 </html>
