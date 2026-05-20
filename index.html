@@ -1234,6 +1234,9 @@
 
       /* Reverse layout stays normal on mobile */
       .spc-grid .img-stack { order: -1; }
+
+      /* Testimonials stack on mobile */
+      #testimonials > .wrap > div:last-child { grid-template-columns: 1fr !important; }
     }
   </style>
 </head>
@@ -1375,13 +1378,13 @@
           </h2>
           <div class="divider"></div>
           <p class="about-p">
-            Clear Renovations has been transforming Greater Vancouver homes since 2009. As a division of Clear Development Ltd, we combine developer-level project management with the precision of master tradespeople — delivering spaces that feel both considered and built to last.
+            Clear Renovations has been operating successfully in Greater Vancouver since 2009. Our focus is delivering excellent customer service with quality project outcomes.
           </p>
           <p class="about-p">
-            Our work spans kitchens, bathrooms, decks, basements, garages, and full laneway homes. Whether refreshing a single room or undertaking a whole-home renovation, our process is built around clear communication, honest timelines, and craftsmanship that speaks for itself.
+            We build customer loyalty with each experience; by creating clear expectations on budget, timeline and outcomes, then delivering on those expectations every time. With many repeat customers, leading to ongoing referrals, and best of all very happy clients.
           </p>
-          <p class="about-p" style="font-style:italic; color: var(--c-charcoal); font-size:1.08rem;">
-            Clear expectations. Clear outcomes.
+          <p class="about-p">
+            See our feature projects and if we haven't already, maybe we should meet.
           </p>
           <a href="#contact" class="btn btn-ghost-dark" style="margin-top:1.25rem;">Discuss Your Project</a>
         </div>
@@ -1428,7 +1431,7 @@
             <path d="M29 29h8M29 33h8M29 37h8"/>
           </svg>
           <h3 class="svc-name">Kitchen Renovations</h3>
-          <p class="svc-desc">Custom millwork, bespoke cabinetry, stone countertops, and complete kitchen transformations — designed to work as beautifully as they look.</p>
+          <p class="svc-desc">Custom designed kitchens delivered to meet your needs and all your desires. Full kitchen renovations with permits starting at under $30,000. We provide a clear vision with 3D renderings so you can see the finished product beforehand — and clear timeframes so you can plan your life during the renovation.</p>
         </div>
 
         <!-- Bathrooms -->
@@ -1442,7 +1445,7 @@
             <circle cx="12" cy="13" r="2"/>
           </svg>
           <h3 class="svc-name">Bathroom Renovations</h3>
-          <p class="svc-desc">Spa-inspired master ensuites, functional family bathrooms, and powder rooms finished with precision tile-work, custom vanities, and quality fixtures.</p>
+          <p class="svc-desc">Have 2 weeks to spare? That's all the time it takes to convert your dated bathroom into a spa oasis. Once we assist with your design selection and all materials are on-site, we'll have your dream complete.</p>
         </div>
 
         <!-- Decks -->
@@ -1508,9 +1511,9 @@
               <path d="M5 42h38M14 42v-7M24 42v-7M34 42v-7"/>
               <path d="M12 18l5 5 8-10 8 10 5-5"/>
             </svg>
-            <h3 class="svc-name">General Alterations &amp; Renovations</h3>
+            <h3 class="svc-name">Full Service — Major Renovations</h3>
           </div>
-          <p class="svc-desc">No project is too specific or too broad. From opening up walls and installing hardwood floors to full-home restorations and targeted alterations — we bring the same standard of craft to every scope of work, residential or light commercial.</p>
+          <p class="svc-desc">Thinking of moving? Think again. Instead of wasting money on real estate commissions, why not spend that money on changing your space? From a laneway home or new garage to an extension with a bright new kitchen and deck, or a complete condo refit — we can ensure you get it right the first time at an affordable price. Our conscientious approach ensures we meet all your needs from design and permits right through to final inspection. Give us a call and see the difference on 778 996 9031.</p>
         </div>
 
       </div>
@@ -1545,7 +1548,7 @@
           <div class="pcard-overlay" aria-hidden="true"></div>
           <div class="pcard-info">
             <p class="pcard-cat">Kitchen Renovation</p>
-            <h3 class="pcard-title">West Side Custom Kitchen</h3>
+            <h3 class="pcard-title">Designer Dream Kitchen</h3>
           </div>
         </article>
 
@@ -1589,8 +1592,8 @@
                loading="lazy">
           <div class="pcard-overlay" aria-hidden="true"></div>
           <div class="pcard-info">
-            <p class="pcard-cat">Full Home Renovation</p>
-            <h3 class="pcard-title">Dunbar Open-Plan Living</h3>
+            <p class="pcard-cat">Kitchen Renovation</p>
+            <h3 class="pcard-title">West Vancouver Transformation</h3>
           </div>
         </article>
 
@@ -1629,6 +1632,28 @@
   </section>
 
   <!-- ══════════════════════════════════════════════════════════════
+       TESTIMONIALS
+  ══════════════════════════════════════════════════════════════ -->
+  <section id="testimonials" style="background: var(--c-charcoal); padding: 6rem 0;" aria-label="Client testimonials">
+    <div class="wrap">
+      <div class="reveal" style="text-align:center; max-width:560px; margin:0 auto 4rem;">
+        <p class="u-label u-brass" style="margin-bottom:0.85rem;">What Clients Say</p>
+        <h2 style="font-family:var(--f-display); font-size:clamp(2.2rem,4vw,3.25rem); font-weight:400; color:var(--c-white); line-height:1.12;">Trusted by <em style="font-style:italic; color:var(--c-brass);">homeowners</em><br>across Greater Vancouver.</h2>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:2rem;">
+        <blockquote class="reveal" style="background:var(--c-dark-card); padding:2.5rem; border-left:3px solid var(--c-brass); margin:0;">
+          <p style="font-family:var(--f-display); font-size:1.35rem; font-weight:300; color:var(--c-white); line-height:1.6; margin-bottom:1.5rem;">&ldquo;Having worked with Damien on several projects, his team brings a refreshing level of professionalism.&rdquo;</p>
+          <footer style="font-size:0.78rem; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--c-brass);">— Shane Gray</footer>
+        </blockquote>
+        <blockquote class="reveal reveal-d2" style="background:var(--c-dark-card); padding:2.5rem; border-left:3px solid var(--c-brass); margin:0;">
+          <p style="font-family:var(--f-display); font-size:1.35rem; font-weight:300; color:var(--c-white); line-height:1.6; margin-bottom:1.5rem;">&ldquo;Damien is completely professional and dependable. He does beautiful work. He has treated us as family and is always there to resolve our house problems, large or small.&rdquo;</p>
+          <footer style="font-size:0.78rem; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--c-brass);">— John &amp; Angie</footer>
+        </blockquote>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════
        KITCHENS
   ══════════════════════════════════════════════════════════════ -->
   <section id="kitchens" class="section-pad" aria-labelledby="kitchens-h2">
@@ -1661,10 +1686,10 @@
           </h2>
           <div class="divider"></div>
           <p class="spc-p">
-            Damien's background delivering custom millwork for display homes, residential lobbies, and exclusive penthouse kitchens for BOSA, Townline, Parklane, and Polygon informs the elevated standard every Clear Renovations kitchen is held to.
+            Been dreaming of a shiny new kitchen? Not only will this add to your property value, but most importantly, help improve your everyday enjoyment of your home. Custom designed kitchens delivered to meet your needs and all your desires.
           </p>
           <p class="spc-p">
-            We design and build kitchens that balance genuine beauty with real-world function — spaces you'll want to spend time in, and that will endure for decades.
+            We provide a clear vision with 3D renderings of your kitchen so you can see the finished product beforehand. Clear budgets so you know what you're spending and clear timeframes so you can plan your life during the renovation. Full kitchen renovations with permits starting at under $30,000.
           </p>
           <ul class="feature-list" aria-label="Kitchen renovation services">
             <li class="feature-item"><span class="feature-dot" aria-hidden="true"></span>Custom cabinetry and precision millwork</li>
@@ -1714,10 +1739,10 @@
           </h2>
           <div class="divider"></div>
           <p class="spc-p">
-            Tyrone's mastery of fine finish carpentry and our team's meticulous tile work combine to create bathrooms that feel as thoughtful as they are functional. From guest powder rooms to full spa master ensuites, every surface is considered.
+            Have 2 weeks to spare, maybe heading on holiday? Let us know — that's all the time it takes to convert your dated bathroom into a spa oasis. Once we assist with your design selection and all materials are on-site, we will have your dream complete.
           </p>
           <p class="spc-p">
-            We manage the full scope — design, permits, demo, plumbing, tile, cabinetry, and finish — so your renovation runs smoothly from first consultation to final inspection.
+            We manage the full scope — design, permits, demo, plumbing, tile, cabinetry, and finish — so your renovation runs smoothly from first consultation to final inspection. Let one of our experienced team members help you today.
           </p>
           <ul class="feature-list" aria-label="Bathroom renovation services">
             <li class="feature-item"><span class="feature-dot" aria-hidden="true"></span>Custom vanities and built-in storage</li>
@@ -1761,10 +1786,10 @@
             <h3 class="team-name">Damien Pym</h3>
             <p class="team-role">Principal</p>
             <p class="team-bio">
-              Originally from Australia, Damien brings an international perspective on design — and an exacting passion for fine detail — to every Clear Renovations project. His background delivering custom millwork for display homes, residential lobbies, and exclusive penthouse kitchens for BOSA, Townline, Parklane, and Polygon informs the elevated standard we hold every renovation to.
+              Hailing from Australia with a passion for fine design, common sense solutions and attention to detail, Damien quickly found himself delivering custom millwork for display homes, residential lobbies and exclusive penthouse kitchens for some of the best developers in the city (BOSA, Townline, Parklane and Polygon).
             </p>
             <p class="team-bio">
-              Since founding Clear Renovations in 2009, Damien has built a reputation for clear communication, honest pricing, and work that speaks for itself.
+              Today, Damien applies his skills and dedication to meeting your renovation goals.
             </p>
             <a class="team-email" href="mailto:Damien.Pym@ClearRenovations.com">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -1790,10 +1815,10 @@
             <h3 class="team-name">Tyrone Critchley</h3>
             <p class="team-role">Finish Carpenter</p>
             <p class="team-bio">
-              Born and raised in British Columbia, Tyrone grew up building alongside his father — absorbing a lifelong love of wood, craft, and the deep satisfaction of a perfectly fitted joint. Today he is one of the most skilled finish carpenters working in the Lower Mainland.
+              BC born and raised on the wild west coast, Tyrone grew up as a young boy helping his father build homes. From an early age this ignited his passion for fine finishing and lead to the development of a master craftsman.
             </p>
             <p class="team-bio">
-              Tyrone's work is visible in the places you look closest: the fit of a door, the profile of a baseboard, the way a cabinet drawer closes with a whisper. His mastery of fine finishing is the signature detail that sets Clear Renovations apart.
+              Tyrone enjoys nothing more than working out in the gym and applying his skills to improving your homes look and feel.
             </p>
             <a class="team-email" href="mailto:Tyrone.Critchley@ClearRenovations.com">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -1847,7 +1872,7 @@
               </div>
               <div>
                 <p class="cdet-lbl">Email</p>
-                <p class="cdet-val"><a href="mailto:Damien.Pym@ClearRenovations.com">Damien.Pym@ClearRenovations.com</a></p>
+                <p class="cdet-val"><a href="mailto:Info@ClearRenovations.com">Info@ClearRenovations.com</a></p>
               </div>
             </div>
             <div class="cdet">
@@ -1862,10 +1887,25 @@
                 <p class="cdet-val">604.263.3142</p>
               </div>
             </div>
+            <div class="cdet">
+              <div class="cdet-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/>
+                  <circle cx="12" cy="10" r="3"/>
+                </svg>
+              </div>
+              <div>
+                <p class="cdet-lbl">Address</p>
+                <p class="cdet-val">Unit 311 – 3993 West 10th Ave<br>Vancouver BC V6R 3C3</p>
+              </div>
+            </div>
           </div>
 
-          <div class="service-area-note">
+          <div class="service-area-note" style="margin-bottom:1rem;">
             <strong>Service Area:</strong> We serve the Greater Vancouver area including the City of Vancouver, West Vancouver, North Vancouver, Burnaby, Richmond, New Westminster, and surrounding Lower Mainland municipalities.
+          </div>
+          <div class="service-area-note" style="font-size:0.82rem; line-height:1.65;">
+            <strong>Licensed &amp; Insured:</strong> WBC No. 624339 &nbsp;·&nbsp; CRA Business No. 819532093 &nbsp;·&nbsp; Vancouver License No. 13-159610 &nbsp;·&nbsp; $5M coverage with Intact Insurance
           </div>
         </div>
 
@@ -1987,14 +2027,14 @@
               <rect x="2" y="4" width="20" height="16" rx="2"/>
               <path d="M22 7l-10 7L2 7"/>
             </svg>
-            <a href="mailto:Damien.Pym@ClearRenovations.com" class="footer-link" style="word-break:break-all;">Damien.Pym@ClearRenovations.com</a>
+            <a href="mailto:Info@ClearRenovations.com" class="footer-link" style="word-break:break-all;">Info@ClearRenovations.com</a>
           </div>
           <div class="footer-citem">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/>
               <circle cx="12" cy="10" r="3"/>
             </svg>
-            <span>Greater Vancouver, BC, Canada</span>
+            <span>Unit 311 – 3993 West 10th Ave<br>Vancouver BC V6R 3C3</span>
           </div>
         </div>
 
@@ -2002,7 +2042,7 @@
 
       <div class="footer-bottom">
         <p class="footer-copy">
-          &copy; 2024 Clear Renovations — Division of Clear Development Ltd. All rights reserved.
+          &copy; 2025 Clear Renovations — Division of Clear Development Ltd. All rights reserved.
         </p>
         <div class="footer-end-links">
           <!-- BBB Accredited Business badge -->
