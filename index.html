@@ -2166,19 +2166,16 @@
       });
     });
 
-    /* ─── CONTACT FORM (demo — wire up to real endpoint) ─────────
-       TODO: Replace this submit handler with a real integration:
-         Option A — Formspree: change <form> action attr, remove JS handler
-         Option B — EmailJS: call emailjs.send() here
-         Option C — Server: POST JSON to your backend route
-    ─────────────────────────────────────────────────────────────── */
+    /* ─── CONTACT FORM ──────────────────────────────────────────── */
+    /* SETUP: Paste your Formspree form ID below (from formspree.io) */
+    const FORM_ENDPOINT = 'https://formspree.io/f/REPLACE_WITH_FORM_ID';
+
     const cForm   = document.getElementById('contact-form');
     const cSuccss = document.getElementById('form-success');
 
-    cForm.addEventListener('submit', function (e) {
+    cForm.addEventListener('submit', async function (e) {
       e.preventDefault();
 
-      /* Basic client-side validation */
       const name  = document.getElementById('f-name').value.trim();
       const email = document.getElementById('f-email').value.trim();
       const msg   = document.getElementById('f-msg').value.trim();
@@ -2188,15 +2185,29 @@
         return;
       }
 
-      /* Simulate send — replace with real fetch/emailjs call */
       const btn = cForm.querySelector('.form-submit');
       btn.textContent = 'Sending…';
       btn.disabled = true;
 
-      setTimeout(() => {
-        cForm.style.display = 'none';
-        cSuccss.style.display = 'block';
-      }, 800);
+      try {
+        const res = await fetch(FORM_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Accept': 'application/json' },
+          body: new FormData(cForm)
+        });
+
+        if (res.ok) {
+          cForm.style.display = 'none';
+          cSuccss.style.display = 'block';
+        } else {
+          const data = await res.json();
+          throw new Error(data.error || 'Submission failed');
+        }
+      } catch (err) {
+        btn.textContent = 'Send Message →';
+        btn.disabled = false;
+        alert('Something went wrong — please call us directly at 778.996.9031.');
+      }
     });
 
     /* ─── ANIMATED STAT COUNTERS ────────────────────────────────── */
