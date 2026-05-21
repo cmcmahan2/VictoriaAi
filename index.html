@@ -865,8 +865,32 @@
       object-fit: cover;
       object-position: top;
       display: block;
-      /* REPLACE: Professional headshot */
       background: #2a2a2a;
+    }
+    .team-monogram {
+      width: 100%;
+      aspect-ratio: 3/4;
+      background: linear-gradient(145deg, #1e1e1e 0%, #2a2424 100%);
+      border: 1px solid rgba(184,115,51,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .team-monogram-letter {
+      font-family: var(--f-display);
+      font-size: 5rem;
+      font-weight: 300;
+      color: var(--c-brass);
+      line-height: 1;
+      opacity: 0.85;
+    }
+    .team-monogram-line {
+      width: 32px;
+      height: 1px;
+      background: var(--c-brass);
+      opacity: 0.4;
     }
 
     .team-name {
@@ -2019,14 +2043,10 @@
 
         <!-- Damien Pym -->
         <article class="team-card reveal">
-          <!-- ─── TEAM PHOTO: DAMIEN PYM ──────────────────────────
-               REPLACE: Professional headshot of Damien Pym.
-               Portrait orientation, neutral background preferred.
-          ──────────────────────────────────────────────────────── -->
-          <img class="team-portrait"
-               src="https://static.wixstatic.com/media/137478_d7c8abafaff11830dc21e71440ccf1e1.jpg/v1/fill/w_400,h_533,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_d7c8abafaff11830dc21e71440ccf1e1.jpg"
-               alt="Damien Pym — Principal, Clear Renovations"
-               loading="lazy">
+          <div class="team-monogram" aria-label="Damien Pym">
+            <span class="team-monogram-letter">D</span>
+            <div class="team-monogram-line"></div>
+          </div>
           <div>
             <h3 class="team-name">Damien Pym</h3>
             <p class="team-role">Principal</p>
@@ -2048,14 +2068,10 @@
 
         <!-- Tyrone Critchley -->
         <article class="team-card reveal reveal-d2">
-          <!-- ─── TEAM PHOTO: TYRONE CRITCHLEY ───────────────────
-               REPLACE: Professional headshot of Tyrone Critchley.
-               Portrait orientation preferred.
-          ──────────────────────────────────────────────────────── -->
-          <img class="team-portrait"
-               src="https://static.wixstatic.com/media/137478_a8b47a154151461fafdf2c1586232081.jpg/v1/fill/w_400,h_533,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_a8b47a154151461fafdf2c1586232081.jpg"
-               alt="Tyrone Critchley — Finish Carpenter, Clear Renovations"
-               loading="lazy">
+          <div class="team-monogram" aria-label="Tyrone Critchley">
+            <span class="team-monogram-letter">T</span>
+            <div class="team-monogram-line"></div>
+          </div>
           <div>
             <h3 class="team-name">Tyrone Critchley</h3>
             <p class="team-role">Finish Carpenter</p>
