@@ -1240,6 +1240,50 @@
       /* Testimonials stack on mobile */
       #testimonials > .wrap > div:last-child { grid-template-columns: 1fr !important; }
     }
+
+    /* ================================================================
+       SLIDESHOW
+    ================================================================ */
+    .slideshow { position:relative; overflow:hidden; background:#1a1a1a; border-radius:0; }
+    .slideshow-track { display:flex; height:100%; transition:transform 0.55s cubic-bezier(0.25,0.46,0.45,0.94); }
+    .slideshow-track img { flex-shrink:0; width:100%; height:100%; object-fit:cover; display:block; }
+    .ss-btn {
+      position:absolute; top:50%; transform:translateY(-50%);
+      background:rgba(10,10,10,0.55); color:#fff; border:none;
+      width:48px; height:48px; font-size:1.6rem; cursor:pointer; z-index:5;
+      display:flex; align-items:center; justify-content:center;
+      transition:background 0.2s;
+    }
+    .ss-btn:hover { background:var(--c-brass); }
+    .ss-prev { left:0; }
+    .ss-next { right:0; }
+    .ss-dots {
+      position:absolute; bottom:0.85rem; left:50%; transform:translateX(-50%);
+      display:flex; gap:0.45rem; z-index:5;
+    }
+    .ss-dot {
+      width:7px; height:7px; border-radius:50%;
+      background:rgba(255,255,255,0.38); cursor:pointer;
+      transition:background 0.2s, transform 0.2s;
+    }
+    .ss-dot.active { background:var(--c-brass); transform:scale(1.25); }
+
+    /* project story layout */
+    .proj-story { display:grid; grid-template-columns:1fr 340px; gap:0; margin-bottom:3rem; background:var(--c-dark-card); }
+    .proj-story-info { padding:2.5rem; display:flex; flex-direction:column; justify-content:center; }
+    .proj-story-title { font-family:var(--f-display); font-size:1.85rem; font-weight:400; line-height:1.15; margin-bottom:0.3rem; }
+    .proj-story-sub { font-size:0.7rem; font-weight:600; letter-spacing:0.2em; text-transform:uppercase; color:var(--c-brass); margin-bottom:1rem; }
+    .proj-story-desc { font-size:0.92rem; line-height:1.8; color:rgba(255,255,255,0.52); }
+
+    .proj-story--light { background:var(--c-white); }
+    .proj-story--light .proj-story-title { color:var(--c-charcoal); }
+    .proj-story--light .proj-story-desc { color:var(--c-muted); }
+    .proj-story--light .proj-story-info { border-left:3px solid var(--c-brass); }
+
+    @media (max-width:768px) {
+      .proj-story { grid-template-columns:1fr; }
+      .proj-story:nth-child(even) .slideshow { order:1; }
+    }
   </style>
 </head>
 <body>
@@ -1579,13 +1623,13 @@
         ─────────────────────────────────────────────────────────── -->
         <article class="pcard reveal reveal-d2" role="listitem">
           <img class="pcard-img"
-               src="https://static.wixstatic.com/media/137478_18bbb8de297d67ba9a5af9e551adcfaf.jpg/v1/fill/w_800,h_900,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_18bbb8de297d67ba9a5af9e551adcfaf.jpg"
-               alt="Deck Project — Custom composite deck, Kitsilano"
+               src="https://static.wixstatic.com/media/137478_8f96256d1130598aa5fca87082fdadcc.jpg/v1/fill/w_800,h_900,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_8f96256d1130598aa5fca87082fdadcc.jpg"
+               alt="Bathroom Renovation — Wellness Spa Ensuite, Kerrisdale"
                loading="lazy">
           <div class="pcard-overlay" aria-hidden="true"></div>
           <div class="pcard-info">
-            <p class="pcard-cat">Deck &amp; Outdoor</p>
-            <h3 class="pcard-title">Kitsilano Rooftop Deck</h3>
+            <p class="pcard-cat">Bathroom Renovation</p>
+            <h3 class="pcard-title">Wellness Spa Ensuite</h3>
           </div>
         </article>
 
@@ -1823,40 +1867,58 @@
         <h2 style="font-family:var(--f-display); font-size:clamp(2.2rem,4vw,3.25rem); font-weight:400; color:var(--c-white); line-height:1.12;">Kitchens built to <em style="font-style:italic; color:var(--c-brass);">last a lifetime</em>.</h2>
       </div>
 
-      <!-- Project: Designer Dream Kitchen -->
-      <div class="reveal" style="margin-bottom:3.5rem;">
-        <div style="display:flex; align-items:baseline; gap:1.5rem; margin-bottom:1rem; padding-bottom:0.75rem; border-bottom:1px solid rgba(255,255,255,0.1);">
-          <h3 style="font-family:var(--f-display); font-size:1.9rem; font-weight:400; color:var(--c-white);">Designer Dream Kitchen</h3>
-          <span class="u-label u-brass">Phyllis &amp; Shelby</span>
+      <!-- Designer Dream Kitchen -->
+      <div class="proj-story reveal" style="margin-bottom:0.5rem;">
+        <div class="slideshow" style="height:380px;">
+          <div class="slideshow-track">
+            <img src="https://static.wixstatic.com/media/137478_05d69757aa7940339c7c533dabdfef77.jpg/v1/fill/w_1200,h_760,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_05d69757aa7940339c7c533dabdfef77.jpg" alt="Designer Dream Kitchen" loading="lazy">
+            <img src="https://static.wixstatic.com/media/137478_a2ef7f9ceffa06b66cdd4cfdb38c9ee5.jpg/v1/fill/w_1200,h_760,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_a2ef7f9ceffa06b66cdd4cfdb38c9ee5.jpg" alt="Designer Dream Kitchen detail" loading="lazy">
+          </div>
+          <button class="ss-btn ss-prev" aria-label="Previous">&#8249;</button>
+          <button class="ss-btn ss-next" aria-label="Next">&#8250;</button>
+          <div class="ss-dots"><span class="ss-dot active"></span><span class="ss-dot"></span></div>
         </div>
-        <div style="display:grid; grid-template-columns:2fr 1fr; gap:0.5rem;">
-          <img src="https://static.wixstatic.com/media/137478_05d69757aa7940339c7c533dabdfef77.jpg/v1/fill/w_1200,h_500,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_05d69757aa7940339c7c533dabdfef77.jpg" alt="Designer Dream Kitchen" loading="lazy" style="width:100%; height:340px; object-fit:cover; display:block;">
-          <img src="https://static.wixstatic.com/media/137478_a2ef7f9ceffa06b66cdd4cfdb38c9ee5.jpg/v1/fill/w_600,h_500,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_a2ef7f9ceffa06b66cdd4cfdb38c9ee5.jpg" alt="Designer Dream Kitchen detail" loading="lazy" style="width:100%; height:340px; object-fit:cover; display:block;">
-        </div>
-      </div>
-
-      <!-- Project: West Vancouver Transformation -->
-      <div class="reveal" style="margin-bottom:3.5rem;">
-        <div style="display:flex; align-items:baseline; gap:1.5rem; margin-bottom:1rem; padding-bottom:0.75rem; border-bottom:1px solid rgba(255,255,255,0.1);">
-          <h3 style="font-family:var(--f-display); font-size:1.9rem; font-weight:400; color:var(--c-white);">West Vancouver Transformation</h3>
-          <span class="u-label u-brass">Jason &amp; Vivian</span>
-        </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.5rem;">
-          <img src="https://static.wixstatic.com/media/137478_2c271828f7d845d39c31fc18e3fba318.jpg/v1/fill/w_800,h_420,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_2c271828f7d845d39c31fc18e3fba318.jpg" alt="West Vancouver kitchen" loading="lazy" style="width:100%; height:300px; object-fit:cover; display:block;">
-          <img src="https://static.wixstatic.com/media/137478_95da98c31d62fbdaab4e15fa9ce4dae5.jpg/v1/fill/w_800,h_420,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_95da98c31d62fbdaab4e15fa9ce4dae5.jpg" alt="West Vancouver kitchen detail" loading="lazy" style="width:100%; height:300px; object-fit:cover; display:block;">
-          <img src="https://static.wixstatic.com/media/137478_0a140b8d838bbf95741bf7eedfc65a47.jpg/v1/fill/w_800,h_420,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_0a140b8d838bbf95741bf7eedfc65a47.jpg" alt="West Vancouver kitchen wide" loading="lazy" style="width:100%; height:300px; object-fit:cover; display:block;">
+        <div class="proj-story-info">
+          <h3 class="proj-story-title" style="color:var(--c-white);">Designer Dream Kitchen</h3>
+          <p class="proj-story-sub">Phyllis &amp; Shelby · Kitchen Renovation</p>
+          <p class="proj-story-desc">Custom cabinetry, premium stone countertops, and full permit coordination. A complete transformation delivering exactly what the clients envisioned.</p>
         </div>
       </div>
 
-      <!-- Project: Affordable Family Home -->
-      <div class="reveal">
-        <div style="display:flex; align-items:baseline; gap:1.5rem; margin-bottom:1rem; padding-bottom:0.75rem; border-bottom:1px solid rgba(255,255,255,0.1);">
-          <h3 style="font-family:var(--f-display); font-size:1.9rem; font-weight:400; color:var(--c-white);">Affordable Family Transformation</h3>
-          <span class="u-label u-brass">John &amp; Angie</span>
+      <!-- West Vancouver Transformation -->
+      <div class="proj-story reveal" style="margin-bottom:0.5rem; grid-template-columns:340px 1fr;">
+        <div class="proj-story-info" style="border-right:3px solid var(--c-brass); border-left:none;">
+          <h3 class="proj-story-title" style="color:var(--c-white);">West Vancouver Transformation</h3>
+          <p class="proj-story-sub">Jason &amp; Vivian · Kitchen Renovation</p>
+          <p class="proj-story-desc">A full open-plan kitchen remodel with custom white cabinetry, subway tile backsplash, stainless appliances, and hardwood floors throughout.</p>
         </div>
-        <div style="display:grid; grid-template-columns:1fr 2fr; gap:0.5rem;">
-          <img src="https://static.wixstatic.com/media/137478_56164139b47777980c3547b2df5da816.jpg/v1/fill/w_600,h_500,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_56164139b47777980c3547b2df5da816.jpg" alt="Family home kitchen" loading="lazy" style="width:100%; height:340px; object-fit:cover; display:block;">
-          <img src="https://static.wixstatic.com/media/137478_bf5d48da597b2fa441d5595261317ce7.jpg/v1/fill/w_1200,h_500,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_bf5d48da597b2fa441d5595261317ce7.jpg" alt="Family home kitchen after" loading="lazy" style="width:100%; height:340px; object-fit:cover; display:block;">
+        <div class="slideshow" style="height:380px;">
+          <div class="slideshow-track">
+            <img src="https://static.wixstatic.com/media/137478_2c271828f7d845d39c31fc18e3fba318.jpg/v1/fill/w_1200,h_760,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_2c271828f7d845d39c31fc18e3fba318.jpg" alt="West Vancouver kitchen" loading="lazy">
+            <img src="https://static.wixstatic.com/media/137478_95da98c31d62fbdaab4e15fa9ce4dae5.jpg/v1/fill/w_1200,h_760,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_95da98c31d62fbdaab4e15fa9ce4dae5.jpg" alt="West Vancouver kitchen wide" loading="lazy">
+            <img src="https://static.wixstatic.com/media/137478_0a140b8d838bbf95741bf7eedfc65a47.jpg/v1/fill/w_1200,h_760,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_0a140b8d838bbf95741bf7eedfc65a47.jpg" alt="West Vancouver kitchen detail" loading="lazy">
+          </div>
+          <button class="ss-btn ss-prev" aria-label="Previous">&#8249;</button>
+          <button class="ss-btn ss-next" aria-label="Next">&#8250;</button>
+          <div class="ss-dots"><span class="ss-dot active"></span><span class="ss-dot"></span><span class="ss-dot"></span></div>
+        </div>
+      </div>
+
+      <!-- Affordable Family Transformation -->
+      <div class="proj-story reveal">
+        <div class="slideshow" style="height:380px;">
+          <div class="slideshow-track">
+            <img src="https://static.wixstatic.com/media/137478_56164139b47777980c3547b2df5da816.jpg/v1/fill/w_1200,h_760,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_56164139b47777980c3547b2df5da816.jpg" alt="Affordable family kitchen" loading="lazy">
+            <img src="https://static.wixstatic.com/media/137478_bf5d48da597b2fa441d5595261317ce7.jpg/v1/fill/w_1200,h_760,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_bf5d48da597b2fa441d5595261317ce7.jpg" alt="Affordable family kitchen after" loading="lazy">
+          </div>
+          <button class="ss-btn ss-prev" aria-label="Previous">&#8249;</button>
+          <button class="ss-btn ss-next" aria-label="Next">&#8250;</button>
+          <div class="ss-dots"><span class="ss-dot active"></span><span class="ss-dot"></span></div>
+        </div>
+        <div class="proj-story-info">
+          <h3 class="proj-story-title" style="color:var(--c-white);">Affordable Family Transformation</h3>
+          <p class="proj-story-sub">John &amp; Angie · Full Kitchen + Basement</p>
+          <p class="proj-story-desc">"Damien is completely professional and dependable. He has treated us as family and is always there to resolve our house problems, large or small." — John &amp; Angie</p>
         </div>
       </div>
 
@@ -1874,46 +1936,61 @@
         <h2 style="font-family:var(--f-display); font-size:clamp(2.2rem,4vw,3.25rem); font-weight:400; color:var(--c-charcoal); line-height:1.12;">From dated to <em style="font-style:italic; color:var(--c-brass);">stunning</em>.</h2>
       </div>
 
-      <!-- Project: Wellness Spa -->
-      <div class="reveal" style="margin-bottom:3.5rem;">
-        <div style="display:flex; align-items:baseline; gap:1.5rem; margin-bottom:1rem; padding-bottom:0.75rem; border-bottom:2px solid var(--c-border);">
-          <h3 style="font-family:var(--f-display); font-size:1.9rem; font-weight:400; color:var(--c-charcoal);">Wellness Spa</h3>
-          <span class="u-label u-brass">Ensuite Renovation</span>
+      <!-- Wellness Spa -->
+      <div class="proj-story proj-story--light reveal" style="margin-bottom:0.5rem;">
+        <div class="slideshow" style="height:380px;">
+          <div class="slideshow-track">
+            <img src="https://static.wixstatic.com/media/137478_8f96256d1130598aa5fca87082fdadcc.jpg/v1/fill/w_1200,h_760,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_8f96256d1130598aa5fca87082fdadcc.jpg" alt="Wellness Spa bathroom" loading="lazy">
+            <img src="https://static.wixstatic.com/media/137478_8cdfcf2d48eadf842217a70759896e61.jpg/v1/fill/w_1200,h_760,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_8cdfcf2d48eadf842217a70759896e61.jpg" alt="Wellness Spa detail" loading="lazy">
+            <img src="https://static.wixstatic.com/media/137478_60af815266099966bff27fa9f4a42f7b.jpg/v1/fill/w_1200,h_760,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_60af815266099966bff27fa9f4a42f7b.jpg" alt="Wellness Spa shower" loading="lazy">
+          </div>
+          <button class="ss-btn ss-prev" aria-label="Previous">&#8249;</button>
+          <button class="ss-btn ss-next" aria-label="Next">&#8250;</button>
+          <div class="ss-dots"><span class="ss-dot active"></span><span class="ss-dot"></span><span class="ss-dot"></span></div>
         </div>
-        <p style="color:var(--c-muted); font-size:0.95rem; margin-bottom:1.25rem;">Travel to another place through your ensuite door.</p>
-        <div style="display:grid; grid-template-columns:2fr 1fr 1fr; gap:0.5rem;">
-          <img src="https://static.wixstatic.com/media/137478_8f96256d1130598aa5fca87082fdadcc.jpg/v1/fill/w_1200,h_500,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_8f96256d1130598aa5fca87082fdadcc.jpg" alt="Wellness Spa bathroom" loading="lazy" style="width:100%; height:340px; object-fit:cover; display:block;">
-          <img src="https://static.wixstatic.com/media/137478_8cdfcf2d48eadf842217a70759896e61.jpg/v1/fill/w_600,h_500,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_8cdfcf2d48eadf842217a70759896e61.jpg" alt="Wellness Spa detail" loading="lazy" style="width:100%; height:340px; object-fit:cover; display:block;">
-          <img src="https://static.wixstatic.com/media/137478_60af815266099966bff27fa9f4a42f7b.jpg/v1/fill/w_600,h_500,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_60af815266099966bff27fa9f4a42f7b.jpg" alt="Wellness Spa shower" loading="lazy" style="width:100%; height:340px; object-fit:cover; display:block;">
-        </div>
-      </div>
-
-      <!-- Project: Before & After Bathrooms -->
-      <div class="reveal" style="margin-bottom:3.5rem;">
-        <div style="display:flex; align-items:baseline; gap:1.5rem; margin-bottom:1rem; padding-bottom:0.75rem; border-bottom:2px solid var(--c-border);">
-          <h3 style="font-family:var(--f-display); font-size:1.9rem; font-weight:400; color:var(--c-charcoal);">Before &amp; After Bathrooms</h3>
-          <span class="u-label u-brass">Total Transformations</span>
-        </div>
-        <p style="color:var(--c-muted); font-size:0.95rem; margin-bottom:1.25rem;">Total transformations from "what the?" to WOW!</p>
-        <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:0.5rem;">
-          <img src="https://static.wixstatic.com/media/137478_90c3c5c18c700f268df296cc17d0c207.jpg/v1/fill/w_600,h_420,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_90c3c5c18c700f268df296cc17d0c207.jpg" alt="Bathroom transformation" loading="lazy" style="width:100%; height:300px; object-fit:cover; display:block;">
-          <img src="https://static.wixstatic.com/media/137478_478e03f904dfde8b45b43c38faa8b731.jpg/v1/fill/w_600,h_420,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_478e03f904dfde8b45b43c38faa8b731.jpg" alt="Bathroom before after" loading="lazy" style="width:100%; height:300px; object-fit:cover; display:block;">
-          <img src="https://static.wixstatic.com/media/137478_44754d583656470f158f4b96e2ff92d4.jpg/v1/fill/w_600,h_420,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_44754d583656470f158f4b96e2ff92d4.jpg" alt="Bathroom renovation" loading="lazy" style="width:100%; height:300px; object-fit:cover; display:block;">
-          <img src="https://static.wixstatic.com/media/137478_6ec753bcdcd017a34e4ac2eb2b31663b.jpg/v1/fill/w_600,h_420,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_6ec753bcdcd017a34e4ac2eb2b31663b.jpg" alt="Bathroom completed" loading="lazy" style="width:100%; height:300px; object-fit:cover; display:block;">
+        <div class="proj-story-info">
+          <h3 class="proj-story-title">Wellness Spa</h3>
+          <p class="proj-story-sub">Ensuite Renovation</p>
+          <p class="proj-story-desc" style="color:var(--c-muted);">Travel to another place through your ensuite door. Walk-in rain shower, custom tile, and spa-quality fixtures throughout.</p>
         </div>
       </div>
 
-      <!-- Project: Men's Room -->
-      <div class="reveal">
-        <div style="display:flex; align-items:baseline; gap:1.5rem; margin-bottom:1rem; padding-bottom:0.75rem; border-bottom:2px solid var(--c-border);">
-          <h3 style="font-family:var(--f-display); font-size:1.9rem; font-weight:400; color:var(--c-charcoal);">Men's Room</h3>
-          <span class="u-label u-brass">Modern Renovation</span>
+      <!-- Before & After -->
+      <div class="proj-story proj-story--light reveal" style="margin-bottom:0.5rem; grid-template-columns:340px 1fr;">
+        <div class="proj-story-info">
+          <h3 class="proj-story-title">Before &amp; After</h3>
+          <p class="proj-story-sub">Total Transformations</p>
+          <p class="proj-story-desc" style="color:var(--c-muted);">Total transformations from "what the?" to WOW! See what's possible when you stop settling for outdated.</p>
         </div>
-        <p style="color:var(--c-muted); font-size:0.95rem; margin-bottom:1.25rem;">Designed by the man of the house for a slick modern feel.</p>
-        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.5rem;">
-          <img src="https://static.wixstatic.com/media/137478_7523b5242567e75662807bc321446dec.jpg/v1/fill/w_700,h_420,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_7523b5242567e75662807bc321446dec.jpg" alt="Men's room bathroom" loading="lazy" style="width:100%; height:320px; object-fit:cover; display:block;">
-          <img src="https://static.wixstatic.com/media/137478_bb31b1c3f900b72e487cda8f3ec029f3.jpg/v1/fill/w_700,h_420,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_bb31b1c3f900b72e487cda8f3ec029f3.jpg" alt="Men's room vanity" loading="lazy" style="width:100%; height:320px; object-fit:cover; display:block;">
-          <img src="https://static.wixstatic.com/media/137478_865139f65767f1b3f02ed39f4e743a1b.jpg/v1/fill/w_700,h_420,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_865139f65767f1b3f02ed39f4e743a1b.jpg" alt="Men's room detail" loading="lazy" style="width:100%; height:320px; object-fit:cover; display:block;">
+        <div class="slideshow" style="height:380px;">
+          <div class="slideshow-track">
+            <img src="https://static.wixstatic.com/media/137478_90c3c5c18c700f268df296cc17d0c207.jpg/v1/fill/w_1200,h_760,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_90c3c5c18c700f268df296cc17d0c207.jpg" alt="Bathroom transformation" loading="lazy">
+            <img src="https://static.wixstatic.com/media/137478_478e03f904dfde8b45b43c38faa8b731.jpg/v1/fill/w_1200,h_760,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_478e03f904dfde8b45b43c38faa8b731.jpg" alt="Bathroom before after" loading="lazy">
+            <img src="https://static.wixstatic.com/media/137478_44754d583656470f158f4b96e2ff92d4.jpg/v1/fill/w_1200,h_760,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_44754d583656470f158f4b96e2ff92d4.jpg" alt="Bathroom renovation" loading="lazy">
+            <img src="https://static.wixstatic.com/media/137478_6ec753bcdcd017a34e4ac2eb2b31663b.jpg/v1/fill/w_1200,h_760,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_6ec753bcdcd017a34e4ac2eb2b31663b.jpg" alt="Bathroom completed" loading="lazy">
+          </div>
+          <button class="ss-btn ss-prev" aria-label="Previous">&#8249;</button>
+          <button class="ss-btn ss-next" aria-label="Next">&#8250;</button>
+          <div class="ss-dots"><span class="ss-dot active"></span><span class="ss-dot"></span><span class="ss-dot"></span><span class="ss-dot"></span></div>
+        </div>
+      </div>
+
+      <!-- Men's Room -->
+      <div class="proj-story proj-story--light reveal">
+        <div class="slideshow" style="height:380px;">
+          <div class="slideshow-track">
+            <img src="https://static.wixstatic.com/media/137478_7523b5242567e75662807bc321446dec.jpg/v1/fill/w_1200,h_760,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_7523b5242567e75662807bc321446dec.jpg" alt="Men's room bathroom" loading="lazy">
+            <img src="https://static.wixstatic.com/media/137478_bb31b1c3f900b72e487cda8f3ec029f3.jpg/v1/fill/w_1200,h_760,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_bb31b1c3f900b72e487cda8f3ec029f3.jpg" alt="Men's room vanity" loading="lazy">
+            <img src="https://static.wixstatic.com/media/137478_865139f65767f1b3f02ed39f4e743a1b.jpg/v1/fill/w_1200,h_760,al_c,q_90,usm_0.66_1.00_0.01,enc_auto/137478_865139f65767f1b3f02ed39f4e743a1b.jpg" alt="Men's room detail" loading="lazy">
+          </div>
+          <button class="ss-btn ss-prev" aria-label="Previous">&#8249;</button>
+          <button class="ss-btn ss-next" aria-label="Next">&#8250;</button>
+          <div class="ss-dots"><span class="ss-dot active"></span><span class="ss-dot"></span><span class="ss-dot"></span></div>
+        </div>
+        <div class="proj-story-info">
+          <h3 class="proj-story-title">Men's Room</h3>
+          <p class="proj-story-sub">Modern Renovation</p>
+          <p class="proj-story-desc" style="color:var(--c-muted);">Designed by the man of the house for a slick modern feel. Dark tile accents, custom vanity, and clean architectural lines.</p>
         </div>
       </div>
 
@@ -2404,6 +2481,29 @@
       }, { threshold: 0.5 });
       statsIO.observe(statsSection);
     }
+    /* ─── SLIDESHOWS ────────────────────────────────────────────── */
+    document.querySelectorAll('.slideshow').forEach(ss => {
+      const track = ss.querySelector('.slideshow-track');
+      const imgs  = track.querySelectorAll('img');
+      const dots  = ss.querySelectorAll('.ss-dot');
+      const count = imgs.length;
+      if (count < 2) return;
+      let cur = 0, timer;
+
+      function go(n) {
+        cur = (n + count) % count;
+        track.style.transform = 'translateX(-' + (cur * 100) + '%)';
+        dots.forEach((d, i) => d.classList.toggle('active', i === cur));
+      }
+
+      ss.querySelector('.ss-prev').addEventListener('click', () => { go(cur - 1); reset(); });
+      ss.querySelector('.ss-next').addEventListener('click', () => { go(cur + 1); reset(); });
+      dots.forEach((d, i) => d.addEventListener('click', () => { go(i); reset(); }));
+
+      function reset() { clearInterval(timer); timer = setInterval(() => go(cur + 1), 5000); }
+      reset();
+    });
+
   </script>
 
 </body>
