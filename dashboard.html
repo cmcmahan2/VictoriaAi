@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Financial Markets Dashboard</title>
+  <style>
+    :root {
+      --bg-main:    #0d1117;
+      --bg-card:    #161b22;
+      --bg-card2:   #1c2128;
+      --border:     #30363d;
+      --text-primary:   #e6edf3;
+      --text-secondary: #8b949e;
+      --text-muted:     #6e7681;
+      --green:  #3fb950;
+      --red:    #f85149;
+      --blue:   #58a6ff;
+      --yellow: #d29922;
+      --purple: #bc8cff;
+      --orange: #ffa657;
+      --accent: #1f6feb;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg-main);
+      color: var(--text-primary);
+      font-size: 13px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    /* ── Top bar ── */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(13,17,23,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 1.5rem;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .topbar-logo {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--blue);
+      letter-spacing: -0.3px;
+      white-space: nowrap;
+    }
+
+    .topbar-ticker {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .ticker-item {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      white-space: nowrap;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .ticker-sym { font-weight: 600; color: var(--text-primary); }
+    .ticker-val { font-weight: 500; }
+    .ticker-chg { font-size: 11px; }
+    .up   { color: var(--green); }
+    .down { color: var(--red); }
+    .sep  { color: var(--border); }
+
+    .search-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    #sym-input {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 0.3rem 0.75rem 0.3rem 2rem;
+      border-radius: 6px;
+      font-size: 12px;
+      width: 180px;
+      outline: none;
+    }
+    #sym-input:focus { border-color: var(--accent); }
+
+    .search-icon {
+      position: absolute;
+      left: 0.55rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+      font-size: 12px;
+    }
+
+    #search-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 0.3rem 0.75rem;
+      font-size: 12px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    #search-btn:hover { background: #388bfd; }
+
+    .market-status {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 11px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s infinite;
+    }
+    .status-dot.closed { background: var(--red); animation: none; }
+    @keyframes pulse {
+      0%,100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* ── Layout ── */
+    .page { max-width: 1600px; margin: 0 auto; padding: 1.25rem 1.5rem; }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 0.6rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .mb { margin-bottom: 1.5rem; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      height: 100%;
+    }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+    }
+
+    /* ── Grids ── */
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+    .grid-main { display: grid; grid-template-columns: 2fr 1fr; gap: 0.75rem; }
+    .grid-3col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+
+    /* ── KPI tile ── */
+    .kpi {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    .kpi-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
+    .kpi-value { font-size: 20px; font-weight: 700; line-height: 1.1; }
+    .kpi-sub   { font-size: 11px; color: var(--text-secondary); }
+    .kpi-chg   { font-size: 12px; font-weight: 600; }
+
+    /* ── Quote card (search result) ── */
+    #quote-panel {
+      display: none;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .q-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+    .q-sym  { font-size: 22px; font-weight: 800; }
+    .q-name { font-size: 13px; color: var(--text-secondary); margin-top: 0.1rem; }
+    .q-price { font-size: 32px; font-weight: 800; line-height: 1; }
+    .q-chg   { font-size: 14px; font-weight: 600; margin-top: 0.2rem; }
+
+    .q-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.5rem; }
+    .q-stat { background: var(--bg-card2); border-radius: 6px; padding: 0.5rem 0.75rem; }
+    .q-stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+    .q-stat-value { font-size: 13px; font-weight: 600; margin-top: 0.1rem; }
+
+    /* ── Table ── */
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-muted);
+      font-weight: 500;
+      padding: 0.3rem 0.5rem;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+    .data-table td {
+      padding: 0.4rem 0.5rem;
+      border-bottom: 1px solid rgba(48,54,61,0.5);
+      font-size: 12px;
+      vertical-align: middle;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .bold { font-weight: 600; }
+
+    /* ── Mini bar ── */
+    .mini-bar-wrap { display: flex; align-items: center; gap: 0.5rem; }
+    .mini-bar { height: 6px; border-radius: 3px; min-width: 2px; }
+
+    /* ── Scrollable container ── */
+    .scroll-box { overflow-y: auto; max-height: 280px; }
+    .scroll-box::-webkit-scrollbar { width: 4px; }
+    .scroll-box::-webkit-scrollbar-track { background: transparent; }
+    .scroll-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* ── News items ── */
+    .news-item {
+      padding: 0.65rem 0;
+      border-bottom: 1px solid rgba(48,54,61,0.5);
+      display: flex;
+      gap: 0.75rem;
+      align-items: flex-start;
+    }
+    .news-item:last-child { border-bottom: none; }
+    .news-img {
+      width: 52px; height: 40px;
+      border-radius: 4px;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: var(--bg-card2);
+    }
+    .news-title { font-size: 12px; font-weight: 500; line-height: 1.4; color: var(--text-primary); }
+    .news-title a { color: inherit; text-decoration: none; }
+    .news-title a:hover { color: var(--blue); }
+    .news-meta { font-size: 10px; color: var(--text-muted); margin-top: 0.2rem; }
+
+    /* ── Calendar item ── */
+    .cal-item {
+      display: grid;
+      grid-template-columns: 90px 1fr auto;
+      gap: 0.5rem;
+      align-items: center;
+      padding: 0.4rem 0;
+      border-bottom: 1px solid rgba(48,54,61,0.4);
+      font-size: 11px;
+    }
+    .cal-item:last-child { border-bottom: none; }
+    .cal-event { font-weight: 500; }
+    .cal-country { font-size: 10px; color: var(--text-muted); }
+    .imp-badge {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+    .imp-high   { background: rgba(248,81,73,0.2);  color: var(--red); }
+    .imp-medium { background: rgba(210,153,34,0.2); color: var(--yellow); }
+    .imp-low    { background: rgba(99,110,123,0.2); color: var(--text-muted); }
+
+    /* ── Loading / error states ── */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 80px;
+      color: var(--text-muted);
+      font-size: 12px;
+      gap: 0.5rem;
+    }
+    .spinner {
+      width: 14px; height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-msg {
+      color: var(--text-muted);
+      font-size: 11px;
+      text-align: center;
+      padding: 1rem;
+    }
+
+    /* ── Badge chip ── */
+    .chip {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .chip-green  { background: rgba(63,185,80,0.15);  color: var(--green); }
+    .chip-red    { background: rgba(248,81,73,0.15);  color: var(--red); }
+    .chip-blue   { background: rgba(88,166,255,0.15); color: var(--blue); }
+    .chip-yellow { background: rgba(210,153,34,0.2);  color: var(--yellow); }
+
+    /* ── Responsive ── */
+    @media (max-width: 1100px) {
+      .grid-4 { grid-template-columns: repeat(2, 1fr); }
+      .q-grid { grid-template-columns: repeat(3, 1fr); }
+      .grid-3col { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 768px) {
+      .grid-3 { grid-template-columns: 1fr; }
+      .grid-main { grid-template-columns: 1fr; }
+      .topbar-ticker { display: none; }
+    }
+
+    /* ── Sector heat bar ── */
+    .heat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem; }
+    .heat-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.3rem 0.5rem;
+      border-radius: 5px;
+      font-size: 11px;
+    }
+    .heat-name { flex: 1; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .heat-val  { font-weight: 600; font-variant-numeric: tabular-nums; min-width: 40px; text-align: right; }
+
+    /* ── Insider trade ── */
+    .insider-row {
+      display: grid;
+      grid-template-columns: 60px 1fr 50px 55px 60px;
+      gap: 0.4rem;
+      align-items: center;
+      padding: 0.35rem 0;
+      border-bottom: 1px solid rgba(48,54,61,0.4);
+      font-size: 11px;
+    }
+    .insider-row:last-child { border-bottom: none; }
+    .insider-name { color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 10px; }
+
+    /* ── COT ── */
+    .cot-row { display: flex; justify-content: space-between; align-items: center; padding: 0.35rem 0; border-bottom: 1px solid rgba(48,54,61,0.4); font-size: 11px; }
+    .cot-row:last-child { border-bottom: none; }
+
+    /* ── Progress bar ── */
+    .progress-track { height: 5px; background: var(--bg-card2); border-radius: 3px; overflow: hidden; flex: 1; }
+    .progress-fill  { height: 100%; border-radius: 3px; }
+
+    /* ── Senate trade ── */
+    .senate-row {
+      display: grid;
+      grid-template-columns: 55px 1fr 65px 60px;
+      gap: 0.4rem;
+      align-items: center;
+      padding: 0.35rem 0;
+      border-bottom: 1px solid rgba(48,54,61,0.4);
+      font-size: 11px;
+    }
+    .senate-row:last-child { border-bottom: none; }
+
+    /* ── Timestamp ── */
+    #last-update { font-size: 10px; color: var(--text-muted); text-align: right; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════
+     TOP BAR
+════════════════════════════════════════════════ -->
+<div class="topbar">
+  <div class="topbar-logo">▦ FinDash</div>
+
+  <div class="topbar-ticker" id="topbar-ticker">
+    <div class="loading"><div class="spinner"></div> Loading…</div>
+  </div>
+
+  <div class="search-wrap">
+    <span class="search-icon">⌕</span>
+    <input id="sym-input" type="text" placeholder="Symbol  e.g. AAPL" autocomplete="off" />
+  </div>
+  <button id="search-btn">Search</button>
+
+  <div class="market-status">
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-text">—</span>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     PAGE BODY
+════════════════════════════════════════════════ -->
+<div class="page">
+
+  <div id="last-update">Last updated: —</div>
+
+  <!-- ── Quote panel (appears after search) ── -->
+  <div id="quote-panel"></div>
+
+  <!-- ── KPI row: Index snapshots ── -->
+  <div class="section-title mb">Market Indices</div>
+  <div class="grid-4 mb" id="indices-row">
+    <div class="loading"><div class="spinner"></div></div>
+  </div>
+
+  <!-- ── Sectors + Market Performance ── -->
+  <div class="grid-main mb">
+
+    <div class="card">
+      <div class="card-title">Sector Performance — Today</div>
+      <div id="sectors-content"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Market Gainers &amp; Losers</div>
+      <div id="market-perf-content"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+
+  </div>
+
+  <!-- ── Most Active + Gainers + Losers ── -->
+  <div class="section-title mb">Movers</div>
+  <div class="grid-3 mb">
+    <div class="card">
+      <div class="card-title">Most Active</div>
+      <div class="scroll-box" id="active-content"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Top Gainers</div>
+      <div class="scroll-box" id="gainers-content"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Top Losers</div>
+      <div class="scroll-box" id="losers-content"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+  </div>
+
+  <!-- ── Crypto + Forex + Commodities ── -->
+  <div class="section-title mb">Crypto · Forex · Commodities</div>
+  <div class="grid-3col mb">
+    <div class="card">
+      <div class="card-title">Crypto</div>
+      <div class="scroll-box" id="crypto-content"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Forex Pairs</div>
+      <div class="scroll-box" id="forex-content"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Commodities</div>
+      <div class="scroll-box" id="commodities-content"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+  </div>
+
+  <!-- ── ETFs ── -->
+  <div class="section-title mb">ETFs &amp; Mutual Funds</div>
+  <div class="grid-2 mb">
+    <div class="card">
+      <div class="card-title">Popular ETFs</div>
+      <div class="scroll-box" id="etf-content"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Mutual Funds</div>
+      <div class="scroll-box" id="mf-content"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+  </div>
+
+  <!-- ── News + Calendar ── -->
+  <div class="section-title mb">News &amp; Economic Calendar</div>
+  <div class="grid-main mb">
+    <div class="card">
+      <div class="card-title">Latest Financial News</div>
+      <div class="scroll-box" id="news-content" style="max-height:320px;"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Economic Calendar</div>
+      <div class="scroll-box" id="calendar-content" style="max-height:320px;"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+  </div>
+
+  <!-- ── Insider trades + Senate trades ── -->
+  <div class="section-title mb">Institutional &amp; Insider Activity</div>
+  <div class="grid-2 mb">
+    <div class="card">
+      <div class="card-title">Recent Insider Trades</div>
+      <div class="scroll-box" id="insider-content"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Senate / Congress Trades</div>
+      <div class="scroll-box" id="senate-content"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+  </div>
+
+  <!-- ── COT + ESG ── -->
+  <div class="section-title mb">Advanced Data</div>
+  <div class="grid-2 mb">
+    <div class="card">
+      <div class="card-title">Commitment of Traders (COT)</div>
+      <div class="scroll-box" id="cot-content"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">ESG Scores — S&amp;P 500 Sample</div>
+      <div class="scroll-box" id="esg-content"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+  </div>
+
+  <!-- ── Technical Indicators (for searched symbol) ── -->
+  <div id="tech-section" style="display:none;" class="mb">
+    <div class="section-title mb">Technical Indicators — <span id="tech-sym"></span></div>
+    <div class="grid-4" id="tech-content"></div>
+  </div>
+
+  <!-- ── Market Hours ── -->
+  <div class="section-title mb">Exchange Hours</div>
+  <div class="card mb" id="hours-content">
+    <div class="loading"><div class="spinner"></div></div>
+  </div>
+
+</div><!-- /page -->
+
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   CONFIG
+═══════════════════════════════════════════════════════ */
+const API_KEY = 'be5b70608d8bba345094b3cb375303c360c00641';
+const BASE    = 'https://financialmodelingprep.com/api';
+
+/* ═══════════════════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════════════════ */
+async function fmp(path, version = 'v3') {
+  const sep = path.includes('?') ? '&' : '?';
+  const url = `${BASE}/${version}/${path}${sep}apikey=${API_KEY}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+function fmt(n, dec = 2) {
+  if (n == null || n === '') return '—';
+  const v = parseFloat(n);
+  if (isNaN(v)) return '—';
+  return v.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+
+function fmtLarge(n) {
+  if (n == null) return '—';
+  const v = parseFloat(n);
+  if (isNaN(v)) return '—';
+  if (Math.abs(v) >= 1e12) return (v / 1e12).toFixed(2) + 'T';
+  if (Math.abs(v) >= 1e9)  return (v / 1e9).toFixed(2) + 'B';
+  if (Math.abs(v) >= 1e6)  return (v / 1e6).toFixed(2) + 'M';
+  if (Math.abs(v) >= 1e3)  return (v / 1e3).toFixed(1) + 'K';
+  return v.toLocaleString();
+}
+
+function chgClass(v) { return parseFloat(v) >= 0 ? 'up' : 'down'; }
+function chgSign(v)  { return parseFloat(v) >= 0 ? '+' : ''; }
+function arrow(v)    { return parseFloat(v) >= 0 ? '▲' : '▼'; }
+
+function loadingDiv() { return `<div class="loading"><div class="spinner"></div> Loading…</div>`; }
+function errorDiv(msg) { return `<div class="error-msg">⚠ ${msg}</div>`; }
+
+function safe(fn) {
+  return fn().catch(e => {
+    console.error(e);
+    return null;
+  });
+}
+
+function timeAgo(dateStr) {
+  const d = new Date(dateStr);
+  const diff = Date.now() - d;
+  const m = Math.floor(diff / 60000);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h/24)}d ago`;
+}
+
+/* ═══════════════════════════════════════════════════════
+   TOPBAR TICKER
+═══════════════════════════════════════════════════════ */
+async function loadTopbarTicker() {
+  const syms = ['SPY','QQQ','IWM','DIA','GLD','BTC-USD','ETH-USD','EURUSD','CL=F'];
+  try {
+    const data = await fmp(`quote/${syms.join(',')}`) ;
+    const el = document.getElementById('topbar-ticker');
+    if (!data || !data.length) { el.innerHTML = ''; return; }
+    el.innerHTML = data.map((q, i) =>
+      `${i > 0 ? '<span class="sep">·</span>' : ''}
+       <div class="ticker-item">
+         <span class="ticker-sym">${q.symbol}</span>
+         <span class="ticker-val">${fmt(q.price)}</span>
+         <span class="ticker-chg ${chgClass(q.changesPercentage)}">${chgSign(q.changesPercentage)}${fmt(q.changesPercentage)}%</span>
+       </div>`
+    ).join('');
+  } catch(e) {
+    document.getElementById('topbar-ticker').innerHTML = '';
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   MARKET STATUS
+═══════════════════════════════════════════════════════ */
+async function loadMarketStatus() {
+  try {
+    const data = await fmp('is-the-market-open');
+    const dot  = document.getElementById('status-dot');
+    const txt  = document.getElementById('status-text');
+    if (data && data.isTheStockMarketOpen !== undefined) {
+      const open = data.isTheStockMarketOpen;
+      dot.className = 'status-dot' + (open ? '' : ' closed');
+      txt.textContent = open ? 'NYSE Open' : 'NYSE Closed';
+    }
+  } catch(e) {}
+}
+
+/* ═══════════════════════════════════════════════════════
+   INDICES
+═══════════════════════════════════════════════════════ */
+async function loadIndices() {
+  const el = document.getElementById('indices-row');
+  try {
+    const data = await fmp('quotes/index');
+    if (!data) { el.innerHTML = errorDiv('No data'); return; }
+    const targets = ['^GSPC','^DJI','^IXIC','^RUT','VIX','^FTSE','^N225','FCHI'];
+    const map = Object.fromEntries(data.map(d => [d.symbol, d]));
+    const items = targets.map(sym => map[sym]).filter(Boolean).slice(0, 8);
+    if (!items.length) {
+      // fallback: top 8 by volume
+      items.push(...data.sort((a,b)=>(b.volume||0)-(a.volume||0)).slice(0,8));
+    }
+    el.innerHTML = items.map(q => `
+      <div class="kpi">
+        <div class="kpi-label">${q.name || q.symbol}</div>
+        <div class="kpi-value ${chgClass(q.changesPercentage)}">${fmt(q.price)}</div>
+        <div class="kpi-chg ${chgClass(q.changesPercentage)}">${arrow(q.changesPercentage)} ${chgSign(q.changesPercentage)}${fmt(q.changesPercentage)}%</div>
+        <div class="kpi-sub">Vol ${fmtLarge(q.volume)}</div>
+      </div>`).join('');
+  } catch(e) {
+    el.innerHTML = errorDiv(e.message);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   SECTOR PERFORMANCE
+═══════════════════════════════════════════════════════ */
+async function loadSectors() {
+  const el = document.getElementById('sectors-content');
+  try {
+    const data = await fmp('sectors-performance');
+    if (!data || !data.length) { el.innerHTML = errorDiv('No sector data'); return; }
+    const sorted = [...data].sort((a, b) => parseFloat(b.changesPercentage) - parseFloat(a.changesPercentage));
+    const max = Math.max(...sorted.map(s => Math.abs(parseFloat(s.changesPercentage))));
+    el.innerHTML = `<div class="heat-grid">` +
+      sorted.map(s => {
+        const v = parseFloat(s.changesPercentage);
+        const pct = Math.abs(v) / (max || 1) * 100;
+        const color = v >= 0 ? 'var(--green)' : 'var(--red)';
+        return `<div class="heat-row" style="background:${v >= 0 ? 'rgba(63,185,80,0.07)' : 'rgba(248,81,73,0.07)'}">
+          <span class="heat-name">${s.sector}</span>
+          <div class="progress-track" style="width:60px;"><div class="progress-fill" style="width:${pct}%;background:${color};"></div></div>
+          <span class="heat-val ${chgClass(v)}">${chgSign(v)}${fmt(v)}%</span>
+        </div>`;
+      }).join('') + `</div>`;
+  } catch(e) {
+    el.innerHTML = errorDiv(e.message);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   MARKET PERFORMANCE (gainers/losers summary)
+═══════════════════════════════════════════════════════ */
+async function loadMarketPerf() {
+  const el = document.getElementById('market-perf-content');
+  try {
+    const [gain, lose, act] = await Promise.all([
+      safe(() => fmp('stock_market/gainers')),
+      safe(() => fmp('stock_market/losers')),
+      safe(() => fmp('stock_market/actives'))
+    ]);
+    const topGain = (gain || []).slice(0, 3);
+    const topLose = (lose || []).slice(0, 3);
+    const topAct  = (act  || []).slice(0, 3);
+
+    const row = items => items.map(q =>
+      `<tr>
+        <td class="bold">${q.symbol}</td>
+        <td>${q.name ? q.name.substring(0,24) : '—'}</td>
+        <td class="num">${fmt(q.price)}</td>
+        <td class="num ${chgClass(q.changesPercentage)}">${chgSign(q.changesPercentage)}${fmt(q.changesPercentage)}%</td>
+      </tr>`).join('');
+
+    el.innerHTML = `
+      <div style="margin-bottom:0.5rem;font-size:10px;color:var(--green);font-weight:600;text-transform:uppercase;">▲ Top Gainers</div>
+      <table class="data-table" style="margin-bottom:0.75rem;">
+        <thead><tr><th>Sym</th><th>Name</th><th class="num">Price</th><th class="num">Chg%</th></tr></thead>
+        <tbody>${row(topGain)}</tbody>
+      </table>
+      <div style="margin-bottom:0.5rem;font-size:10px;color:var(--red);font-weight:600;text-transform:uppercase;">▼ Top Losers</div>
+      <table class="data-table" style="margin-bottom:0.75rem;">
+        <thead><tr><th>Sym</th><th>Name</th><th class="num">Price</th><th class="num">Chg%</th></tr></thead>
+        <tbody>${row(topLose)}</tbody>
+      </table>
+      <div style="margin-bottom:0.5rem;font-size:10px;color:var(--blue);font-weight:600;text-transform:uppercase;">⚡ Most Active</div>
+      <table class="data-table">
+        <thead><tr><th>Sym</th><th>Name</th><th class="num">Price</th><th class="num">Vol</th></tr></thead>
+        <tbody>${topAct.map(q=>`<tr><td class="bold">${q.symbol}</td><td>${(q.name||'').substring(0,24)}</td><td class="num">${fmt(q.price)}</td><td class="num">${fmtLarge(q.volume)}</td></tr>`).join('')}</tbody>
+      </table>`;
+  } catch(e) {
+    el.innerHTML = errorDiv(e.message);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   MOVERS (full tables)
+═══════════════════════════════════════════════════════ */
+function moverTable(data, type) {
+  if (!data || !data.length) return errorDiv('No data');
+  return `<table class="data-table">
+    <thead><tr><th>Sym</th><th>Name</th><th class="num">Price</th><th class="num">Chg</th><th class="num">Chg%</th><th class="num">Vol</th></tr></thead>
+    <tbody>${data.slice(0,20).map(q=>`
+      <tr>
+        <td class="bold">${q.symbol}</td>
+        <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${q.name||'—'}</td>
+        <td class="num">${fmt(q.price)}</td>
+        <td class="num ${chgClass(q.change)}">${chgSign(q.change)}${fmt(q.change)}</td>
+        <td class="num ${chgClass(q.changesPercentage)}">${chgSign(q.changesPercentage)}${fmt(q.changesPercentage)}%</td>
+        <td class="num">${fmtLarge(q.volume)}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+async function loadMovers() {
+  const [a, g, l] = await Promise.all([
+    safe(() => fmp('stock_market/actives')),
+    safe(() => fmp('stock_market/gainers')),
+    safe(() => fmp('stock_market/losers'))
+  ]);
+  document.getElementById('active-content').innerHTML  = moverTable(a);
+  document.getElementById('gainers-content').innerHTML = moverTable(g);
+  document.getElementById('losers-content').innerHTML  = moverTable(l);
+}
+
+/* ═══════════════════════════════════════════════════════
+   CRYPTO
+═══════════════════════════════════════════════════════ */
+async function loadCrypto() {
+  const el = document.getElementById('crypto-content');
+  try {
+    const data = await fmp('quotes/crypto');
+    if (!data || !data.length) { el.innerHTML = errorDiv('No data'); return; }
+    const top = data.sort((a,b)=>(b.marketCap||0)-(a.marketCap||0)).slice(0,25);
+    el.innerHTML = `<table class="data-table">
+      <thead><tr><th>Symbol</th><th>Name</th><th class="num">Price</th><th class="num">24h%</th><th class="num">Mkt Cap</th><th class="num">Vol</th></tr></thead>
+      <tbody>${top.map(q=>`
+        <tr>
+          <td class="bold">${(q.symbol||'').replace('USD','')}</td>
+          <td style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${q.name||'—'}</td>
+          <td class="num">${fmt(q.price)}</td>
+          <td class="num ${chgClass(q.changesPercentage)}">${chgSign(q.changesPercentage)}${fmt(q.changesPercentage)}%</td>
+          <td class="num">${fmtLarge(q.marketCap)}</td>
+          <td class="num">${fmtLarge(q.volume)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+  } catch(e) { el.innerHTML = errorDiv(e.message); }
+}
+
+/* ═══════════════════════════════════════════════════════
+   FOREX
+═══════════════════════════════════════════════════════ */
+async function loadForex() {
+  const el = document.getElementById('forex-content');
+  try {
+    const data = await fmp('quotes/forex');
+    if (!data || !data.length) { el.innerHTML = errorDiv('No data'); return; }
+    const top = data.slice(0, 25);
+    el.innerHTML = `<table class="data-table">
+      <thead><tr><th>Pair</th><th class="num">Bid</th><th class="num">Ask</th><th class="num">Chg%</th><th class="num">High</th><th class="num">Low</th></tr></thead>
+      <tbody>${top.map(q=>`
+        <tr>
+          <td class="bold">${q.symbol}</td>
+          <td class="num">${fmt(q.bid || q.price, 4)}</td>
+          <td class="num">${fmt(q.ask || q.price, 4)}</td>
+          <td class="num ${chgClass(q.changesPercentage)}">${chgSign(q.changesPercentage)}${fmt(q.changesPercentage)}%</td>
+          <td class="num">${fmt(q.dayHigh, 4)}</td>
+          <td class="num">${fmt(q.dayLow, 4)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+  } catch(e) { el.innerHTML = errorDiv(e.message); }
+}
+
+/* ═══════════════════════════════════════════════════════
+   COMMODITIES
+═══════════════════════════════════════════════════════ */
+async function loadCommodities() {
+  const el = document.getElementById('commodities-content');
+  try {
+    const data = await fmp('quotes/commodity');
+    if (!data || !data.length) { el.innerHTML = errorDiv('No data'); return; }
+    el.innerHTML = `<table class="data-table">
+      <thead><tr><th>Symbol</th><th>Name</th><th class="num">Price</th><th class="num">Chg</th><th class="num">Chg%</th><th class="num">Open</th></tr></thead>
+      <tbody>${data.slice(0,20).map(q=>`
+        <tr>
+          <td class="bold">${q.symbol}</td>
+          <td style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${q.name||'—'}</td>
+          <td class="num">${fmt(q.price)}</td>
+          <td class="num ${chgClass(q.change)}">${chgSign(q.change)}${fmt(q.change)}</td>
+          <td class="num ${chgClass(q.changesPercentage)}">${chgSign(q.changesPercentage)}${fmt(q.changesPercentage)}%</td>
+          <td class="num">${fmt(q.open)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+  } catch(e) { el.innerHTML = errorDiv(e.message); }
+}
+
+/* ═══════════════════════════════════════════════════════
+   ETF + MUTUAL FUNDS
+═══════════════════════════════════════════════════════ */
+async function loadETFs() {
+  const [etf, mf] = await Promise.all([
+    safe(() => fmp('quotes/etf')),
+    safe(() => fmp('quotes/mutual_fund'))
+  ]);
+
+  const etfEl = document.getElementById('etf-content');
+  const mfEl  = document.getElementById('mf-content');
+
+  const renderTable = data => {
+    if (!data || !data.length) return errorDiv('No data');
+    return `<table class="data-table">
+      <thead><tr><th>Symbol</th><th>Name</th><th class="num">Price</th><th class="num">Chg%</th><th class="num">Vol</th><th class="num">AUM</th></tr></thead>
+      <tbody>${data.slice(0,20).map(q=>`
+        <tr>
+          <td class="bold">${q.symbol}</td>
+          <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${q.name||'—'}</td>
+          <td class="num">${fmt(q.price)}</td>
+          <td class="num ${chgClass(q.changesPercentage)}">${chgSign(q.changesPercentage)}${fmt(q.changesPercentage)}%</td>
+          <td class="num">${fmtLarge(q.volume)}</td>
+          <td class="num">${fmtLarge(q.marketCap)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+  };
+
+  etfEl.innerHTML = renderTable(etf && etf.sort((a,b)=>(b.volume||0)-(a.volume||0)));
+  mfEl.innerHTML  = renderTable(mf  && mf.sort((a,b)=>(b.volume||0)-(a.volume||0)));
+}
+
+/* ═══════════════════════════════════════════════════════
+   NEWS
+═══════════════════════════════════════════════════════ */
+async function loadNews() {
+  const el = document.getElementById('news-content');
+  try {
+    const data = await fmp('stock_news?limit=30');
+    if (!data || !data.length) { el.innerHTML = errorDiv('No data'); return; }
+    el.innerHTML = data.map(n => `
+      <div class="news-item">
+        ${n.image ? `<img class="news-img" src="${n.image}" alt="" onerror="this.style.display='none'">` : ''}
+        <div>
+          <div class="news-title"><a href="${n.url}" target="_blank" rel="noopener">${n.title}</a></div>
+          <div class="news-meta">${n.publishedDate ? timeAgo(n.publishedDate) : ''} · ${n.site||''} · <span class="chip chip-blue">${n.symbol||''}</span></div>
+        </div>
+      </div>`).join('');
+  } catch(e) { el.innerHTML = errorDiv(e.message); }
+}
+
+/* ═══════════════════════════════════════════════════════
+   ECONOMIC CALENDAR
+═══════════════════════════════════════════════════════ */
+async function loadCalendar() {
+  const el = document.getElementById('calendar-content');
+  try {
+    const today = new Date();
+    const from  = today.toISOString().split('T')[0];
+    const to    = new Date(today.getTime() + 7*86400000).toISOString().split('T')[0];
+    const data  = await fmp(`economic_calendar?from=${from}&to=${to}`);
+    if (!data || !data.length) { el.innerHTML = errorDiv('No upcoming events'); return; }
+    el.innerHTML = data.slice(0,40).map(e => {
+      const imp = (e.impact||'').toLowerCase();
+      const badgeCls = imp === 'high' ? 'imp-high' : imp === 'medium' ? 'imp-medium' : 'imp-low';
+      return `<div class="cal-item">
+        <div>
+          <div>${e.date ? e.date.split(' ')[0] : '—'}</div>
+          <div class="cal-country">${e.country||''}</div>
+        </div>
+        <div class="cal-event">${e.event||'—'}${e.actual != null ? `<br><span style="color:var(--blue);">Actual: ${e.actual}</span>` : ''}${e.estimate != null ? ` · Est: ${e.estimate}` : ''}</div>
+        <div><span class="imp-badge ${badgeCls}">${imp||'—'}</span></div>
+      </div>`;
+    }).join('');
+  } catch(e) { el.innerHTML = errorDiv(e.message); }
+}
+
+/* ═══════════════════════════════════════════════════════
+   INSIDER TRADES
+═══════════════════════════════════════════════════════ */
+async function loadInsider() {
+  const el = document.getElementById('insider-content');
+  try {
+    const data = await fmp('insider-trading?limit=50');
+    if (!data || !data.length) { el.innerHTML = errorDiv('No data'); return; }
+    el.innerHTML = `
+      <table class="data-table">
+        <thead><tr><th>Sym</th><th>Reporter</th><th class="num">Shares</th><th class="num">Price</th><th>Type</th></tr></thead>
+        <tbody>${data.slice(0,30).map(t=>`
+          <tr>
+            <td class="bold">${t.symbol}</td>
+            <td style="max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;">${t.reportingName||'—'}</td>
+            <td class="num">${fmtLarge(t.securitiesTransacted)}</td>
+            <td class="num">${fmt(t.price)}</td>
+            <td><span class="chip ${(t.transactionType||'').toLowerCase().includes('sale')||t.acquistionOrDisposition==='D' ? 'chip-red' : 'chip-green'}">${t.transactionType||t.acquistionOrDisposition||'—'}</span></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } catch(e) { el.innerHTML = errorDiv(e.message); }
+}
+
+/* ═══════════════════════════════════════════════════════
+   SENATE TRADES
+═══════════════════════════════════════════════════════ */
+async function loadSenate() {
+  const el = document.getElementById('senate-content');
+  try {
+    const data = await fmp('senate-trading?limit=50');
+    if (!data || !data.length) { el.innerHTML = errorDiv('No data'); return; }
+    el.innerHTML = `
+      <table class="data-table">
+        <thead><tr><th>Sym</th><th>Senator</th><th>Type</th><th class="num">Amount</th></tr></thead>
+        <tbody>${data.slice(0,30).map(t=>`
+          <tr>
+            <td class="bold">${t.ticker||t.symbol||'—'}</td>
+            <td style="max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;">${t.senator||'—'}</td>
+            <td><span class="chip ${(t.type||'').toLowerCase().includes('sale')||t.type==='Sale' ? 'chip-red' : 'chip-green'}">${t.type||'—'}</span></td>
+            <td class="num">${t.amount||t.amountRange||'—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } catch(e) { el.innerHTML = errorDiv(e.message); }
+}
+
+/* ═══════════════════════════════════════════════════════
+   COMMITMENT OF TRADERS
+═══════════════════════════════════════════════════════ */
+async function loadCOT() {
+  const el = document.getElementById('cot-content');
+  try {
+    const data = await fmp('commitment_of_traders_report/list');
+    if (!data || !data.length) { el.innerHTML = errorDiv('No data'); return; }
+    const reportData = await fmp(`commitment_of_traders_report?from=2024-01-01&to=2025-12-31`);
+    const items = Array.isArray(reportData) ? reportData.slice(0,15) : (Array.isArray(data) ? data.slice(0,15) : []);
+    if (!items.length) { el.innerHTML = errorDiv('No COT data available'); return; }
+    el.innerHTML = `
+      <table class="data-table">
+        <thead><tr><th>Name</th><th class="num">Long</th><th class="num">Short</th><th class="num">Net</th></tr></thead>
+        <tbody>${items.map(t=>`
+          <tr>
+            <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.name||t.shortName||t.market_and_exchange_names||'—'}</td>
+            <td class="num up">${fmtLarge(t.nonCommercialLong||t.long||0)}</td>
+            <td class="num down">${fmtLarge(t.nonCommercialShort||t.short||0)}</td>
+            <td class="num ${(t.nonCommercialLong||t.long||0)-(t.nonCommercialShort||t.short||0)>=0?'up':'down'}">${fmtLarge((t.nonCommercialLong||t.long||0)-(t.nonCommercialShort||t.short||0))}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } catch(e) { el.innerHTML = errorDiv(e.message); }
+}
+
+/* ═══════════════════════════════════════════════════════
+   ESG SCORES
+═══════════════════════════════════════════════════════ */
+async function loadESG() {
+  const el = document.getElementById('esg-content');
+  const syms = ['AAPL','MSFT','GOOGL','AMZN','NVDA','TSLA','META','JPM','JNJ','PG','XOM','CVX'];
+  try {
+    const results = await Promise.all(syms.map(s => safe(() => fmp(`esg-environmental-social-governance-data?symbol=${s}`))));
+    const flat = results.flatMap(r => Array.isArray(r) ? r.slice(0,1) : []).filter(Boolean);
+    if (!flat.length) { el.innerHTML = errorDiv('No ESG data'); return; }
+    el.innerHTML = `
+      <table class="data-table">
+        <thead><tr><th>Symbol</th><th>Company</th><th class="num">ESG</th><th class="num">E</th><th class="num">S</th><th class="num">G</th><th>Rating</th></tr></thead>
+        <tbody>${flat.map(e=>`
+          <tr>
+            <td class="bold">${e.symbol}</td>
+            <td style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;">${e.companyName||'—'}</td>
+            <td class="num">${fmt(e.ESGScore||e.esgScore, 1)}</td>
+            <td class="num" style="color:var(--green)">${fmt(e.environmentalScore, 1)}</td>
+            <td class="num" style="color:var(--blue)">${fmt(e.socialScore, 1)}</td>
+            <td class="num" style="color:var(--purple)">${fmt(e.governanceScore, 1)}</td>
+            <td><span class="chip chip-blue">${e.ESGRiskRating||e.esgRiskRating||'—'}</span></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } catch(e) { el.innerHTML = errorDiv(e.message); }
+}
+
+/* ═══════════════════════════════════════════════════════
+   MARKET HOURS
+═══════════════════════════════════════════════════════ */
+async function loadHours() {
+  const el = document.getElementById('hours-content');
+  try {
+    const data = await fmp('market-hours');
+    if (!data || (!Array.isArray(data) && !data.stockExchangeName)) { el.innerHTML = errorDiv('No data'); return; }
+    const list = Array.isArray(data) ? data : [data];
+    el.innerHTML = `
+      <table class="data-table">
+        <thead><tr><th>Exchange</th><th>Open Time</th><th>Close Time</th><th>Timezone</th><th>Status</th></tr></thead>
+        <tbody>${list.map(h=>`
+          <tr>
+            <td class="bold">${h.stockExchangeName||h.exchange||'—'}</td>
+            <td>${h.openingHour||h.marketOpen||'—'}</td>
+            <td>${h.closingHour||h.marketClose||'—'}</td>
+            <td>${h.timezone||'—'}</td>
+            <td><span class="chip ${h.isMarketOpen||h.isTheStockMarketOpen ? 'chip-green' : 'chip-red'}">${h.isMarketOpen||h.isTheStockMarketOpen ? 'Open' : 'Closed'}</span></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } catch(e) { el.innerHTML = errorDiv(e.message); }
+}
+
+/* ═══════════════════════════════════════════════════════
+   SYMBOL SEARCH / QUOTE
+═══════════════════════════════════════════════════════ */
+async function searchSymbol(sym) {
+  const panel = document.getElementById('quote-panel');
+  panel.style.display = 'block';
+  panel.innerHTML = loadingDiv();
+  sym = sym.toUpperCase().trim();
+  if (!sym) { panel.style.display = 'none'; return; }
+
+  try {
+    const [quotes, profile, change, techRSI, techSMA] = await Promise.all([
+      safe(() => fmp(`quote/${sym}`)),
+      safe(() => fmp(`profile/${sym}`)),
+      safe(() => fmp(`stock-price-change/${sym}`)),
+      safe(() => fmp(`technical_indicator/daily/${sym}?period=14&type=rsi&limit=1`)),
+      safe(() => fmp(`technical_indicator/daily/${sym}?period=50&type=sma&limit=1`))
+    ]);
+
+    const q = (quotes && quotes[0]) || {};
+    const p = (profile && profile[0]) || {};
+    const ch = (change && change[0]) || {};
+    const rsi = techRSI && techRSI[0];
+    const sma = techSMA && techSMA[0];
+
+    panel.innerHTML = `
+      <div class="q-header">
+        <div>
+          <div class="q-sym">${q.symbol || sym} <span style="font-size:13px;font-weight:400;color:var(--text-muted);">${p.exchange||''}</span></div>
+          <div class="q-name">${q.name || p.companyName || '—'}</div>
+          ${p.sector ? `<div style="margin-top:0.3rem;"><span class="chip chip-blue">${p.sector}</span> <span class="chip chip-yellow">${p.industry||''}</span></div>` : ''}
+        </div>
+        <div style="text-align:right;">
+          <div class="q-price ${chgClass(q.changesPercentage)}">${fmt(q.price)}</div>
+          <div class="q-chg ${chgClass(q.changesPercentage)}">${arrow(q.changesPercentage)} ${chgSign(q.change)}${fmt(q.change)} (${chgSign(q.changesPercentage)}${fmt(q.changesPercentage)}%)</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:0.3rem;">Prev Close: ${fmt(q.previousClose)}</div>
+        </div>
+      </div>
+
+      <div class="q-grid">
+        <div class="q-stat"><div class="q-stat-label">Open</div><div class="q-stat-value">${fmt(q.open)}</div></div>
+        <div class="q-stat"><div class="q-stat-label">Day High</div><div class="q-stat-value up">${fmt(q.dayHigh)}</div></div>
+        <div class="q-stat"><div class="q-stat-label">Day Low</div><div class="q-stat-value down">${fmt(q.dayLow)}</div></div>
+        <div class="q-stat"><div class="q-stat-label">52W High</div><div class="q-stat-value up">${fmt(q.yearHigh)}</div></div>
+        <div class="q-stat"><div class="q-stat-label">52W Low</div><div class="q-stat-value down">${fmt(q.yearLow)}</div></div>
+        <div class="q-stat"><div class="q-stat-label">Volume</div><div class="q-stat-value">${fmtLarge(q.volume)}</div></div>
+        <div class="q-stat"><div class="q-stat-label">Avg Vol</div><div class="q-stat-value">${fmtLarge(q.avgVolume)}</div></div>
+        <div class="q-stat"><div class="q-stat-label">Market Cap</div><div class="q-stat-value">${fmtLarge(q.marketCap)}</div></div>
+        <div class="q-stat"><div class="q-stat-label">P/E Ratio</div><div class="q-stat-value">${fmt(q.pe, 2)}</div></div>
+        <div class="q-stat"><div class="q-stat-label">EPS</div><div class="q-stat-value">${fmt(q.eps)}</div></div>
+        <div class="q-stat"><div class="q-stat-label">Shares Out</div><div class="q-stat-value">${fmtLarge(q.sharesOutstanding)}</div></div>
+        <div class="q-stat"><div class="q-stat-label">Beta</div><div class="q-stat-value">${fmt(p.beta)}</div></div>
+        <div class="q-stat"><div class="q-stat-label">Dividend</div><div class="q-stat-value">${fmt(q.earningsAnnouncement ? q.earningsAnnouncement.split('T')[0] : p.lastDiv)} ${p.lastDiv ? '<span style="font-size:10px;color:var(--text-muted);">/sh</span>' : ''}</div></div>
+        <div class="q-stat"><div class="q-stat-label">1W Chg%</div><div class="q-stat-value ${chgClass(ch['1W'])}">${chgSign(ch['1W'])}${fmt(ch['1W'])}%</div></div>
+        <div class="q-stat"><div class="q-stat-label">1M Chg%</div><div class="q-stat-value ${chgClass(ch['1M'])}">${chgSign(ch['1M'])}${fmt(ch['1M'])}%</div></div>
+        <div class="q-stat"><div class="q-stat-label">1Y Chg%</div><div class="q-stat-value ${chgClass(ch['1Y'])}">${chgSign(ch['1Y'])}${fmt(ch['1Y'])}%</div></div>
+        ${rsi ? `<div class="q-stat"><div class="q-stat-label">RSI(14)</div><div class="q-stat-value ${rsi.rsi > 70 ? 'down' : rsi.rsi < 30 ? 'up' : ''}">${fmt(rsi.rsi, 1)}</div></div>` : ''}
+        ${sma ? `<div class="q-stat"><div class="q-stat-label">SMA(50)</div><div class="q-stat-value">${fmt(sma.sma)}</div></div>` : ''}
+        <div class="q-stat"><div class="q-stat-label">Exchange</div><div class="q-stat-value">${p.exchange||q.exchange||'—'}</div></div>
+        ${p.country ? `<div class="q-stat"><div class="q-stat-label">Country</div><div class="q-stat-value">${p.country}</div></div>` : ''}
+        ${p.ipoDate ? `<div class="q-stat"><div class="q-stat-label">IPO Date</div><div class="q-stat-value" style="font-size:11px;">${p.ipoDate}</div></div>` : ''}
+        ${p.fullTimeEmployees ? `<div class="q-stat"><div class="q-stat-label">Employees</div><div class="q-stat-value">${fmtLarge(p.fullTimeEmployees)}</div></div>` : ''}
+        ${p.website ? `<div class="q-stat"><div class="q-stat-label">Website</div><div class="q-stat-value" style="font-size:10px;"><a href="${p.website}" target="_blank" style="color:var(--blue);">${(p.website||'').replace('https://','').replace('http://','').replace('www.','').split('/')[0]}</a></div></div>` : ''}
+        ${p.ceo ? `<div class="q-stat"><div class="q-stat-label">CEO</div><div class="q-stat-value" style="font-size:11px;">${p.ceo}</div></div>` : ''}
+      </div>
+      ${p.description ? `<div style="margin-top:0.75rem;font-size:11px;color:var(--text-secondary);line-height:1.6;border-top:1px solid var(--border);padding-top:0.75rem;">${p.description.substring(0,400)}${p.description.length>400?'…':''}</div>` : ''}
+    `;
+
+    // Load tech indicators section
+    loadTechIndicators(sym);
+
+  } catch(e) {
+    panel.innerHTML = errorDiv(e.message);
+  }
+}
+
+async function loadTechIndicators(sym) {
+  const section = document.getElementById('tech-section');
+  const el      = document.getElementById('tech-content');
+  const symEl   = document.getElementById('tech-sym');
+  section.style.display = 'block';
+  symEl.textContent = sym;
+  el.innerHTML = loadingDiv();
+
+  const types = ['sma','ema','wma','rsi','macd','adx','williams','stoch'];
+  const periods = { sma: 50, ema: 20, wma: 20, rsi: 14, macd: 12, adx: 14, williams: 14, stoch: 14 };
+
+  const results = await Promise.all(types.map(t =>
+    safe(() => fmp(`technical_indicator/daily/${sym}?period=${periods[t]}&type=${t}&limit=1`))
+  ));
+
+  const cards = [];
+  results.forEach((data, i) => {
+    const t = types[i];
+    const d = data && data[0];
+    if (!d) { cards.push(`<div class="kpi"><div class="kpi-label">${t.toUpperCase()}</div><div class="kpi-value" style="font-size:13px;color:var(--text-muted);">—</div></div>`); return; }
+
+    let val = '—', sub = '';
+    if (t === 'sma' || t === 'ema' || t === 'wma') { val = fmt(d[t]); sub = `Period ${periods[t]}`; }
+    else if (t === 'rsi') { val = fmt(d.rsi, 1); sub = d.rsi > 70 ? 'Overbought' : d.rsi < 30 ? 'Oversold' : 'Neutral'; }
+    else if (t === 'macd') { val = fmt(d.macd, 4); sub = `Signal: ${fmt(d.signal,4)}`; }
+    else if (t === 'adx') { val = fmt(d.adx, 1); sub = d.adx > 25 ? 'Trending' : 'Ranging'; }
+    else if (t === 'williams') { val = fmt(d.williams, 1); sub = d.williams > -20 ? 'Overbought' : d.williams < -80 ? 'Oversold' : 'Neutral'; }
+    else if (t === 'stoch') { val = fmt(d.slowK || d.stoch, 1); sub = `SlowD: ${fmt(d.slowD, 1)}`; }
+
+    cards.push(`<div class="kpi">
+      <div class="kpi-label">${t.toUpperCase()} (${periods[t]})</div>
+      <div class="kpi-value" style="font-size:17px;">${val}</div>
+      <div class="kpi-sub">${sub}</div>
+    </div>`);
+  });
+
+  el.innerHTML = cards.join('');
+}
+
+/* ═══════════════════════════════════════════════════════
+   SEARCH EVENT
+═══════════════════════════════════════════════════════ */
+document.getElementById('search-btn').addEventListener('click', () => {
+  searchSymbol(document.getElementById('sym-input').value);
+});
+document.getElementById('sym-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') searchSymbol(e.target.value);
+});
+
+/* ═══════════════════════════════════════════════════════
+   INIT — load everything
+═══════════════════════════════════════════════════════ */
+async function init() {
+  document.getElementById('last-update').textContent =
+    'Last updated: ' + new Date().toLocaleTimeString();
+
+  await Promise.all([
+    loadTopbarTicker(),
+    loadMarketStatus(),
+    loadIndices(),
+    loadSectors(),
+    loadMarketPerf(),
+    loadMovers(),
+    loadCrypto(),
+    loadForex(),
+    loadCommodities(),
+    loadETFs(),
+    loadNews(),
+    loadCalendar(),
+    loadInsider(),
+    loadSenate(),
+    loadCOT(),
+    loadESG(),
+    loadHours()
+  ]);
+
+  document.getElementById('last-update').textContent =
+    'Last updated: ' + new Date().toLocaleTimeString();
+}
+
+init();
+
+// Auto-refresh every 5 minutes
+setInterval(init, 5 * 60 * 1000);
+</script>
+</body>
+</html>
