@@ -172,6 +172,12 @@
   <div class="msg-panel"><span class="spinner"></span> Loading sensor data…</div>
 </div>
 
+<!-- DEBUG DUMP (temporary) -->
+<div style="padding:1rem 1.5rem;border-top:1px solid #30363d;margin-top:1rem">
+  <div style="font-size:11px;color:#8b949e;margin-bottom:.5rem;font-weight:600">RAW API DEBUG (screenshot this)</div>
+  <pre id="debug" style="background:#161b22;border:1px solid #30363d;border-radius:6px;padding:1rem;font-size:11px;color:#7ee787;overflow:auto;max-height:400px;white-space:pre-wrap;word-break:break-word">Waiting for API…</pre>
+</div>
+
 <script>
 /* ═══════════════════════════════════════════════════
    CONFIGURATION — edit these values
@@ -414,16 +420,31 @@ async function poll() {
     sensorName = data.name || `Sensor ${SENSOR_ID}`;
     document.getElementById('topbar-sensor').textContent = sensorName;
 
+    let rawMeasurements = null;
     // If measurements is a URL string, follow it
     if (typeof data.measurements === 'string' && data.measurements.startsWith('http')) {
       try {
         const mData = await apiFetch(data.measurements);
         console.log('Measurements endpoint response:', mData);
+        rawMeasurements = mData;
         data.measurements = Array.isArray(mData) ? mData
           : (mData.results || mData.data || mData.measurements || mData);
       } catch(e) {
         console.warn('Could not fetch measurements URL:', e);
+        rawMeasurements = { error: e.message };
       }
+    }
+
+    // ── DEBUG DUMP ──
+    const dbg = document.getElementById('debug');
+    if (dbg) {
+      const sample = Array.isArray(rawMeasurements) ? rawMeasurements.slice(0,3) : rawMeasurements;
+      dbg.textContent =
+        '=== SENSOR DETAIL (top-level keys) ===\n' +
+        JSON.stringify(Object.fromEntries(Object.entries(data).map(([k,v]) =>
+          [k, Array.isArray(v) ? `[array len ${v.length}]` : v])), null, 2) +
+        '\n\n=== /measurements RESPONSE (first 3 items) ===\n' +
+        JSON.stringify(sample, null, 2);
     }
 
     // Same for measurement_types if it's a URL
