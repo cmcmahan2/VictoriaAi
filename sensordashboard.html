@@ -5,19 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SGS i-comesure Live Dashboard</title>
   <!--
-    ╔══════════════════════════════════════════════════════╗
-    ║  SGS i-comesure Environmental Sensor Dashboard       ║
-    ║  Config (lines below):                               ║
-    ║    SENSOR_ID     — change to your sensor ID          ║
-    ║    POLL_INTERVAL — ms between live updates           ║
-    ║    TOKEN         — your API token                    ║
-    ╚══════════════════════════════════════════════════════╝
+    SGS i-comesure Environmental Sensor Dashboard
+    Config below: SENSOR_ID, POLL_INTERVAL, TOKEN
   -->
   <style>
     :root {
       --bg:        #0d1117;
       --bg-card:   #161b22;
-      --bg-card2:  #1c2128;
       --border:    #30363d;
       --text:      #e6edf3;
       --muted:     #8b949e;
@@ -28,44 +22,35 @@
       --grey:      #8b949e;
       --red:       #f85149;
     }
-
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      font-size: 13px;
-      min-height: 100vh;
+      background: var(--bg); color: var(--text);
+      font-size: 13px; min-height: 100vh;
     }
 
-    /* ── Top bar ── */
+    /* Top bar */
     .topbar {
       position: sticky; top: 0; z-index: 100;
-      background: rgba(13,17,23,0.95);
-      backdrop-filter: blur(10px);
+      background: rgba(13,17,23,0.95); backdrop-filter: blur(10px);
       border-bottom: 1px solid var(--border);
-      padding: 0 1.5rem;
-      height: 52px;
-      display: flex; align-items: center; gap: 1.5rem;
+      padding: 0 1.5rem; height: 52px;
+      display: flex; align-items: center; gap: 1rem;
     }
-    .topbar-title { font-size: 15px; font-weight: 700; color: var(--blue); white-space: nowrap; }
-    .topbar-sensor { font-size: 12px; color: var(--muted); }
+    .topbar-title  { font-size: 15px; font-weight: 700; color: var(--blue); white-space: nowrap; }
+    .topbar-sensor { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .topbar-spacer { flex: 1; }
-    .topbar-updated { font-size: 11px; color: var(--dim); white-space: nowrap; }
-
+    .topbar-updated{ font-size: 11px; color: var(--dim); white-space: nowrap; }
     .status-dot {
       width: 8px; height: 8px; border-radius: 50%;
-      background: var(--green);
-      flex-shrink: 0;
+      background: var(--green); flex-shrink: 0;
     }
-    .status-dot.error { background: var(--red); }
-    .status-msg { font-size: 11px; color: var(--muted); max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .status-dot.error { background: var(--red); animation: none; }
+    .status-dot.ok    { animation: pulse 2s infinite; }
+    .status-msg { font-size: 11px; color: var(--muted); white-space: nowrap; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
 
-    @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
-    .status-dot.ok { animation: pulse 2s infinite; }
-
-    /* ── Sensor selector ── */
+    /* Controls */
     .controls {
       padding: 1rem 1.5rem 0;
       display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
@@ -73,63 +58,58 @@
     .controls label { font-size: 12px; color: var(--muted); }
     #sensor-select {
       background: var(--bg-card); border: 1px solid var(--border);
-      color: var(--text); padding: 0.3rem 0.75rem; border-radius: 6px;
+      color: var(--text); padding: 0.35rem 0.75rem; border-radius: 6px;
       font-size: 12px; min-width: 260px;
     }
     .btn {
       background: #1f6feb; color: #fff; border: none; border-radius: 6px;
-      padding: 0.3rem 0.75rem; font-size: 12px; cursor: pointer;
+      padding: 0.4rem 0.85rem; font-size: 12px; cursor: pointer;
     }
     .btn:hover { background: #388bfd; }
+    .legend { display: flex; gap: 1rem; margin-left: auto; flex-wrap: wrap; }
+    .legend span { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 0.35rem; }
+    .legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
 
-    /* ── Card grid ── */
+    /* Grid */
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 0.75rem;
-      padding: 1rem 1.5rem 2rem;
+      gap: 0.75rem; padding: 1rem 1.5rem 2rem;
     }
 
-    /* ── Individual card ── */
+    /* Card */
     .card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 1rem;
-      display: flex; flex-direction: column; gap: 0.4rem;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.9rem 1rem;
+      display: flex; flex-direction: column; gap: 0.35rem;
       position: relative; overflow: hidden;
-      transition: border-color 0.3s;
+      border-top: 2px solid var(--card-accent, var(--grey));
     }
-    .card.pulse-anim { animation: card-pulse 0.6s ease; }
-    @keyframes card-pulse { 0%{border-color:var(--card-accent)}100%{border-color:var(--border)} }
-
+    .card.flash { animation: flash 0.7s ease; }
+    @keyframes flash {
+      0%   { background: color-mix(in srgb, var(--card-accent) 18%, var(--bg-card)); }
+      100% { background: var(--bg-card); }
+    }
     .card-label {
-      font-size: 10px; font-weight: 600;
-      text-transform: uppercase; letter-spacing: 0.08em;
-      color: var(--muted);
+      font-size: 10px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--muted);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .card-value {
-      font-size: 26px; font-weight: 700; line-height: 1;
+      font-size: 26px; font-weight: 700; line-height: 1.1;
       color: var(--card-accent, var(--text));
     }
     .card-unit  { font-size: 11px; color: var(--dim); }
-    .card-time  { font-size: 10px; color: var(--dim); margin-top: auto; }
-    .card-spark { margin-top: 0.5rem; }
+    .card-spark { margin-top: 0.4rem; height: 36px; }
+    .card-time  { font-size: 10px; color: var(--dim); margin-top: auto; padding-top: 0.4rem; }
 
-    /* Category colour bands */
-    .card[data-cat="atmosphere"] { --card-accent: var(--blue);   border-top: 2px solid var(--blue);   }
-    .card[data-cat="particulate"]{ --card-accent: var(--orange); border-top: 2px solid var(--orange); }
-    .card[data-cat="gas"]        { --card-accent: var(--green);  border-top: 2px solid var(--green);  }
-    .card[data-cat="other"]      { --card-accent: var(--grey);   border-top: 2px solid var(--grey);   }
-
-    /* ── Sparkline SVG ── */
     .spark { display: block; width: 100%; height: 36px; }
     .spark-line { fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 
-    /* ── Loading / error ── */
+    /* Messages */
     .msg-panel {
-      grid-column: 1/-1; text-align: center;
-      padding: 3rem; color: var(--muted); font-size: 13px;
+      grid-column: 1/-1; text-align: center; padding: 3rem;
+      color: var(--muted); font-size: 13px;
     }
     .spinner {
       display: inline-block; width: 20px; height: 20px;
@@ -138,9 +118,8 @@
       vertical-align: middle; margin-right: 8px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-
-    .cors-error {
-      grid-column: 1/-1; background: rgba(248,81,73,0.1);
+    .error-panel {
+      grid-column: 1/-1; background: rgba(248,81,73,0.08);
       border: 1px solid var(--red); border-radius: 8px;
       padding: 1.5rem; color: var(--red); font-size: 12px; line-height: 1.7;
     }
@@ -148,7 +127,6 @@
 </head>
 <body>
 
-<!-- Top bar -->
 <div class="topbar">
   <div class="topbar-title">SGS i-comesure</div>
   <div class="topbar-sensor" id="topbar-sensor">Loading…</div>
@@ -158,49 +136,40 @@
   <div class="status-msg" id="status-msg">Connecting…</div>
 </div>
 
-<!-- Controls -->
 <div class="controls">
   <label>Sensor:</label>
   <select id="sensor-select" onchange="switchSensor(this.value)">
     <option value="">Loading…</option>
   </select>
   <button class="btn" onclick="poll()">&#8635; Refresh</button>
+  <div class="legend">
+    <span><i style="background:var(--blue)"></i>Atmosphere</span>
+    <span><i style="background:var(--orange)"></i>Particulates</span>
+    <span><i style="background:var(--green)"></i>Gases</span>
+    <span><i style="background:var(--grey)"></i>Other</span>
+  </div>
 </div>
 
-<!-- Card grid -->
 <div class="grid" id="grid">
   <div class="msg-panel"><span class="spinner"></span> Loading sensor data…</div>
 </div>
 
-<!-- DEBUG DUMP (temporary) -->
-<div style="padding:1rem 1.5rem;border-top:1px solid #30363d;margin-top:1rem">
-  <div style="font-size:11px;color:#8b949e;margin-bottom:.5rem;font-weight:600">RAW API DEBUG (screenshot this)</div>
-  <pre id="debug" style="background:#161b22;border:1px solid #30363d;border-radius:6px;padding:1rem;font-size:11px;color:#7ee787;overflow:auto;max-height:400px;white-space:pre-wrap;word-break:break-word">Waiting for API…</pre>
-</div>
-
 <script>
-/* ═══════════════════════════════════════════════════
-   CONFIGURATION — edit these values
-═══════════════════════════════════════════════════ */
-const POLL_INTERVAL = 10000;   // milliseconds between live updates
-let   SENSOR_ID     = 16718;   // default sensor ID
+/* ═══════════ CONFIGURATION ═══════════ */
+const POLL_INTERVAL = 10000;   // ms between live updates
+let   SENSOR_ID     = 16718;   // default sensor
 const API_BASE      = 'https://sgsusa-ws.i-comesure.com/api';
 const TOKEN         = 'be5b70608d8bba345094b3cb375303c360c00641';
 const CORS_PROXY    = 'https://corsproxy.io/?';
-const HISTORY_MAX   = 100;     // max readings kept per parameter
+const HISTORY_LIMIT = 60;      // readings fetched for sparkline trend
 
-/* ═══════════════════════════════════════════════════
-   STATE
-═══════════════════════════════════════════════════ */
-const history = {};   // { paramKey: [ {value, ts}, ... ] }
-let   lastUpdate = null;
-let   timerID    = null;
-let   secsAgo    = 0;
-let   sensorName = '';
+/* ═══════════ STATE ═══════════ */
+let lastUpdate = null;   // Date of last successful poll
+let secsAgo    = 0;
+let prevValues = {};     // key -> last value (to flash on change)
+let cardKeys   = '';     // signature of current card set
 
-/* ═══════════════════════════════════════════════════
-   API HELPER (with CORS proxy + token)
-═══════════════════════════════════════════════════ */
+/* ═══════════ API HELPER (CORS proxy + token) ═══════════ */
 async function apiFetch(url) {
   const proxied = CORS_PROXY + encodeURIComponent(url);
   const res = await fetch(proxied, {
@@ -210,337 +179,228 @@ async function apiFetch(url) {
       'X-Requested-With': 'XMLHttpRequest'
     }
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status} — ${res.statusText}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
   return res.json();
 }
 
-/* ═══════════════════════════════════════════════════
-   CATEGORY INFERENCE
-═══════════════════════════════════════════════════ */
+/* ═══════════ CATEGORY + UNIT INFERENCE ═══════════ */
+const CAT_COLORS = { atmosphere:'#388bfd', particulate:'#e3702a', gas:'#3fb950', other:'#8b949e' };
+
 function category(name) {
-  const n = name.toLowerCase();
-  if (/temp|rh|humid|pressure|dew|wind|rain|uv|lux|noise/.test(n)) return 'atmosphere';
-  if (/pm|tsp|particle|dust|bin|count/.test(n))                     return 'particulate';
-  if (/co2|co|voc|tvoc|o3|ozone|no2|so2|nh3|h2s|gas/.test(n))      return 'gas';
+  const n = name.toLowerCase().trim();
+  if (/sampling|flow rate|period|tor_|calibrat/.test(n))            return 'other';
+  if (/temp|^rh|humid|pressure|dew|baro/.test(n))                   return 'atmosphere';
+  if (/pm\s|pm\d|tsp|particle|dust|µm|um\b|\dum|bin|count/.test(n)) return 'particulate';
+  if (/co2|voc|tvoc|ozone|o3|no2|so2|nh3|h2s|\bco\b|gas/.test(n))   return 'gas';
   return 'other';
 }
 
-/* ═══════════════════════════════════════════════════
-   EXTRACT MEASUREMENTS from sensor detail response
-═══════════════════════════════════════════════════ */
-function extractReadings(data) {
-  const readings = [];
-
-  /* Case 1: measurements is an array of objects */
-  const mArr = data.measurements;
-  if (Array.isArray(mArr) && mArr.length) {
-    for (const m of mArr) {
-      // Sub-format A: { measurement_type: {name, unit}, value, date }
-      if (m.measurement_type && m.value !== undefined) {
-        readings.push({
-          key:   slugify(m.measurement_type.name || m.measurement_type),
-          label: m.measurement_type.name || String(m.measurement_type),
-          unit:  m.measurement_type.unit || m.unit || '',
-          value: parseFloat(m.value),
-          ts:    m.date || m.timestamp || data.last_update
-        });
-        continue;
-      }
-      // Sub-format B: { name, value, unit, date }
-      if (m.name !== undefined && m.value !== undefined) {
-        readings.push({
-          key:   slugify(m.name),
-          label: m.name,
-          unit:  m.unit || '',
-          value: parseFloat(m.value),
-          ts:    m.date || m.timestamp || data.last_update
-        });
-        continue;
-      }
-      // Sub-format C: flat numeric object with label from measurement_types
-      for (const [k, v] of Object.entries(m)) {
-        if (typeof v === 'number' && k !== 'id') {
-          readings.push({ key: k, label: humanize(k), unit: '', value: v, ts: data.last_update });
-        }
-      }
-    }
-    if (readings.length) return readings;
-  }
-
-  /* Case 2: measurements is an object (key→value map) */
-  if (mArr && typeof mArr === 'object' && !Array.isArray(mArr)) {
-    for (const [k, v] of Object.entries(mArr)) {
-      if (typeof v === 'number') {
-        readings.push({ key: k, label: humanize(k), unit: unitFor(k), value: v, ts: data.last_update });
-      }
-    }
-    if (readings.length) return readings;
-  }
-
-  /* Case 3: measurement_types gives field definitions, values are top-level */
-  const types = data.measurement_types;
-  if (Array.isArray(types) && types.length) {
-    for (const t of types) {
-      const key = t.keyword || t.name || t.id;
-      if (key && data[key] !== undefined && typeof data[key] === 'number') {
-        readings.push({ key: slugify(String(key)), label: t.name || String(key), unit: t.unit || '', value: data[key], ts: data.last_update });
-      }
-    }
-    if (readings.length) return readings;
-  }
-
-  /* Case 4: fall back — collect all top-level numerics (excluding IDs) */
-  const skip = new Set(['id','pk','calibration_ongoing','lat','lng','latitude','longitude']);
-  for (const [k, v] of Object.entries(data)) {
-    if (typeof v === 'number' && !skip.has(k)) {
-      readings.push({ key: k, label: humanize(k), unit: unitFor(k), value: v, ts: data.last_update });
-    }
-  }
-  return readings;
-}
-
-/* ═══════════════════════════════════════════════════
-   STRING UTILITIES
-═══════════════════════════════════════════════════ */
-function slugify(s) { return String(s).toLowerCase().replace(/[^a-z0-9]/g,'_'); }
-function humanize(k) {
-  return k.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
-}
-function unitFor(k) {
-  const n = k.toLowerCase();
-  if (/temp/.test(n))  return '°F';
-  if (/rh|humid/.test(n)) return '%';
-  if (/pm|tsp/.test(n)) return 'µg/m³';
-  if (/co2/.test(n))   return 'ppm';
-  if (/voc|tvoc/.test(n)) return 'ppb';
-  if (/pressure/.test(n)) return 'hPa';
-  if (/noise|sound/.test(n)) return 'dB';
-  if (/lux|light/.test(n)) return 'lux';
-  if (/bin|count|[0-9]um/.test(n)) return 'c/s';
+function unitFor(type) {
+  const n = type.toLowerCase();
+  if (/temp/.test(n))            return '°F';
+  if (/^rh|humid/.test(n))       return '%';
+  if (/sampling period/.test(n)) return 's';
+  if (/flow rate/.test(n))       return 'L/min';
+  if (/tor_/.test(n))            return '';
+  if (/µm|um\b|\dum/.test(n))    return '#/cm³';
+  if (/pm|tsp/.test(n))          return 'µg/m³';
   return '';
 }
 
-/* ═══════════════════════════════════════════════════
-   SPARKLINE SVG
-═══════════════════════════════════════════════════ */
+/* ═══════════ UTILITIES ═══════════ */
+function slugify(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,''); }
+function fmt(v) {
+  if (v == null || isNaN(v)) return '—';
+  if (Number.isInteger(v)) return String(v);
+  return Math.abs(v) >= 100 ? v.toFixed(1) : v.toFixed(3);
+}
+
+/* ═══════════ EXTRACT READINGS + SERIES ═══════════
+   Input: the /measurements response { count, next, results: [...] }
+   Each result: { date, calibration_ongoing, measurements: [ {type, value}, ... ] }
+   results are newest-first.
+═══════════ */
+function extractReadings(measResponse) {
+  const results = (measResponse && measResponse.results) || [];
+  if (!results.length || !Array.isArray(results[0].measurements)) {
+    return { readings: [], series: {}, latestDate: null };
+  }
+  const latest = results[0];
+
+  // Current values from the newest reading
+  const readings = latest.measurements.map(m => ({
+    key:   slugify(m.type),
+    label: m.type,
+    value: parseFloat(m.value),
+    unit:  unitFor(m.type)
+  }));
+
+  // Time-series per parameter (oldest → newest) for sparklines
+  const series = {};
+  for (let i = results.length - 1; i >= 0; i--) {
+    const r = results[i];
+    if (!Array.isArray(r.measurements)) continue;
+    for (const m of r.measurements) {
+      const key = slugify(m.type);
+      (series[key] = series[key] || []).push(parseFloat(m.value));
+    }
+  }
+  return { readings, series, latestDate: latest.date };
+}
+
+/* ═══════════ SPARKLINE SVG ═══════════ */
 function sparkline(vals, color) {
+  vals = (vals || []).filter(v => !isNaN(v));
   if (vals.length < 2) return '';
-  const W = 200, H = 36, pad = 2;
+  const W = 200, H = 36, pad = 3;
   const min = Math.min(...vals), max = Math.max(...vals);
-  const range = max - min || 1;
+  const range = (max - min) || 1;
   const pts = vals.map((v, i) => {
     const x = pad + (i / (vals.length - 1)) * (W - pad * 2);
     const y = H - pad - ((v - min) / range) * (H - pad * 2);
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   });
+  const last = pts[pts.length - 1].split(',');
   return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
-    <polyline class="spark-line" points="${pts.join(' ')}" stroke="${color}" opacity="0.8"/>
-    <circle cx="${pts[pts.length-1].split(',')[0]}" cy="${pts[pts.length-1].split(',')[1]}" r="2.5" fill="${color}"/>
+    <polyline class="spark-line" points="${pts.join(' ')}" stroke="${color}" opacity="0.85"/>
+    <circle cx="${last[0]}" cy="${last[1]}" r="2.5" fill="${color}"/>
   </svg>`;
 }
 
-/* ═══════════════════════════════════════════════════
-   RENDER CARDS
-═══════════════════════════════════════════════════ */
-const CAT_COLORS = { atmosphere:'#388bfd', particulate:'#e3702a', gas:'#3fb950', other:'#8b949e' };
-
-function renderCards(readings) {
+/* ═══════════ RENDER ═══════════ */
+function renderCards(readings, series, latestDate) {
   const grid = document.getElementById('grid');
-  const ts   = lastUpdate ? lastUpdate.toLocaleTimeString() : '—';
+  const tstr = latestDate ? new Date(latestDate).toLocaleTimeString() : '—';
+  const sig  = readings.map(r => r.key).join('|');
 
-  // First render: build all cards
-  if (!document.querySelector('.card')) {
+  // Rebuild all cards if the parameter set changed
+  if (sig !== cardKeys) {
+    cardKeys = sig;
     grid.innerHTML = readings.map(r => {
       const cat   = category(r.label);
       const color = CAT_COLORS[cat];
-      const vals  = (history[r.key] || []).map(h => h.value);
+      const spark = sparkline(series[r.key], color);
       return `
       <div class="card" data-cat="${cat}" data-key="${r.key}" style="--card-accent:${color}">
-        <div class="card-label">${r.label}</div>
+        <div class="card-label" title="${r.label}">${r.label}</div>
         <div class="card-value" id="val-${r.key}">${fmt(r.value)}</div>
-        <div class="card-unit">${r.unit}</div>
-        <div class="card-spark" id="spark-${r.key}">${sparkline(vals, color)}</div>
-        <div class="card-time" id="ts-${r.key}">Updated ${ts}</div>
+        <div class="card-unit">${r.unit || '&nbsp;'}</div>
+        <div class="card-spark" id="spark-${r.key}">${spark}</div>
+        <div class="card-time" id="ts-${r.key}">Reading ${tstr}</div>
       </div>`;
     }).join('');
+    readings.forEach(r => prevValues[r.key] = r.value);
     return;
   }
 
-  // Subsequent renders: update values + sparklines, pulse animation
+  // Update in place
   for (const r of readings) {
     const valEl   = document.getElementById(`val-${r.key}`);
     const sparkEl = document.getElementById(`spark-${r.key}`);
     const tsEl    = document.getElementById(`ts-${r.key}`);
     const card    = document.querySelector(`.card[data-key="${r.key}"]`);
-
-    if (valEl)   valEl.textContent = fmt(r.value);
-    if (tsEl)    tsEl.textContent  = `Updated ${ts}`;
-    if (sparkEl) {
-      const vals  = (history[r.key] || []).map(h => h.value);
-      const color = CAT_COLORS[category(r.label)];
-      sparkEl.innerHTML = sparkline(vals, color);
+    if (valEl) valEl.textContent = fmt(r.value);
+    if (tsEl)  tsEl.textContent  = `Reading ${tstr}`;
+    if (sparkEl) sparkEl.innerHTML = sparkline(series[r.key], CAT_COLORS[category(r.label)]);
+    if (card && prevValues[r.key] !== r.value) {
+      card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash');
     }
-    if (card) {
-      card.classList.remove('pulse-anim');
-      void card.offsetWidth;
-      card.classList.add('pulse-anim');
-    }
+    prevValues[r.key] = r.value;
   }
 }
 
-function fmt(v) {
-  if (v == null || isNaN(v)) return '—';
-  return Math.abs(v) >= 100 ? v.toFixed(1) : v.toFixed(3);
-}
-
-/* ═══════════════════════════════════════════════════
-   UPDATE HISTORY
-═══════════════════════════════════════════════════ */
-function updateHistory(readings) {
-  const ts = Date.now();
-  for (const r of readings) {
-    if (!history[r.key]) history[r.key] = [];
-    history[r.key].push({ value: r.value, ts });
-    if (history[r.key].length > HISTORY_MAX) history[r.key].shift();
-  }
-}
-
-/* ═══════════════════════════════════════════════════
-   FETCH + POLL
-═══════════════════════════════════════════════════ */
+/* ═══════════ POLL ═══════════ */
 async function poll() {
-  const dot    = document.getElementById('status-dot');
-  const msgEl  = document.getElementById('status-msg');
-
+  const dot   = document.getElementById('status-dot');
+  const msgEl = document.getElementById('status-msg');
   try {
-    const data = await apiFetch(`${API_BASE}/sensors/${SENSOR_ID}/`);
-    console.log('Raw API response:', data);
+    const sensor = await apiFetch(`${API_BASE}/sensors/${SENSOR_ID}/`);
+    document.getElementById('topbar-sensor').textContent =
+      `${sensor.name || 'Sensor ' + SENSOR_ID} · ${sensor.serial_number || ''}`.trim();
 
-    // Update sensor name in topbar
-    sensorName = data.name || `Sensor ${SENSOR_ID}`;
-    document.getElementById('topbar-sensor').textContent = sensorName;
-
-    let rawMeasurements = null;
-    // If measurements is a URL string, follow it
-    if (typeof data.measurements === 'string' && data.measurements.startsWith('http')) {
-      try {
-        const mData = await apiFetch(data.measurements);
-        console.log('Measurements endpoint response:', mData);
-        rawMeasurements = mData;
-        data.measurements = Array.isArray(mData) ? mData
-          : (mData.results || mData.data || mData.measurements || mData);
-      } catch(e) {
-        console.warn('Could not fetch measurements URL:', e);
-        rawMeasurements = { error: e.message };
-      }
+    // Follow the measurements URL, requesting recent history for sparklines
+    let measUrl = sensor.measurements;
+    if (typeof measUrl !== 'string' || !measUrl.startsWith('http')) {
+      throw new Error('Sensor has no measurements endpoint');
     }
+    if (!measUrl.endsWith('/')) measUrl += '/';
+    measUrl += `?limit=${HISTORY_LIMIT}`;
 
-    // ── DEBUG DUMP ──
-    const dbg = document.getElementById('debug');
-    if (dbg) {
-      const sample = Array.isArray(rawMeasurements) ? rawMeasurements.slice(0,3) : rawMeasurements;
-      dbg.textContent =
-        '=== SENSOR DETAIL (top-level keys) ===\n' +
-        JSON.stringify(Object.fromEntries(Object.entries(data).map(([k,v]) =>
-          [k, Array.isArray(v) ? `[array len ${v.length}]` : v])), null, 2) +
-        '\n\n=== /measurements RESPONSE (first 3 items) ===\n' +
-        JSON.stringify(sample, null, 2);
-    }
-
-    // Same for measurement_types if it's a URL
-    if (typeof data.measurement_types === 'string' && data.measurement_types.startsWith('http')) {
-      try {
-        const tData = await apiFetch(data.measurement_types);
-        data.measurement_types = Array.isArray(tData) ? tData : (tData.results || tData);
-      } catch(e) { /* non-fatal */ }
-    }
-
-    const readings = extractReadings(data);
-    console.log('Extracted readings:', readings);
+    const measResponse = await apiFetch(measUrl);
+    const { readings, series, latestDate } = extractReadings(measResponse);
 
     if (!readings.length) {
-      document.getElementById('grid').innerHTML = `
-        <div class="cors-error">
-          <b>Connected but no measurement data found.</b><br><br>
-          Raw API keys: ${Object.keys(data).join(', ')}<br><br>
-          measurements value: ${JSON.stringify(data.measurements)?.substring(0, 500)}
-        </div>`;
-      return;
+      throw new Error('Connected, but the latest reading contained no measurements.');
     }
 
-    updateHistory(readings);
-    renderCards(readings);
-
-    lastUpdate = new Date();
-    secsAgo = 0;
+    renderCards(readings, series, latestDate);
+    lastUpdate = new Date(); secsAgo = 0;
     dot.className = 'status-dot ok';
     msgEl.textContent = 'Live';
-
   } catch (err) {
     console.error(err);
     dot.className = 'status-dot error';
-    const isCors = err.message?.toLowerCase().includes('fetch') || err.message?.toLowerCase().includes('cors');
-    msgEl.textContent = isCors ? 'CORS blocked — check API settings' : err.message;
+    const networky = /failed to fetch|networkerror|load failed/i.test(err.message);
+    msgEl.textContent = networky ? 'Connection / CORS error' : err.message;
     if (!document.querySelector('.card')) {
       document.getElementById('grid').innerHTML = `
-        <div class="cors-error">
+        <div class="error-panel">
           <b>Could not load sensor data.</b><br><br>
-          Error: ${err.message}<br><br>
-          ${isCors ? 'The API is blocking cross-origin browser requests. The CORS proxy may be rate-limited. Try refreshing.' : ''}
+          ${err.message}<br><br>
+          ${networky ? 'The browser may be blocking the cross-origin request, or the CORS proxy is rate-limited. Click Refresh to retry.' : ''}
         </div>`;
     }
   }
 }
 
-/* ═══════════════════════════════════════════════════
-   SENSOR LIST
-═══════════════════════════════════════════════════ */
+/* ═══════════ SENSOR LIST ═══════════ */
 async function loadSensorList() {
+  const select = document.getElementById('sensor-select');
   try {
-    const data = await apiFetch(`${API_BASE}/sensors/`);
+    const data = await apiFetch(`${API_BASE}/sensors/?limit=200`);
     const sensors = Array.isArray(data) ? data : (data.results || []);
-    const select  = document.getElementById('sensor-select');
     select.innerHTML = '';
+    let found = false;
     for (const s of sensors) {
-      const id  = s.id || s.pk;
-      const nm  = s.name || s.serial_number || `Sensor ${id}`;
+      const id = s.id || s.pk;
       const opt = document.createElement('option');
       opt.value = id;
-      opt.textContent = `${nm}`;
-      if (String(id) === String(SENSOR_ID)) opt.selected = true;
+      opt.textContent = s.name || s.serial_number || `Sensor ${id}`;
+      if (String(id) === String(SENSOR_ID)) { opt.selected = true; found = true; }
       select.appendChild(opt);
     }
-  } catch(e) {
-    document.getElementById('sensor-select').innerHTML =
-      `<option value="${SENSOR_ID}">Sensor ${SENSOR_ID}</option>`;
+    if (!found) {
+      const opt = document.createElement('option');
+      opt.value = SENSOR_ID; opt.textContent = `Sensor ${SENSOR_ID}`;
+      opt.selected = true; select.prepend(opt);
+    }
+  } catch (e) {
+    select.innerHTML = `<option value="${SENSOR_ID}" selected>Sensor ${SENSOR_ID}</option>`;
   }
 }
 
 function switchSensor(id) {
   if (!id) return;
-  SENSOR_ID = id;
-  Object.keys(history).forEach(k => delete history[k]);
+  SENSOR_ID  = id;
+  cardKeys   = '';
+  prevValues = {};
   document.getElementById('grid').innerHTML =
     '<div class="msg-panel"><span class="spinner"></span> Loading…</div>';
   poll();
 }
 
-/* ═══════════════════════════════════════════════════
-   "X seconds ago" counter
-═══════════════════════════════════════════════════ */
+/* ═══════════ "X seconds ago" COUNTER ═══════════ */
 setInterval(() => {
+  if (!lastUpdate) return;
   secsAgo++;
-  const el = document.getElementById('topbar-updated');
-  if (lastUpdate) el.textContent = `Updated ${secsAgo}s ago`;
+  document.getElementById('topbar-updated').textContent = `Polled ${secsAgo}s ago`;
 }, 1000);
 
-/* ═══════════════════════════════════════════════════
-   INIT
-═══════════════════════════════════════════════════ */
+/* ═══════════ INIT ═══════════ */
 (async function init() {
   await loadSensorList();
   await poll();
-  timerID = setInterval(poll, POLL_INTERVAL);
+  setInterval(poll, POLL_INTERVAL);
 })();
 </script>
 </body>
