@@ -321,14 +321,20 @@ const API_BASE = 'https://sgsusa-ws.i-comesure.com/api';
 const TOKEN    = 'be5b70608d8bba345094b3cb375303c360c00641';
 const HEADERS  = { 'Authorization': `Token ${TOKEN}`, 'Accept': 'application/json' };
 
+const CORS_PROXY = 'https://corsproxy.io/?';
+
 let currentSensorId = 16718;
 
 /* ═══════════════════════════════════════════════
    API HELPER
 ═══════════════════════════════════════════════ */
 async function api(path) {
-  const res = await fetch(`${API_BASE}${path}`, { headers: HEADERS });
-  if (!res.ok) throw new Error(`HTTP ${res.status} — ${res.statusText}`);
+  const target  = `${API_BASE}${path}`;
+  const proxied = `${CORS_PROXY}${encodeURIComponent(target)}`;
+  const res = await fetch(proxied, {
+    headers: { ...HEADERS, 'X-Requested-With': 'XMLHttpRequest' }
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status} - ${res.statusText}`);
   return res.json();
 }
 
