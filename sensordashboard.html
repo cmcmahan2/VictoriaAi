@@ -414,6 +414,26 @@ async function poll() {
     sensorName = data.name || `Sensor ${SENSOR_ID}`;
     document.getElementById('topbar-sensor').textContent = sensorName;
 
+    // If measurements is a URL string, follow it
+    if (typeof data.measurements === 'string' && data.measurements.startsWith('http')) {
+      try {
+        const mData = await apiFetch(data.measurements);
+        console.log('Measurements endpoint response:', mData);
+        data.measurements = Array.isArray(mData) ? mData
+          : (mData.results || mData.data || mData.measurements || mData);
+      } catch(e) {
+        console.warn('Could not fetch measurements URL:', e);
+      }
+    }
+
+    // Same for measurement_types if it's a URL
+    if (typeof data.measurement_types === 'string' && data.measurement_types.startsWith('http')) {
+      try {
+        const tData = await apiFetch(data.measurement_types);
+        data.measurement_types = Array.isArray(tData) ? tData : (tData.results || tData);
+      } catch(e) { /* non-fatal */ }
+    }
+
     const readings = extractReadings(data);
     console.log('Extracted readings:', readings);
 
