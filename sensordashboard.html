@@ -302,8 +302,8 @@
   <!-- Sensor info -->
   <div class="section-card" id="debug-card">
     <div class="section-header" style="cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">&#9656; API Debug (click to expand)</div>
-    <div class="section-body" style="display:none;">
-      <div id="debug-output" style="font-size:11px;font-family:monospace;color:#333;line-height:1.8;word-break:break-all;">Loading…</div>
+    <div class="section-body">
+      <div id="debug-output" style="font-size:11px;font-family:monospace;color:#333;line-height:1.8;word-break:break-all;white-space:pre-wrap;">Loading…</div>
     </div>
   </div>
 
@@ -457,19 +457,14 @@ async function loadSensor(id) {
       api(`/`).catch(() => null),
     ]);
 
-    // Show debug info on screen so we can see what each endpoint returns
+    // Show debug info on screen
     const debugEl = document.getElementById('debug-output');
     if (debugEl) {
-      debugEl.innerHTML = `
-        <b>API Root:</b> ${JSON.stringify(apiRoot)}<br><br>
-        <b>Sensor Meta keys:</b> ${sensorMeta ? Object.keys(sensorMeta).join(', ') : 'null'}<br><br>
-        <b>Sensor Meta values (numeric):</b> ${sensorMeta ? Object.entries(sensorMeta).filter(([,v])=>typeof v==='number').map(([k,v])=>`${k}=${v}`).join(', ') : 'none'}<br><br>
-        <b>timeseries/?limit=1:</b> ${JSON.stringify(tsData)?.substring(0,300)}<br><br>
-        <b>data/?limit=1:</b> ${JSON.stringify(dataEp)?.substring(0,300)}<br><br>
-        <b>measures/?limit=1:</b> ${JSON.stringify(measEp)?.substring(0,300)}<br><br>
-        <b>latest/:</b> ${JSON.stringify(latestEp)?.substring(0,300)}<br><br>
-        <b>current/:</b> ${JSON.stringify(currentEp)?.substring(0,300)}<br>
-      `;
+      debugEl.innerHTML =
+        `<b>API Root:</b>\n${JSON.stringify(apiRoot, null, 2)}\n\n` +
+        `<b>Sensor Meta (FULL):</b>\n${JSON.stringify(sensorMeta, null, 2)}\n\n` +
+        `<b>timeseries/?limit=1&ordering=-date:</b>\n${JSON.stringify(tsData, null, 2)}\n\n` +
+        `<b>current/:</b>\n${JSON.stringify(currentEp, null, 2)}`;
     }
 
     // Extract latest readings — try nested objects in metadata first
