@@ -3,563 +3,504 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SGS i-comesure Sensor Dashboard</title>
+  <title>SGS i-comesure Live Dashboard</title>
+  <!--
+    ╔══════════════════════════════════════════════════════╗
+    ║  SGS i-comesure Environmental Sensor Dashboard       ║
+    ║  Config (lines below):                               ║
+    ║    SENSOR_ID     — change to your sensor ID          ║
+    ║    POLL_INTERVAL — ms between live updates           ║
+    ║    TOKEN         — your API token                    ║
+    ╚══════════════════════════════════════════════════════╝
+  -->
   <style>
+    :root {
+      --bg:        #0d1117;
+      --bg-card:   #161b22;
+      --bg-card2:  #1c2128;
+      --border:    #30363d;
+      --text:      #e6edf3;
+      --muted:     #8b949e;
+      --dim:       #6e7681;
+      --blue:      #388bfd;
+      --orange:    #e3702a;
+      --green:     #3fb950;
+      --grey:      #8b949e;
+      --red:       #f85149;
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: Arial, Helvetica, sans-serif;
-      background: #f4f4f4;
-      color: #333;
-      font-size: 14px;
-    }
-
-    /* ── Header ── */
-    .header {
-      background: #fff;
-      border-bottom: 1px solid #ddd;
-      padding: 10px 20px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .header-logo {
-      font-size: 22px;
-      font-weight: 900;
-      color: #1a5276;
-      letter-spacing: 1px;
-    }
-    .header-right {
-      font-size: 12px;
-      color: #666;
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-    .index-mode {
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-      color: #2980b9;
-      font-size: 12px;
-    }
-
-    /* ── Sensor title bar ── */
-    .sensor-bar {
-      background: #fff;
-      padding: 14px 20px 0;
-      border-bottom: 1px solid #ddd;
-    }
-    .sensor-title {
-      font-size: 17px;
-      font-weight: bold;
-      color: #1a5276;
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .ai-badge {
-      background: #2ecc71;
-      color: #fff;
-      font-size: 11px;
-      font-weight: bold;
-      padding: 2px 8px;
-      border-radius: 3px;
-    }
-    .nav-tabs {
-      display: flex;
-      gap: 0;
-      border-bottom: none;
-    }
-    .nav-tab {
-      padding: 8px 18px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
       font-size: 13px;
-      color: #555;
-      cursor: pointer;
-      border: 1px solid transparent;
-      border-bottom: none;
-      margin-right: 2px;
-      border-radius: 4px 4px 0 0;
-      background: #f8f8f8;
-      text-decoration: none;
-    }
-    .nav-tab.active {
-      background: #fff;
-      border-color: #ddd;
-      color: #1a5276;
-      font-weight: bold;
-      border-bottom-color: #fff;
-      margin-bottom: -1px;
-    }
-    .nav-tab:hover { background: #e8f4fc; }
-
-    /* ── Page body ── */
-    .page {
-      max-width: 1300px;
-      margin: 0 auto;
-      padding: 20px;
+      min-height: 100vh;
     }
 
-    /* ── Section card ── */
-    .section-card {
-      background: #fff;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      margin-bottom: 20px;
+    /* ── Top bar ── */
+    .topbar {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(13,17,23,0.95);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 1.5rem;
+      height: 52px;
+      display: flex; align-items: center; gap: 1.5rem;
     }
-    .section-header {
-      padding: 10px 16px;
-      font-size: 14px;
-      font-weight: bold;
-      color: #1a5276;
-      border-bottom: 1px solid #eee;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+    .topbar-title { font-size: 15px; font-weight: 700; color: var(--blue); white-space: nowrap; }
+    .topbar-sensor { font-size: 12px; color: var(--muted); }
+    .topbar-spacer { flex: 1; }
+    .topbar-updated { font-size: 11px; color: var(--dim); white-space: nowrap; }
+
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green);
+      flex-shrink: 0;
     }
-    .section-body { padding: 16px; }
+    .status-dot.error { background: var(--red); }
+    .status-msg { font-size: 11px; color: var(--muted); max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
+    .status-dot.ok { animation: pulse 2s infinite; }
 
     /* ── Sensor selector ── */
-    .selector-row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 16px;
-      flex-wrap: wrap;
+    .controls {
+      padding: 1rem 1.5rem 0;
+      display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
     }
-    .selector-row label { font-size: 13px; font-weight: bold; color: #555; }
+    .controls label { font-size: 12px; color: var(--muted); }
     #sensor-select {
-      padding: 5px 10px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 13px;
-      min-width: 280px;
-      background: #fff;
+      background: var(--bg-card); border: 1px solid var(--border);
+      color: var(--text); padding: 0.3rem 0.75rem; border-radius: 6px;
+      font-size: 12px; min-width: 260px;
     }
-    .refresh-btn {
-      background: #2980b9;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
-      padding: 6px 14px;
-      font-size: 13px;
-      cursor: pointer;
+    .btn {
+      background: #1f6feb; color: #fff; border: none; border-radius: 6px;
+      padding: 0.3rem 0.75rem; font-size: 12px; cursor: pointer;
     }
-    .refresh-btn:hover { background: #1a6595; }
-    .last-update { font-size: 11px; color: #888; }
+    .btn:hover { background: #388bfd; }
 
-    /* ── Tile grid ── */
-    .tile-grid {
+    /* ── Card grid ── */
+    .grid {
       display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 6px;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 0.75rem;
+      padding: 1rem 1.5rem 2rem;
     }
 
-    @media (max-width: 1100px) { .tile-grid { grid-template-columns: repeat(4, 1fr); } }
-    @media (max-width: 700px)  { .tile-grid { grid-template-columns: repeat(2, 1fr); } }
-
-    .tile {
-      background: #4a7fa5;
-      color: #fff;
-      border-radius: 4px;
-      padding: 14px 10px;
-      text-align: center;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100px;
-      transition: background 0.2s;
+    /* ── Individual card ── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      display: flex; flex-direction: column; gap: 0.4rem;
+      position: relative; overflow: hidden;
+      transition: border-color 0.3s;
     }
-    .tile:hover { background: #3d6d8f; }
-    .tile-label {
-      font-size: 12px;
-      font-weight: bold;
-      margin-bottom: 8px;
-      opacity: 0.9;
-      line-height: 1.3;
-    }
-    .tile-value {
-      font-size: 24px;
-      font-weight: bold;
-      line-height: 1.1;
-      letter-spacing: -0.5px;
-    }
-    .tile-unit {
-      font-size: 11px;
-      opacity: 0.85;
-      margin-top: 4px;
-    }
+    .card.pulse-anim { animation: card-pulse 0.6s ease; }
+    @keyframes card-pulse { 0%{border-color:var(--card-accent)}100%{border-color:var(--border)} }
 
-    /* Colour coding by reading level */
-    .tile-good     { background: #4a7fa5; }
-    .tile-moderate { background: #e67e22; }
-    .tile-high     { background: #c0392b; }
-    .tile-na       { background: #7f8c8d; }
+    .card-label {
+      font-size: 10px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+    .card-value {
+      font-size: 26px; font-weight: 700; line-height: 1;
+      color: var(--card-accent, var(--text));
+    }
+    .card-unit  { font-size: 11px; color: var(--dim); }
+    .card-time  { font-size: 10px; color: var(--dim); margin-top: auto; }
+    .card-spark { margin-top: 0.5rem; }
 
-    /* ── Status indicator ── */
-    .status-ok   { background: #27ae60; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; }
-    .status-warn { background: #e67e22; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; }
-    .status-err  { background: #c0392b; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; }
+    /* Category colour bands */
+    .card[data-cat="atmosphere"] { --card-accent: var(--blue);   border-top: 2px solid var(--blue);   }
+    .card[data-cat="particulate"]{ --card-accent: var(--orange); border-top: 2px solid var(--orange); }
+    .card[data-cat="gas"]        { --card-accent: var(--green);  border-top: 2px solid var(--green);  }
+    .card[data-cat="other"]      { --card-accent: var(--grey);   border-top: 2px solid var(--grey);   }
 
-    /* ── Sensor info table ── */
-    .info-table { width: 100%; border-collapse: collapse; }
-    .info-table td { padding: 6px 10px; font-size: 13px; }
-    .info-table td:first-child { font-weight: bold; color: #555; width: 180px; }
-    .info-table tr:nth-child(even) td { background: #f9f9f9; }
+    /* ── Sparkline SVG ── */
+    .spark { display: block; width: 100%; height: 36px; }
+    .spark-line { fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 
     /* ── Loading / error ── */
-    .loading-msg {
-      text-align: center;
-      padding: 30px;
-      color: #888;
-      font-size: 13px;
+    .msg-panel {
+      grid-column: 1/-1; text-align: center;
+      padding: 3rem; color: var(--muted); font-size: 13px;
     }
     .spinner {
-      display: inline-block;
-      width: 18px; height: 18px;
-      border: 3px solid #ddd;
-      border-top-color: #2980b9;
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-      vertical-align: middle;
-      margin-right: 8px;
+      display: inline-block; width: 20px; height: 20px;
+      border: 2px solid var(--border); border-top-color: var(--blue);
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+      vertical-align: middle; margin-right: 8px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .error-msg { color: #c0392b; text-align: center; padding: 20px; font-size: 13px; }
 
-    /* ── Footer ── */
-    footer {
-      text-align: center;
-      padding: 16px;
-      font-size: 11px;
-      color: #aaa;
+    .cors-error {
+      grid-column: 1/-1; background: rgba(248,81,73,0.1);
+      border: 1px solid var(--red); border-radius: 8px;
+      padding: 1.5rem; color: var(--red); font-size: 12px; line-height: 1.7;
     }
   </style>
 </head>
 <body>
 
-<!-- Header -->
-<div class="header">
-  <div class="header-logo">SGS</div>
-  <div class="header-right">
-    <span>OEM_SGS_USA ▾</span>
-    <span class="index-mode">◆ Index mode: OFF</span>
-  </div>
+<!-- Top bar -->
+<div class="topbar">
+  <div class="topbar-title">SGS i-comesure</div>
+  <div class="topbar-sensor" id="topbar-sensor">Loading…</div>
+  <div class="topbar-spacer"></div>
+  <div class="topbar-updated" id="topbar-updated"></div>
+  <div class="status-dot" id="status-dot"></div>
+  <div class="status-msg" id="status-msg">Connecting…</div>
 </div>
 
-<!-- Sensor title + nav -->
-<div class="sensor-bar">
-  <div class="sensor-title">
-    <span id="page-title">Loading sensor…</span>
-    <span class="ai-badge">AI-Ready</span>
-  </div>
-  <div class="nav-tabs">
-    <a class="nav-tab active" href="#">Home</a>
-    <a class="nav-tab" href="#">Time series</a>
-    <a class="nav-tab" href="#">Download</a>
-    <a class="nav-tab" href="#">Warnings</a>
-    <a class="nav-tab" href="#">Reports</a>
-    <a class="nav-tab" href="#">EcomCal</a>
-    <a class="nav-tab" href="#">EcomTune</a>
-    <a class="nav-tab" href="#">EcomShow</a>
-    <a class="nav-tab" href="#">EcomDisplay</a>
-  </div>
+<!-- Controls -->
+<div class="controls">
+  <label>Sensor:</label>
+  <select id="sensor-select" onchange="switchSensor(this.value)">
+    <option value="">Loading…</option>
+  </select>
+  <button class="btn" onclick="poll()">&#8635; Refresh</button>
 </div>
 
-<!-- Page body -->
-<div class="page">
-
-  <!-- Sensor selector -->
-  <div class="section-card">
-    <div class="section-header">Sensor Selection</div>
-    <div class="section-body">
-      <div class="selector-row">
-        <label>Sensor:</label>
-        <select id="sensor-select" onchange="loadSensor(this.value)">
-          <option value="">Loading sensors…</option>
-        </select>
-        <button class="refresh-btn" onclick="refresh()">↻ Refresh</button>
-        <span class="last-update" id="last-update"></span>
-      </div>
-    </div>
-  </div>
-
-  <!-- Dashboard tiles -->
-  <div class="section-card">
-    <div class="section-header">
-      Dashboard
-      <span id="status-badge"></span>
-    </div>
-    <div class="section-body">
-      <div class="tile-grid" id="tile-grid">
-        <div class="loading-msg" style="grid-column:1/-1"><span class="spinner"></span> Loading sensor data…</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Sensor info -->
-  <div class="section-card" id="debug-card">
-    <div class="section-header" style="cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">&#9656; API Debug (click to expand)</div>
-    <div class="section-body">
-      <div id="debug-output" style="font-size:11px;font-family:monospace;color:#333;line-height:1.8;word-break:break-all;white-space:pre-wrap;">Loading…</div>
-    </div>
-  </div>
-
-  <div class="section-card">
-    <div class="section-header">Sensor information</div>
-    <div class="section-body">
-      <table class="info-table" id="info-table">
-        <tr><td colspan="2" class="loading-msg"><span class="spinner"></span> Loading…</td></tr>
-      </table>
-    </div>
-  </div>
-
+<!-- Card grid -->
+<div class="grid" id="grid">
+  <div class="msg-panel"><span class="spinner"></span> Loading sensor data…</div>
 </div>
-
-<footer>SGS i-comesure · Auto-refreshes every 5 minutes</footer>
 
 <script>
-/* ═══════════════════════════════════════════════
-   CONFIG
-═══════════════════════════════════════════════ */
-const API_BASE = 'https://sgsusa-ws.i-comesure.com/api';
-const TOKEN    = 'be5b70608d8bba345094b3cb375303c360c00641';
-const HEADERS  = { 'Authorization': `Token ${TOKEN}`, 'Accept': 'application/json' };
+/* ═══════════════════════════════════════════════════
+   CONFIGURATION — edit these values
+═══════════════════════════════════════════════════ */
+const POLL_INTERVAL = 10000;   // milliseconds between live updates
+let   SENSOR_ID     = 16718;   // default sensor ID
+const API_BASE      = 'https://sgsusa-ws.i-comesure.com/api';
+const TOKEN         = 'be5b70608d8bba345094b3cb375303c360c00641';
+const CORS_PROXY    = 'https://corsproxy.io/?';
+const HISTORY_MAX   = 100;     // max readings kept per parameter
 
-const CORS_PROXY = 'https://corsproxy.io/?';
+/* ═══════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════ */
+const history = {};   // { paramKey: [ {value, ts}, ... ] }
+let   lastUpdate = null;
+let   timerID    = null;
+let   secsAgo    = 0;
+let   sensorName = '';
 
-let currentSensorId = 16718;
-
-/* ═══════════════════════════════════════════════
-   API HELPER
-═══════════════════════════════════════════════ */
-async function api(path) {
-  const target  = `${API_BASE}${path}`;
-  const proxied = `${CORS_PROXY}${encodeURIComponent(target)}`;
+/* ═══════════════════════════════════════════════════
+   API HELPER (with CORS proxy + token)
+═══════════════════════════════════════════════════ */
+async function apiFetch(url) {
+  const proxied = CORS_PROXY + encodeURIComponent(url);
   const res = await fetch(proxied, {
-    headers: { ...HEADERS, 'X-Requested-With': 'XMLHttpRequest' }
+    headers: {
+      'Authorization': `Token ${TOKEN}`,
+      'Accept': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest'
+    }
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status} - ${res.statusText}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status} — ${res.statusText}`);
   return res.json();
 }
 
-/* ═══════════════════════════════════════════════
-   FIELD DEFINITIONS
-   Maps known API field names → display label + unit
-═══════════════════════════════════════════════ */
-const FIELD_MAP = [
-  // Temperature & humidity
-  { keys: ['temperature','temp','Temperature'],            label: 'Temperature',  unit: 'deg F' },
-  { keys: ['rh','humidity','relative_humidity','RH'],      label: 'RH',           unit: '%'     },
-  // PM
-  { keys: ['pm1','pm_1','PM1','pm1_0'],                   label: 'PM 1',         unit: 'ug/m3' },
-  { keys: ['pm2_5','pm2p5','PM2_5','pm25','pm2.5'],        label: 'PM 2.5',       unit: 'ug/m3' },
-  { keys: ['pm4','pm_4','PM4','pm4_0'],                   label: 'PM 4',         unit: 'ug/m3' },
-  { keys: ['pm10','pm_10','PM10'],                        label: 'PM 10',        unit: 'ug/m3' },
-  // TSP
-  { keys: ['tsp','tsp7','TSP7','tsp_7'],                  label: 'TSP 7',        unit: 'ug/m3' },
-  { keys: ['tsp20','TSP20','tsp_20'],                     label: 'TSP 20',       unit: 'ug/m3' },
-  { keys: ['tsp40','TSP40','tsp_40'],                     label: 'TSP 40',       unit: 'ug/m3' },
-  // Particle counts
-  { keys: ['bin0','n035_046','count_035_046','0.35-0.46'], label: '0.35-0.46um', unit: 'c/s'   },
-  { keys: ['bin1','n046_066','count_046_066','0.46-0.66'], label: '0.46-0.66um', unit: 'c/s'   },
-  { keys: ['bin2','n066_100','count_066_100','0.66-1.0'],  label: '0.66-1.0um',  unit: 'c/s'   },
-  { keys: ['bin3','n100_130','count_100_130','1.0-1.3'],   label: '1.0-1.3um',   unit: 'c/s'   },
-  { keys: ['bin4','n130_170','count_130_170','1.3-1.7'],   label: '1.3-1.7um',   unit: 'c/s'   },
-  { keys: ['bin5','n170_230','count_170_230','1.7-2.3'],   label: '1.7-2.3um',   unit: 'c/s'   },
-  { keys: ['bin6','n230_300','count_230_300','2.3-3.0'],   label: '2.3-3.0um',   unit: 'c/s'   },
-  // CO2 / VOC / other common
-  { keys: ['co2','CO2'],                                  label: 'CO₂',          unit: 'ppm'   },
-  { keys: ['voc','VOC','tvoc'],                           label: 'VOC',          unit: 'ppb'   },
-  { keys: ['o3','O3','ozone'],                            label: 'O₃',           unit: 'ppb'   },
-  { keys: ['no2','NO2'],                                  label: 'NO₂',          unit: 'ppb'   },
-  { keys: ['so2','SO2'],                                  label: 'SO₂',          unit: 'ppb'   },
-  { keys: ['co','CO'],                                    label: 'CO',           unit: 'ppm'   },
-  { keys: ['pressure','baro','barometric_pressure'],       label: 'Pressure',     unit: 'hPa'   },
-  { keys: ['noise','sound_level'],                        label: 'Noise',        unit: 'dB'    },
-  { keys: ['lux','light'],                                label: 'Light',        unit: 'lux'   },
-];
+/* ═══════════════════════════════════════════════════
+   CATEGORY INFERENCE
+═══════════════════════════════════════════════════ */
+function category(name) {
+  const n = name.toLowerCase();
+  if (/temp|rh|humid|pressure|dew|wind|rain|uv|lux|noise/.test(n)) return 'atmosphere';
+  if (/pm|tsp|particle|dust|bin|count/.test(n))                     return 'particulate';
+  if (/co2|co|voc|tvoc|o3|ozone|no2|so2|nh3|h2s|gas/.test(n))      return 'gas';
+  return 'other';
+}
 
-/* Resolve a data object against FIELD_MAP — returns matched tiles */
-function resolveTiles(data) {
-  const found = [];
-  const usedKeys = new Set();
+/* ═══════════════════════════════════════════════════
+   EXTRACT MEASUREMENTS from sensor detail response
+═══════════════════════════════════════════════════ */
+function extractReadings(data) {
+  const readings = [];
 
-  for (const def of FIELD_MAP) {
-    for (const k of def.keys) {
-      if (k in data && !usedKeys.has(k)) {
-        usedKeys.add(k);
-        found.push({ label: def.label, value: data[k], unit: def.unit });
-        break;
+  /* Case 1: measurements is an array of objects */
+  const mArr = data.measurements;
+  if (Array.isArray(mArr) && mArr.length) {
+    for (const m of mArr) {
+      // Sub-format A: { measurement_type: {name, unit}, value, date }
+      if (m.measurement_type && m.value !== undefined) {
+        readings.push({
+          key:   slugify(m.measurement_type.name || m.measurement_type),
+          label: m.measurement_type.name || String(m.measurement_type),
+          unit:  m.measurement_type.unit || m.unit || '',
+          value: parseFloat(m.value),
+          ts:    m.date || m.timestamp || data.last_update
+        });
+        continue;
+      }
+      // Sub-format B: { name, value, unit, date }
+      if (m.name !== undefined && m.value !== undefined) {
+        readings.push({
+          key:   slugify(m.name),
+          label: m.name,
+          unit:  m.unit || '',
+          value: parseFloat(m.value),
+          ts:    m.date || m.timestamp || data.last_update
+        });
+        continue;
+      }
+      // Sub-format C: flat numeric object with label from measurement_types
+      for (const [k, v] of Object.entries(m)) {
+        if (typeof v === 'number' && k !== 'id') {
+          readings.push({ key: k, label: humanize(k), unit: '', value: v, ts: data.last_update });
+        }
       }
     }
+    if (readings.length) return readings;
   }
 
-  // Catch-all: any remaining numeric fields not already mapped
+  /* Case 2: measurements is an object (key→value map) */
+  if (mArr && typeof mArr === 'object' && !Array.isArray(mArr)) {
+    for (const [k, v] of Object.entries(mArr)) {
+      if (typeof v === 'number') {
+        readings.push({ key: k, label: humanize(k), unit: unitFor(k), value: v, ts: data.last_update });
+      }
+    }
+    if (readings.length) return readings;
+  }
+
+  /* Case 3: measurement_types gives field definitions, values are top-level */
+  const types = data.measurement_types;
+  if (Array.isArray(types) && types.length) {
+    for (const t of types) {
+      const key = t.keyword || t.name || t.id;
+      if (key && data[key] !== undefined && typeof data[key] === 'number') {
+        readings.push({ key: slugify(String(key)), label: t.name || String(key), unit: t.unit || '', value: data[key], ts: data.last_update });
+      }
+    }
+    if (readings.length) return readings;
+  }
+
+  /* Case 4: fall back — collect all top-level numerics (excluding IDs) */
+  const skip = new Set(['id','pk','calibration_ongoing','lat','lng','latitude','longitude']);
   for (const [k, v] of Object.entries(data)) {
-    if (!usedKeys.has(k) && typeof v === 'number' && !k.toLowerCase().includes('id')) {
-      found.push({ label: k, value: v, unit: '' });
+    if (typeof v === 'number' && !skip.has(k)) {
+      readings.push({ key: k, label: humanize(k), unit: unitFor(k), value: v, ts: data.last_update });
     }
   }
-
-  return found;
+  return readings;
 }
 
-/* ═══════════════════════════════════════════════
-   LOAD SENSORS LIST
-═══════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════
+   STRING UTILITIES
+═══════════════════════════════════════════════════ */
+function slugify(s) { return String(s).toLowerCase().replace(/[^a-z0-9]/g,'_'); }
+function humanize(k) {
+  return k.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+function unitFor(k) {
+  const n = k.toLowerCase();
+  if (/temp/.test(n))  return '°F';
+  if (/rh|humid/.test(n)) return '%';
+  if (/pm|tsp/.test(n)) return 'µg/m³';
+  if (/co2/.test(n))   return 'ppm';
+  if (/voc|tvoc/.test(n)) return 'ppb';
+  if (/pressure/.test(n)) return 'hPa';
+  if (/noise|sound/.test(n)) return 'dB';
+  if (/lux|light/.test(n)) return 'lux';
+  if (/bin|count|[0-9]um/.test(n)) return 'c/s';
+  return '';
+}
+
+/* ═══════════════════════════════════════════════════
+   SPARKLINE SVG
+═══════════════════════════════════════════════════ */
+function sparkline(vals, color) {
+  if (vals.length < 2) return '';
+  const W = 200, H = 36, pad = 2;
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const range = max - min || 1;
+  const pts = vals.map((v, i) => {
+    const x = pad + (i / (vals.length - 1)) * (W - pad * 2);
+    const y = H - pad - ((v - min) / range) * (H - pad * 2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <polyline class="spark-line" points="${pts.join(' ')}" stroke="${color}" opacity="0.8"/>
+    <circle cx="${pts[pts.length-1].split(',')[0]}" cy="${pts[pts.length-1].split(',')[1]}" r="2.5" fill="${color}"/>
+  </svg>`;
+}
+
+/* ═══════════════════════════════════════════════════
+   RENDER CARDS
+═══════════════════════════════════════════════════ */
+const CAT_COLORS = { atmosphere:'#388bfd', particulate:'#e3702a', gas:'#3fb950', other:'#8b949e' };
+
+function renderCards(readings) {
+  const grid = document.getElementById('grid');
+  const ts   = lastUpdate ? lastUpdate.toLocaleTimeString() : '—';
+
+  // First render: build all cards
+  if (!document.querySelector('.card')) {
+    grid.innerHTML = readings.map(r => {
+      const cat   = category(r.label);
+      const color = CAT_COLORS[cat];
+      const vals  = (history[r.key] || []).map(h => h.value);
+      return `
+      <div class="card" data-cat="${cat}" data-key="${r.key}" style="--card-accent:${color}">
+        <div class="card-label">${r.label}</div>
+        <div class="card-value" id="val-${r.key}">${fmt(r.value)}</div>
+        <div class="card-unit">${r.unit}</div>
+        <div class="card-spark" id="spark-${r.key}">${sparkline(vals, color)}</div>
+        <div class="card-time" id="ts-${r.key}">Updated ${ts}</div>
+      </div>`;
+    }).join('');
+    return;
+  }
+
+  // Subsequent renders: update values + sparklines, pulse animation
+  for (const r of readings) {
+    const valEl   = document.getElementById(`val-${r.key}`);
+    const sparkEl = document.getElementById(`spark-${r.key}`);
+    const tsEl    = document.getElementById(`ts-${r.key}`);
+    const card    = document.querySelector(`.card[data-key="${r.key}"]`);
+
+    if (valEl)   valEl.textContent = fmt(r.value);
+    if (tsEl)    tsEl.textContent  = `Updated ${ts}`;
+    if (sparkEl) {
+      const vals  = (history[r.key] || []).map(h => h.value);
+      const color = CAT_COLORS[category(r.label)];
+      sparkEl.innerHTML = sparkline(vals, color);
+    }
+    if (card) {
+      card.classList.remove('pulse-anim');
+      void card.offsetWidth;
+      card.classList.add('pulse-anim');
+    }
+  }
+}
+
+function fmt(v) {
+  if (v == null || isNaN(v)) return '—';
+  return Math.abs(v) >= 100 ? v.toFixed(1) : v.toFixed(3);
+}
+
+/* ═══════════════════════════════════════════════════
+   UPDATE HISTORY
+═══════════════════════════════════════════════════ */
+function updateHistory(readings) {
+  const ts = Date.now();
+  for (const r of readings) {
+    if (!history[r.key]) history[r.key] = [];
+    history[r.key].push({ value: r.value, ts });
+    if (history[r.key].length > HISTORY_MAX) history[r.key].shift();
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   FETCH + POLL
+═══════════════════════════════════════════════════ */
+async function poll() {
+  const dot    = document.getElementById('status-dot');
+  const msgEl  = document.getElementById('status-msg');
+
+  try {
+    const data = await apiFetch(`${API_BASE}/sensors/${SENSOR_ID}/`);
+    console.log('Raw API response:', data);
+
+    // Update sensor name in topbar
+    sensorName = data.name || `Sensor ${SENSOR_ID}`;
+    document.getElementById('topbar-sensor').textContent = sensorName;
+
+    const readings = extractReadings(data);
+    console.log('Extracted readings:', readings);
+
+    if (!readings.length) {
+      document.getElementById('grid').innerHTML = `
+        <div class="cors-error">
+          <b>Connected but no measurement data found.</b><br><br>
+          Raw API keys: ${Object.keys(data).join(', ')}<br><br>
+          measurements value: ${JSON.stringify(data.measurements)?.substring(0, 500)}
+        </div>`;
+      return;
+    }
+
+    updateHistory(readings);
+    renderCards(readings);
+
+    lastUpdate = new Date();
+    secsAgo = 0;
+    dot.className = 'status-dot ok';
+    msgEl.textContent = 'Live';
+
+  } catch (err) {
+    console.error(err);
+    dot.className = 'status-dot error';
+    const isCors = err.message?.toLowerCase().includes('fetch') || err.message?.toLowerCase().includes('cors');
+    msgEl.textContent = isCors ? 'CORS blocked — check API settings' : err.message;
+    if (!document.querySelector('.card')) {
+      document.getElementById('grid').innerHTML = `
+        <div class="cors-error">
+          <b>Could not load sensor data.</b><br><br>
+          Error: ${err.message}<br><br>
+          ${isCors ? 'The API is blocking cross-origin browser requests. The CORS proxy may be rate-limited. Try refreshing.' : ''}
+        </div>`;
+    }
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   SENSOR LIST
+═══════════════════════════════════════════════════ */
 async function loadSensorList() {
   try {
-    const data = await api('/sensors/');
-    const sensors = Array.isArray(data) ? data : (data.results || [data]);
-    const select = document.getElementById('sensor-select');
+    const data = await apiFetch(`${API_BASE}/sensors/`);
+    const sensors = Array.isArray(data) ? data : (data.results || []);
+    const select  = document.getElementById('sensor-select');
     select.innerHTML = '';
     for (const s of sensors) {
-      const id   = s.id || s.pk || s.sensor_id;
-      const name = s.name || s.serial_number || s.label || `Sensor ${id}`;
-      const opt  = document.createElement('option');
+      const id  = s.id || s.pk;
+      const nm  = s.name || s.serial_number || `Sensor ${id}`;
+      const opt = document.createElement('option');
       opt.value = id;
-      opt.textContent = `${name} (${id})`;
-      if (String(id) === String(currentSensorId)) opt.selected = true;
+      opt.textContent = `${nm}`;
+      if (String(id) === String(SENSOR_ID)) opt.selected = true;
       select.appendChild(opt);
     }
-    if (!select.value && sensors.length) {
-      currentSensorId = sensors[0].id || sensors[0].pk;
-    }
-  } catch (e) {
+  } catch(e) {
     document.getElementById('sensor-select').innerHTML =
-      `<option value="${currentSensorId}">Sensor ${currentSensorId}</option>`;
+      `<option value="${SENSOR_ID}">Sensor ${SENSOR_ID}</option>`;
   }
 }
 
-/* ═══════════════════════════════════════════════
-   LOAD SENSOR DATA
-═══════════════════════════════════════════════ */
-async function loadSensor(id) {
-  if (id) currentSensorId = id;
-  const grid  = document.getElementById('tile-grid');
-  const info  = document.getElementById('info-table');
-  const title = document.getElementById('page-title');
-
-  grid.innerHTML = `<div class="loading-msg" style="grid-column:1/-1"><span class="spinner"></span> Loading…</div>`;
-
-  try {
-    // Step 1: fetch sensor metadata to discover the measurements URL
-    const sensorMeta = await api(`/sensors/${currentSensorId}/`).catch(() => null);
-    if (!sensorMeta) throw new Error('Could not fetch sensor metadata');
-
-    // Step 2: measurements is a URL in the metadata — fetch it directly
-    let measUrl = sensorMeta.measurements;
-    let measData = null;
-    if (measUrl && typeof measUrl === 'string') {
-      // Strip base URL so our api() helper can add proxy + auth
-      const path = measUrl.replace('https://sgsusa-ws.i-comesure.com/api', '');
-      measData = await api(path + (path.includes('?') ? '&' : '?') + 'limit=1').catch(() => null);
-    }
-    // Also try /measurements/ sub-endpoint
-    if (!measData) {
-      measData = await api(`/sensors/${currentSensorId}/measurements/?limit=1`).catch(() => null);
-    }
-
-    // Show debug info
-    const debugEl = document.getElementById('debug-output');
-    if (debugEl) {
-      debugEl.innerHTML =
-        `<b>Sensor Meta (FULL):</b>\n${JSON.stringify(sensorMeta, null, 2)}\n\n` +
-        `<b>measurements URL:</b> ${measUrl}\n\n` +
-        `<b>measurements data:</b>\n${JSON.stringify(measData, null, 2)}`;
-    }
-
-    // Step 3: extract the actual reading object
-    let sensorData = null;
-    if (measData) {
-      const arr = Array.isArray(measData) ? measData
-        : (measData.results || measData.data || measData.measurements || [measData]);
-      if (arr.length) sensorData = arr[0];
-    }
-    // Fall back to sensor metadata
-    if (!sensorData) sensorData = sensorMeta;
-    if (!sensorData) throw new Error('No sensor data found');
-
-    // ── Title ──
-    const name = sensorMeta?.name || sensorMeta?.serial_number || `Sensor ${currentSensorId}`;
-    const model = sensorMeta?.model || sensorMeta?.device_type || 'ECOMZEN';
-    title.textContent = `${model} - ${name}`;
-
-    // ── Status badge ──
-    const status = sensorMeta?.status || sensorMeta?.state || 'OK';
-    const badge  = document.getElementById('status-badge');
-    const cls    = status.toString().toLowerCase() === 'ok' ? 'status-ok' :
-                   status.toString().toLowerCase().includes('warn') ? 'status-warn' : 'status-err';
-    badge.innerHTML = `<span class="${cls}">${status}</span>`;
-
-    // ── Tiles: show ALL fields from data (mapped labels + catch-all) ──
-    const tiles = resolveTiles(sensorData);
-    if (!tiles.length) {
-      // Show raw keys to help diagnose field names
-      const rawKeys = Object.entries(sensorData)
-        .filter(([,v]) => v !== null && v !== undefined)
-        .map(([k,v]) => `<li><b>${k}</b>: ${JSON.stringify(v)}</li>`).join('');
-      grid.innerHTML = `<div class="error-msg" style="grid-column:1/-1;text-align:left;">
-        <b>Data received but no tiles matched. Raw fields:</b><ul>${rawKeys}</ul>
-      </div>`;
-    } else {
-      grid.innerHTML = tiles.map(t => `
-        <div class="tile">
-          <div class="tile-label">${t.label}</div>
-          <div class="tile-value">${typeof t.value === 'number' ? t.value.toFixed(3) : t.value}</div>
-          <div class="tile-unit">${t.unit}</div>
-        </div>`).join('');
-    }
-
-    // ── Info table ──
-    const updated = sensorMeta?.last_update || sensorMeta?.updated_at || sensorMeta?.timestamp || new Date().toLocaleString();
-    const serial  = sensorMeta?.serial_number || sensorMeta?.id || currentSensorId;
-    const firm    = sensorMeta?.firmware || sensorMeta?.firmware_version || '—';
-    const loc     = sensorMeta?.location ? (typeof sensorMeta.location === 'object'
-      ? `${sensorMeta.location.lat ?? ''},${sensorMeta.location.lng ?? ''}` : sensorMeta.location) : '—';
-
-    info.innerHTML = `
-      <tr><td>Name</td><td>${name}</td></tr>
-      <tr><td>Status</td><td><span class="${cls}">${status}</span></td></tr>
-      <tr><td>Display update on</td><td>${updated}</td></tr>
-      <tr><td>Serial number</td><td>${serial}</td></tr>
-      <tr><td>Firmware</td><td>${firm}</td></tr>
-      <tr><td>Location</td><td>${loc}</td></tr>
-    `;
-
-    document.getElementById('last-update').textContent = 'Updated: ' + new Date().toLocaleTimeString();
-
-  } catch (e) {
-    grid.innerHTML = `<div class="error-msg" style="grid-column:1/-1">
-      ⚠ Could not load sensor data: ${e.message}<br><br>
-      <small>If this is a CORS error, the API may need to be proxied. Check browser console for details.</small>
-    </div>`;
-    console.error(e);
-  }
+function switchSensor(id) {
+  if (!id) return;
+  SENSOR_ID = id;
+  Object.keys(history).forEach(k => delete history[k]);
+  document.getElementById('grid').innerHTML =
+    '<div class="msg-panel"><span class="spinner"></span> Loading…</div>';
+  poll();
 }
 
-/* ═══════════════════════════════════════════════
-   REFRESH
-═══════════════════════════════════════════════ */
-function refresh() {
-  loadSensorList();
-  loadSensor(currentSensorId);
-}
+/* ═══════════════════════════════════════════════════
+   "X seconds ago" counter
+═══════════════════════════════════════════════════ */
+setInterval(() => {
+  secsAgo++;
+  const el = document.getElementById('topbar-updated');
+  if (lastUpdate) el.textContent = `Updated ${secsAgo}s ago`;
+}, 1000);
 
-/* ═══════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════
    INIT
-═══════════════════════════════════════════════ */
-async function init() {
+═══════════════════════════════════════════════════ */
+(async function init() {
   await loadSensorList();
-  await loadSensor(currentSensorId);
-}
-
-init();
-setInterval(refresh, 5 * 60 * 1000);
+  await poll();
+  timerID = setInterval(poll, POLL_INTERVAL);
+})();
 </script>
-
 </body>
 </html>
