@@ -300,6 +300,13 @@
   </div>
 
   <!-- Sensor info -->
+  <div class="section-card" id="debug-card">
+    <div class="section-header" style="cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">&#9656; API Debug (click to expand)</div>
+    <div class="section-body" style="display:none;">
+      <div id="debug-output" style="font-size:11px;font-family:monospace;color:#333;line-height:1.8;word-break:break-all;">Loading…</div>
+    </div>
+  </div>
+
   <div class="section-card">
     <div class="section-header">Sensor information</div>
     <div class="section-body">
@@ -439,33 +446,54 @@ async function loadSensor(id) {
   grid.innerHTML = `<div class="loading-msg" style="grid-column:1/-1"><span class="spinner"></span> Loading…</div>`;
 
   try {
-    // Try common endpoint patterns in order
-    const endpoints = [
-      `/sensors/${currentSensorId}/`,
-      `/sensors/${currentSensorId}/data/`,
-      `/sensors/${currentSensorId}/measures/`,
-      `/sensors/${currentSensorId}/latest/`,
-    ];
+    // Fetch sensor metadata + many possible data endpoints in parallel
+    const [sensorMeta, tsData, dataEp, measEp, latestEp, currentEp, apiRoot] = await Promise.all([
+      api(`/sensors/${currentSensorId}/`).catch(() => null),
+      api(`/sensors/${currentSensorId}/timeseries/?limit=1&ordering=-date`).catch(() => null),
+      api(`/sensors/${currentSensorId}/data/?limit=1`).catch(() => null),
+      api(`/sensors/${currentSensorId}/measures/?limit=1`).catch(() => null),
+      api(`/sensors/${currentSensorId}/latest/`).catch(() => null),
+      api(`/sensors/${currentSensorId}/current/`).catch(() => null),
+      api(`/`).catch(() => null),
+    ]);
 
-    let sensorData = null;
-    let sensorMeta = null;
-
-    for (const ep of endpoints) {
-      try {
-        const d = await api(ep);
-        if (ep === endpoints[0]) {
-          sensorMeta = d;
-          // Check if readings are embedded
-          const readings = d.last_reading || d.latest || d.data || d.measures || d.readings;
-          if (readings && typeof readings === 'object') sensorData = readings;
-          else if (typeof d === 'object') sensorData = d;
-        } else {
-          sensorData = Array.isArray(d) ? d[0] : d;
-          break;
-        }
-      } catch(e) { /* try next */ }
+    // Show debug info on screen so we can see what each endpoint returns
+    const debugEl = document.getElementById('debug-output');
+    if (debugEl) {
+      debugEl.innerHTML = `
+        <b>API Root:</b> ${JSON.stringify(apiRoot)}<br><br>
+        <b>Sensor Meta keys:</b> ${sensorMeta ? Object.keys(sensorMeta).join(', ') : 'null'}<br><br>
+        <b>Sensor Meta values (numeric):</b> ${sensorMeta ? Object.entries(sensorMeta).filter(([,v])=>typeof v==='number').map(([k,v])=>`${k}=${v}`).join(', ') : 'none'}<br><br>
+        <b>timeseries/?limit=1:</b> ${JSON.stringify(tsData)?.substring(0,300)}<br><br>
+        <b>data/?limit=1:</b> ${JSON.stringify(dataEp)?.substring(0,300)}<br><br>
+        <b>measures/?limit=1:</b> ${JSON.stringify(measEp)?.substring(0,300)}<br><br>
+        <b>latest/:</b> ${JSON.stringify(latestEp)?.substring(0,300)}<br><br>
+        <b>current/:</b> ${JSON.stringify(currentEp)?.substring(0,300)}<br>
+      `;
     }
 
+    // Extract latest readings — try nested objects in metadata first
+    let sensorData = null;
+
+    // Check for measurement data nested in sensor metadata
+    if (sensorMeta) {
+      const nested = sensorMeta.last_data || sensorMeta.last_reading || sensorMeta.latest_data
+        || sensorMeta.current_data || sensorMeta.measurements || sensorMeta.readings
+        || sensorMeta.data || sensorMeta.values;
+      if (nested && typeof nested === 'object' && !Array.isArray(nested)) sensorData = nested;
+    }
+
+    // Try array-returning endpoints
+    for (const ep of [tsData, dataEp, measEp, latestEp, currentEp]) {
+      if (sensorData) break;
+      if (!ep) continue;
+      const arr = Array.isArray(ep) ? ep : (ep.results || ep.data || ep.measurements || []);
+      if (Array.isArray(arr) && arr.length) { sensorData = arr[0]; break; }
+      if (typeof ep === 'object' && Object.keys(ep).length > 2) { sensorData = ep; break; }
+    }
+
+    // Last resort: use sensor metadata itself
+    if (!sensorData && sensorMeta) sensorData = sensorMeta;
     if (!sensorData) throw new Error('No sensor data found');
 
     // ── Title ──
@@ -480,13 +508,19 @@ async function loadSensor(id) {
                    status.toString().toLowerCase().includes('warn') ? 'status-warn' : 'status-err';
     badge.innerHTML = `<span class="${cls}">${status}</span>`;
 
-    // ── Tiles ──
+    // ── Tiles: show ALL fields from data (mapped labels + catch-all) ──
     const tiles = resolveTiles(sensorData);
     if (!tiles.length) {
-      grid.innerHTML = `<div class="error-msg" style="grid-column:1/-1">No numeric readings found in API response.</div>`;
+      // Show raw keys to help diagnose field names
+      const rawKeys = Object.entries(sensorData)
+        .filter(([,v]) => v !== null && v !== undefined)
+        .map(([k,v]) => `<li><b>${k}</b>: ${JSON.stringify(v)}</li>`).join('');
+      grid.innerHTML = `<div class="error-msg" style="grid-column:1/-1;text-align:left;">
+        <b>Data received but no tiles matched. Raw fields:</b><ul>${rawKeys}</ul>
+      </div>`;
     } else {
       grid.innerHTML = tiles.map(t => `
-        <div class="tile tile-good">
+        <div class="tile">
           <div class="tile-label">${t.label}</div>
           <div class="tile-value">${typeof t.value === 'number' ? t.value.toFixed(3) : t.value}</div>
           <div class="tile-unit">${t.unit}</div>
@@ -497,7 +531,8 @@ async function loadSensor(id) {
     const updated = sensorMeta?.last_update || sensorMeta?.updated_at || sensorMeta?.timestamp || new Date().toLocaleString();
     const serial  = sensorMeta?.serial_number || sensorMeta?.id || currentSensorId;
     const firm    = sensorMeta?.firmware || sensorMeta?.firmware_version || '—';
-    const loc     = sensorMeta?.location || sensorMeta?.address || '—';
+    const loc     = sensorMeta?.location ? (typeof sensorMeta.location === 'object'
+      ? `${sensorMeta.location.lat ?? ''},${sensorMeta.location.lng ?? ''}` : sensorMeta.location) : '—';
 
     info.innerHTML = `
       <tr><td>Name</td><td>${name}</td></tr>
