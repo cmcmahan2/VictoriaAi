@@ -446,49 +446,41 @@ async function loadSensor(id) {
   grid.innerHTML = `<div class="loading-msg" style="grid-column:1/-1"><span class="spinner"></span> Loading…</div>`;
 
   try {
-    // Fetch sensor metadata + many possible data endpoints in parallel
-    const [sensorMeta, tsData, dataEp, measEp, latestEp, currentEp, apiRoot] = await Promise.all([
-      api(`/sensors/${currentSensorId}/`).catch(() => null),
-      api(`/sensors/${currentSensorId}/timeseries/?limit=1&ordering=-date`).catch(() => null),
-      api(`/sensors/${currentSensorId}/data/?limit=1`).catch(() => null),
-      api(`/sensors/${currentSensorId}/measures/?limit=1`).catch(() => null),
-      api(`/sensors/${currentSensorId}/latest/`).catch(() => null),
-      api(`/sensors/${currentSensorId}/current/`).catch(() => null),
-      api(`/`).catch(() => null),
-    ]);
+    // Step 1: fetch sensor metadata to discover the measurements URL
+    const sensorMeta = await api(`/sensors/${currentSensorId}/`).catch(() => null);
+    if (!sensorMeta) throw new Error('Could not fetch sensor metadata');
 
-    // Show debug info on screen
+    // Step 2: measurements is a URL in the metadata — fetch it directly
+    let measUrl = sensorMeta.measurements;
+    let measData = null;
+    if (measUrl && typeof measUrl === 'string') {
+      // Strip base URL so our api() helper can add proxy + auth
+      const path = measUrl.replace('https://sgsusa-ws.i-comesure.com/api', '');
+      measData = await api(path + (path.includes('?') ? '&' : '?') + 'limit=1').catch(() => null);
+    }
+    // Also try /measurements/ sub-endpoint
+    if (!measData) {
+      measData = await api(`/sensors/${currentSensorId}/measurements/?limit=1`).catch(() => null);
+    }
+
+    // Show debug info
     const debugEl = document.getElementById('debug-output');
     if (debugEl) {
       debugEl.innerHTML =
-        `<b>API Root:</b>\n${JSON.stringify(apiRoot, null, 2)}\n\n` +
         `<b>Sensor Meta (FULL):</b>\n${JSON.stringify(sensorMeta, null, 2)}\n\n` +
-        `<b>timeseries/?limit=1&ordering=-date:</b>\n${JSON.stringify(tsData, null, 2)}\n\n` +
-        `<b>current/:</b>\n${JSON.stringify(currentEp, null, 2)}`;
+        `<b>measurements URL:</b> ${measUrl}\n\n` +
+        `<b>measurements data:</b>\n${JSON.stringify(measData, null, 2)}`;
     }
 
-    // Extract latest readings — try nested objects in metadata first
+    // Step 3: extract the actual reading object
     let sensorData = null;
-
-    // Check for measurement data nested in sensor metadata
-    if (sensorMeta) {
-      const nested = sensorMeta.last_data || sensorMeta.last_reading || sensorMeta.latest_data
-        || sensorMeta.current_data || sensorMeta.measurements || sensorMeta.readings
-        || sensorMeta.data || sensorMeta.values;
-      if (nested && typeof nested === 'object' && !Array.isArray(nested)) sensorData = nested;
+    if (measData) {
+      const arr = Array.isArray(measData) ? measData
+        : (measData.results || measData.data || measData.measurements || [measData]);
+      if (arr.length) sensorData = arr[0];
     }
-
-    // Try array-returning endpoints
-    for (const ep of [tsData, dataEp, measEp, latestEp, currentEp]) {
-      if (sensorData) break;
-      if (!ep) continue;
-      const arr = Array.isArray(ep) ? ep : (ep.results || ep.data || ep.measurements || []);
-      if (Array.isArray(arr) && arr.length) { sensorData = arr[0]; break; }
-      if (typeof ep === 'object' && Object.keys(ep).length > 2) { sensorData = ep; break; }
-    }
-
-    // Last resort: use sensor metadata itself
-    if (!sensorData && sensorMeta) sensorData = sensorMeta;
+    // Fall back to sensor metadata
+    if (!sensorData) sensorData = sensorMeta;
     if (!sensorData) throw new Error('No sensor data found');
 
     // ── Title ──
