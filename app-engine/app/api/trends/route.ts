@@ -21,23 +21,25 @@ export async function POST() {
     // write can fail, but a successful scan should still return its trends.
     const insertedIds: number[] = [];
     try {
-      const db = getDb();
+      const db = await getDb();
       const now = unixNow();
 
-      for (const trend of result.trends) {
-        const inserted = db
-          .insert(trends)
-          .values({
-            name: trend.name,
-            velocity: trend.velocity,
-            commercialScore: trend.commercialScore,
-            sources: JSON.stringify(trend.sources),
-            keywords: JSON.stringify(trend.keywords),
-            discoveredAt: now,
-          })
-          .run();
-        if (inserted.lastInsertRowid) {
-          insertedIds.push(Number(inserted.lastInsertRowid));
+      if (db) {
+        for (const trend of result.trends) {
+          const inserted = await db
+            .insert(trends)
+            .values({
+              name: trend.name,
+              velocity: trend.velocity,
+              commercialScore: trend.commercialScore,
+              sources: JSON.stringify(trend.sources),
+              keywords: JSON.stringify(trend.keywords),
+              discoveredAt: now,
+            })
+            .returning({ id: trends.id });
+          if (inserted[0]?.id) {
+            insertedIds.push(inserted[0].id);
+          }
         }
       }
     } catch (dbErr) {
@@ -64,8 +66,11 @@ export async function POST() {
 
 export async function GET() {
   try {
-    const db = getDb();
-    const allTrends = db.select().from(trends).all();
+    const db = await getDb();
+    if (!db) {
+      return NextResponse.json({ ok: true, trends: [] });
+    }
+    const allTrends = await db.select().from(trends);
     return NextResponse.json({
       ok: true,
       trends: allTrends.map((t) => ({

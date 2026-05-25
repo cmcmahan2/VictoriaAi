@@ -1,0 +1,34 @@
+import { NextResponse } from 'next/server';
+import { runDomainHunt } from '@/modules/domains';
+import type { ScoredTrend } from '@/modules/trends/claude-scorer';
+import { loadEnv } from '@/lib/env';
+
+export const maxDuration = 60; // Vercel Hobby cap
+
+export async function POST(req: Request) {
+  try {
+    const env = loadEnv();
+
+    const body = (await req.json().catch(() => ({}))) as { trends?: ScoredTrend[] };
+    const trends = Array.isArray(body.trends) ? body.trends : [];
+
+    if (trends.length === 0) {
+      return NextResponse.json(
+        { ok: false, error: 'No trends provided. Run the trend hunt first.' },
+        { status: 400 },
+      );
+    }
+
+    const result = await runDomainHunt(trends, {
+      ANTHROPIC_API_KEY: env.ANTHROPIC_API_KEY,
+      GODADDY_API_KEY: env.GODADDY_API_KEY,
+      GODADDY_API_SECRET: env.GODADDY_API_SECRET,
+    });
+
+    return NextResponse.json({ ok: true, domains: result.domains, meta: result.meta });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[api/domains] Error:', message);
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+  }
+}
