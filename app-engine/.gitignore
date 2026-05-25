@@ -1,0 +1,12 @@
+.env.local
+.env
+.next/
+node_modules/
+*.db
+*.db-shm
+*.db-wal
+out/
+dist/
+.DS_Store
+next-env.d.ts
+*.tsbuildinfo
