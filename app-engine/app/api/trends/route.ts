@@ -17,26 +17,32 @@ export async function POST() {
       PRODUCT_HUNT_TOKEN: env.PRODUCT_HUNT_TOKEN,
     });
 
-    // Persist to DB
-    const db = getDb();
-    const now = unixNow();
+    // Persist to DB. Best-effort: on read-only/serverless filesystems the
+    // write can fail, but a successful scan should still return its trends.
     const insertedIds: number[] = [];
+    try {
+      const db = getDb();
+      const now = unixNow();
 
-    for (const trend of result.trends) {
-      const inserted = db
-        .insert(trends)
-        .values({
-          name: trend.name,
-          velocity: trend.velocity,
-          commercialScore: trend.commercialScore,
-          sources: JSON.stringify(trend.sources),
-          keywords: JSON.stringify(trend.keywords),
-          discoveredAt: now,
-        })
-        .run();
-      if (inserted.lastInsertRowid) {
-        insertedIds.push(Number(inserted.lastInsertRowid));
+      for (const trend of result.trends) {
+        const inserted = db
+          .insert(trends)
+          .values({
+            name: trend.name,
+            velocity: trend.velocity,
+            commercialScore: trend.commercialScore,
+            sources: JSON.stringify(trend.sources),
+            keywords: JSON.stringify(trend.keywords),
+            discoveredAt: now,
+          })
+          .run();
+        if (inserted.lastInsertRowid) {
+          insertedIds.push(Number(inserted.lastInsertRowid));
+        }
       }
+    } catch (dbErr) {
+      const m = dbErr instanceof Error ? dbErr.message : 'Unknown DB error';
+      console.warn('[api/trends] Persist skipped:', m);
     }
 
     return NextResponse.json({
