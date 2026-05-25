@@ -59,6 +59,40 @@ function usd(n: number): string {
   return '$' + Math.round(n).toLocaleString();
 }
 
+// Registrar deep-links: pre-fill the exact domain so it's one click to buy.
+function buyLinks(domain: string): { label: string; url: string }[] {
+  const d = encodeURIComponent(domain);
+  return [
+    { label: 'GoDaddy', url: `https://www.godaddy.com/domainsearch/find?domainToCheck=${d}` },
+    { label: 'Namecheap', url: `https://www.namecheap.com/domains/registration/results/?domain=${d}` },
+    { label: 'Porkbun', url: `https://porkbun.com/checkout/search?q=${d}` },
+  ];
+}
+
+// Marketplaces where you list a domain for sale once you own it.
+function sellLinks(domain: string): { label: string; url: string }[] {
+  const d = encodeURIComponent(domain);
+  return [
+    { label: 'Afternic', url: `https://www.afternic.com/domain/${d}` },
+    { label: 'Sedo', url: `https://sedo.com/search/?keyword=${d}&trackingId=` },
+    { label: 'Dan', url: `https://dan.com/domain/${d}` },
+  ];
+}
+
+function LinkPill({ label, url }: { label: string; url: string }) {
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      className="text-xs px-2 py-0.5 rounded border border-[#30363d] text-[#58a6ff] hover:border-[#58a6ff] hover:bg-[#58a6ff]/10 transition-colors"
+    >
+      {label} ↗
+    </a>
+  );
+}
+
 function ScoreBadge({ score }: { score: number }) {
   const color = score >= 70 ? 'text-green-400' : score >= 40 ? 'text-yellow-400' : 'text-red-400';
   return <span className={`text-lg font-bold tabular-nums ${color}`}>{score}</span>;
@@ -104,8 +138,22 @@ function DomainCard({ d, rank }: { d: DomainResult; rank: number }) {
             </span>
           </div>
 
+          {/* Quick buy — always visible */}
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
+            <a
+              href={buyLinks(d.domain)[0].url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="text-xs font-medium px-3 py-1 rounded-md bg-[#238636] hover:bg-[#2ea043] text-white transition-colors"
+            >
+              Buy at GoDaddy ↗
+            </a>
+            <span className="text-xs text-[#6e7681]">click for more options</span>
+          </div>
+
           {expanded && (
-            <div className="mt-3 pt-3 border-t border-[#30363d] space-y-2">
+            <div className="mt-3 pt-3 border-t border-[#30363d] space-y-3">
               <p className="text-sm text-[#8b949e]">{d.reasoning}</p>
               <p className="text-xs text-[#6e7681]">
                 Likely buyers: <span className="text-[#58a6ff]">{d.buyers}</span>
@@ -114,6 +162,22 @@ function DomainCard({ d, rank }: { d: DomainResult; rank: number }) {
                 From trend: <span className="text-[#e6edf3]">{d.basis || '—'}</span> · valuation by{' '}
                 <span className="text-[#e6edf3]">{d.valueSource}</span>
               </p>
+              <div>
+                <p className="text-xs text-[#6e7681] mb-1">Register at</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {buyLinks(d.domain).map((l) => (
+                    <LinkPill key={l.label} {...l} />
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs text-[#6e7681] mb-1">List for sale (once you own it)</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {sellLinks(d.domain).map((l) => (
+                    <LinkPill key={l.label} {...l} />
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>
