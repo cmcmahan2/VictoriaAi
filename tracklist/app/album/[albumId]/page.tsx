@@ -123,7 +123,7 @@ export default async function AlbumPage({ params }: { params: Promise<{ albumId:
 
           {album.genres.length > 0 && (
             <div className="flex flex-wrap gap-2">
-              {album.genres.map((g) => (
+              {album.genres.map((g: string) => (
                 <GenreTag key={g} genre={g} />
               ))}
             </div>
