@@ -1,65 +1,156 @@
-import Image from "next/image";
+import { Suspense } from "react"
+import Link from "next/link"
+import { prisma } from "@/lib/prisma"
+import { AlbumCard, AlbumCardSkeleton } from "@/components/ui/AlbumCard"
+import { ReviewCard, ReviewCardSkeleton } from "@/components/ui/ReviewCard"
 
-export default function Home() {
+async function TrendingAlbums() {
+  const albums = await prisma.album.findMany({
+    where: { ratingCount: { gt: 0 } },
+    orderBy: [{ ratingCount: "desc" }, { avgRating: "desc" }],
+    take: 8,
+  })
+
+  if (albums.length === 0) {
+    return (
+      <div className="text-center py-12 text-[#888]">
+        <p>No albums rated yet.</p>
+        <Link href="/search" className="text-[#E8B84B] hover:underline mt-2 inline-block">
+          Search for albums to get started
+        </Link>
+      </div>
+    )
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+      {albums.map((album) => (
+        <AlbumCard
+          key={album.id}
+          id={album.id}
+          title={album.title}
+          artistName={album.artistName}
+          coverUrl={album.coverUrl}
+          avgRating={album.avgRating}
+          ratingCount={album.ratingCount}
+          releaseYear={album.releaseYear}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      ))}
     </div>
-  );
+  )
+}
+
+async function RecentReviews() {
+  const reviews = await prisma.review.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 6,
+    include: {
+      user: { select: { id: true, username: true, avatarUrl: true } },
+      album: { select: { id: true, title: true } },
+    },
+  })
+
+  if (reviews.length === 0) {
+    return (
+      <p className="text-[#888] text-center py-8">No reviews yet — be the first!</p>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {reviews.map((review) => (
+        <ReviewCard
+          key={review.id}
+          id={review.id}
+          body={review.body}
+          rating={review.rating}
+          likes={review.likes}
+          createdAt={review.createdAt.toISOString()}
+          user={review.user}
+          albumId={review.album.id}
+          albumTitle={review.album.title}
+          showAlbum
+        />
+      ))}
+    </div>
+  )
+}
+
+function TrendingSkeleton() {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <AlbumCardSkeleton key={i} />
+      ))}
+    </div>
+  )
+}
+
+function ReviewsSkeleton() {
+  return (
+    <div className="space-y-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <ReviewCardSkeleton key={i} />
+      ))}
+    </div>
+  )
+}
+
+export default function HomePage() {
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-10">
+      {/* Hero */}
+      <section className="text-center mb-14">
+        <h1
+          className="text-4xl md:text-6xl font-bold text-[#E8B84B] mb-4"
+          style={{ fontFamily: "var(--font-playfair), serif" }}
+        >
+          Tracklist
+        </h1>
+        <p className="text-[#888] text-lg max-w-xl mx-auto">
+          Discover, rate, and review the albums that define your taste. Share your love of music.
+        </p>
+        <div className="mt-6 flex gap-3 justify-center">
+          <Link
+            href="/search"
+            className="bg-[#E8B84B] text-black font-semibold px-6 py-2.5 rounded-full hover:bg-[#d4a43a] transition-colors"
+          >
+            Search Albums
+          </Link>
+          <Link
+            href="/register"
+            className="border border-[rgba(255,255,255,0.2)] text-[#F5F2EB] px-6 py-2.5 rounded-full hover:border-[rgba(255,255,255,0.4)] transition-colors"
+          >
+            Create Account
+          </Link>
+        </div>
+      </section>
+
+      {/* Trending */}
+      <section className="mb-12">
+        <h2
+          className="text-2xl font-semibold text-[#F5F2EB] mb-6"
+          style={{ fontFamily: "var(--font-playfair), serif" }}
+        >
+          Trending Albums
+        </h2>
+        <Suspense fallback={<TrendingSkeleton />}>
+          <TrendingAlbums />
+        </Suspense>
+      </section>
+
+      {/* Recent Reviews */}
+      <section>
+        <h2
+          className="text-2xl font-semibold text-[#F5F2EB] mb-6"
+          style={{ fontFamily: "var(--font-playfair), serif" }}
+        >
+          Recent Reviews
+        </h2>
+        <Suspense fallback={<ReviewsSkeleton />}>
+          <RecentReviews />
+        </Suspense>
+      </section>
+    </div>
+  )
 }
