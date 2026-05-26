@@ -23,6 +23,7 @@ function Sidebar() {
     { href: '/portfolio', label: 'Portfolio', icon: '📦' },
     { href: '/outreach', label: 'Outreach', icon: '📧' },
     { href: '/analytics', label: 'Analytics', icon: '📊' },
+    { href: '/cori', label: 'Cori', icon: '💬' },
     { href: '/settings', label: 'Settings', icon: '⚙️' },
   ];
 
