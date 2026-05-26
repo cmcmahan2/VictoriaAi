@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { GeneratedCandidate } from './generate';
+import { fetchNameBioComps, domainToKeyword, type NameBioResult } from './namebio';
 
 export type Appraisal = {
   domain: string;
@@ -51,11 +52,17 @@ Rules:
 - "reasoning": one concise sentence.
 - A great name nobody will buy is worth little — weight real buyer demand heavily.`;
 
-const userPrompt = (candidates: GeneratedCandidate[]) => `
-Appraise these available domains. Each has the trend basis it came from.
+const userPrompt = (candidates: GeneratedCandidate[], comps?: Map<string, NameBioResult>) => `
+Appraise these available domains. Each has the trend basis it came from.${comps && comps.size > 0 ? '\nReal historical sale comps are provided where available — anchor your value estimates to these.' : ''}
 
 DOMAINS:
-${candidates.map((c) => `${c.domain} [strategy: ${c.strategy}; basis: ${c.basis || 'n/a'}]`).join('\n')}
+${candidates.map((c) => {
+  const comp = comps?.get(c.domain.toLowerCase());
+  const compNote = comp && comp.medianSalePrice
+    ? ` [NameBio comps: median=${comp.medianSalePrice}, avg=${comp.avgSalePrice}, n=${comp.comps.length}]`
+    : '';
+  return `${c.domain} [strategy: ${c.strategy}; basis: ${c.basis || 'n/a'}]${compNote}`;
+}).join('\n')}
 
 Return JSON:
 {
@@ -76,6 +83,7 @@ Return JSON:
 async function claudeAppraise(
   candidates: GeneratedCandidate[],
   apiKey: string,
+  comps?: Map<string, NameBioResult>,
 ): Promise<Map<string, Omit<Appraisal, 'valueSource'>>> {
   const map = new Map<string, Omit<Appraisal, 'valueSource'>>();
   if (candidates.length === 0) return map;
@@ -85,7 +93,7 @@ async function claudeAppraise(
     model: 'claude-sonnet-4-6',
     max_tokens: 4096,
     system: SYSTEM_PROMPT,
-    messages: [{ role: 'user', content: userPrompt(candidates) }],
+    messages: [{ role: 'user', content: userPrompt(candidates, comps) }],
   });
 
   const text = response.content
@@ -108,10 +116,16 @@ async function claudeAppraise(
 
 // Appraises available candidates. GoDaddy GoValue supplies the headline number
 // when configured; Claude always supplies sellability + buyer analysis and
-// fills the value range when GoDaddy is unavailable.
+// fills the value range when GoDaddy is unavailable. NameBio comps anchor
+// Claude's estimates to real sale data when available.
 export async function appraiseDomains(
   candidates: GeneratedCandidate[],
-  env: { ANTHROPIC_API_KEY: string; GODADDY_API_KEY?: string; GODADDY_API_SECRET?: string },
+  env: {
+    ANTHROPIC_API_KEY: string;
+    GODADDY_API_KEY?: string;
+    GODADDY_API_SECRET?: string;
+    NAMEBIO_API_KEY?: string;
+  },
 ): Promise<Appraisal[]> {
   if (candidates.length === 0) return [];
 
@@ -120,8 +134,20 @@ export async function appraiseDomains(
       ? { key: env.GODADDY_API_KEY, secret: env.GODADDY_API_SECRET }
       : null;
 
+  // Fetch NameBio comps in parallel with GoDaddy (best-effort, failures ignored)
+  const namebioComps = env.NAMEBIO_API_KEY
+    ? await Promise.all(
+        candidates.map(async (c) => {
+          const result = await fetchNameBioComps(domainToKeyword(c.domain), env.NAMEBIO_API_KEY!);
+          return [c.domain.toLowerCase(), result] as const;
+        }),
+      ).then((entries) =>
+        new Map(entries.filter((e): e is [string, NameBioResult] => e[1] !== null)),
+      )
+    : new Map<string, NameBioResult>();
+
   const [claudeMap, godaddyValues] = await Promise.all([
-    claudeAppraise(candidates, env.ANTHROPIC_API_KEY),
+    claudeAppraise(candidates, env.ANTHROPIC_API_KEY, namebioComps),
     godaddy
       ? Promise.all(
           candidates.map(async (c) => [c.domain, await godaddyAppraise(c.domain, godaddy)] as const),

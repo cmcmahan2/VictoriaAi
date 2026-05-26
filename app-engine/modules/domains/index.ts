@@ -56,7 +56,7 @@ function compositeScore(a: Appraisal, sld: string): number {
 
 export async function runDomainHunt(
   trends: ScoredTrend[],
-  env: { ANTHROPIC_API_KEY: string; GODADDY_API_KEY?: string; GODADDY_API_SECRET?: string },
+  env: { ANTHROPIC_API_KEY: string; GODADDY_API_KEY?: string; GODADDY_API_SECRET?: string; NAMEBIO_API_KEY?: string },
   opts: { maxTrends?: number; maxCandidates?: number; maxAppraise?: number } = {},
 ): Promise<DomainHuntResult> {
   const t0 = Date.now();

@@ -23,6 +23,7 @@ export async function POST(req: Request) {
       ANTHROPIC_API_KEY: env.ANTHROPIC_API_KEY,
       GODADDY_API_KEY: env.GODADDY_API_KEY,
       GODADDY_API_SECRET: env.GODADDY_API_SECRET,
+      NAMEBIO_API_KEY: env.NAMEBIO_API_KEY,
     });
 
     return NextResponse.json({ ok: true, domains: result.domains, meta: result.meta });
