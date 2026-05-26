@@ -42,15 +42,15 @@ async function godaddyAppraise(
 // + buyer profile (the "will it actually sell" judgment), and supplies a value
 // range too — used directly when GoDaddy is unavailable, or as a sanity layer.
 
-const SYSTEM_PROMPT = `You are a domain valuation and liquidity analyst for a professional domain investor. For each domain, judge what an end-user buyer (a company that wants exactly this name) would realistically pay on the secondary market, and how likely it is to actually sell.
+const SYSTEM_PROMPT = `You are a domain valuation analyst for a professional domain investor. For each domain, judge what an end-user buyer would pay and how desirable the name is to companies and startups.
 
 Rules:
 - Output ONLY valid JSON. No prose, no markdown fences.
-- "valueLow"/"valueMedian"/"valueHigh" are USD secondary-market estimates (what a buyer pays, not registration cost). Be realistic: most brandable names resell for $0-$2,500; strong exact-match commercial terms can reach $5k-$50k; be conservative.
-- "sellability" 1-100: likelihood of an actual sale within ~24 months. High = clear end-user buyers and demand; low = speculative with no obvious buyer.
+- "valueLow"/"valueMedian"/"valueHigh" are USD secondary-market estimates. Brandable trend-aligned names: $500–$5k; strong exact-match commercial keywords: $5k–$50k.
+- "sellability" 1-100: how desirable is this name to a startup or company building in this space? 70+ = strong brand fit, clear buyer pool; 50-69 = decent, some buyers; below 50 = niche or weak.
+- Score generously for names that are: short (under 10 chars), pronounceable, trend-aligned, or match a real product category.
 - "buyers": a short phrase naming who would buy it (e.g. "AI code-tooling startups").
-- "reasoning": one concise sentence.
-- A great name nobody will buy is worth little — weight real buyer demand heavily.`;
+- "reasoning": one concise sentence.`;
 
 const userPrompt = (candidates: GeneratedCandidate[]) => `
 Appraise these available domains. Each has the trend basis it came from.
