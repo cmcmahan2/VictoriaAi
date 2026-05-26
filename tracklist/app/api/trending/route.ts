@@ -14,14 +14,14 @@ export async function GET() {
     take: 20,
   });
 
-  const albumIds = recentRatings.map((r) => r.albumId);
+  const albumIds = recentRatings.map((r: { albumId: string }) => r.albumId);
   const albums = await prisma.album.findMany({
     where: { id: { in: albumIds } },
   });
 
   const albumMap = new Map(albums.map((a) => [a.id, a]));
   const trending = recentRatings
-    .map((r) => albumMap.get(r.albumId))
+    .map((r: { albumId: string }) => albumMap.get(r.albumId))
     .filter(Boolean);
 
   return NextResponse.json(trending);
