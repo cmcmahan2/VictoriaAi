@@ -31,6 +31,51 @@ const STATUS_LABELS: Record<Status, string> = {
   sold:     'Sold',
 };
 
+const AFTERNIC_TIPS = [
+  {
+    icon: '💸',
+    title: 'Use Afternic nameservers',
+    body: 'Point your domain to Afternic\'s nameservers (dns1.afternic.com / dns2.afternic.com) and your commission drops from 20% to 15%. Do this in your registrar\'s DNS settings.',
+    link: 'https://www.afternic.com/forsale',
+    linkLabel: 'Set up lander ↗',
+  },
+  {
+    icon: '🏷️',
+    title: 'Always set a Buy Now price',
+    body: 'Domains with a Buy Now price sell 3× faster than make-offer-only listings. Price at your target — buyers can still negotiate down, but BIN signals you\'re serious.',
+    link: null,
+    linkLabel: null,
+  },
+  {
+    icon: '🔒',
+    title: 'Set a minimum offer',
+    body: 'Set a minimum offer of at least $200–$500 to filter out tire-kickers and low-ballers. Afternic won\'t show offers below your minimum.',
+    link: null,
+    linkLabel: null,
+  },
+  {
+    icon: '📡',
+    title: 'Enable Fast Transfer',
+    body: 'Enroll in Afternic\'s Fast Transfer network so buyers can complete the transfer instantly without waiting for you. Dramatically reduces drop-off after a sale.',
+    link: 'https://www.afternic.com/sell-domains/fast-transfer',
+    linkLabel: 'Learn more ↗',
+  },
+  {
+    icon: '📋',
+    title: 'List on GoDaddy Premium too',
+    body: 'Afternic automatically syncs to GoDaddy\'s premium listings — the most visited domain marketplace in the world. No extra steps needed once your Afternic listing is live.',
+    link: null,
+    linkLabel: null,
+  },
+  {
+    icon: '⏱️',
+    title: 'Be patient — avg. time to sell is 12–18 months',
+    body: 'Most domain sales take 1–2 years. Don\'t slash your price after a few weeks. Renew for at least one year and let the buyer pool grow.',
+    link: null,
+    linkLabel: null,
+  },
+];
+
 const GODADDY_URL = (d: string) =>
   `https://www.godaddy.com/domainsearch/find?domainToCheck=${encodeURIComponent(d)}`;
 const AFTERNIC_URL = (d: string) =>
@@ -350,6 +395,28 @@ export default function PortfolioPage() {
               </div>
               <p className="text-xs text-[#6e7681] leading-relaxed">{p.desc}</p>
             </a>
+          ))}
+        </div>
+      </div>
+
+      {/* Afternic tips */}
+      <div className="mb-6">
+        <p className="text-xs text-[#6e7681] font-medium uppercase tracking-wider mb-3">Afternic — How to Sell Faster</p>
+        <div className="flex flex-col gap-2">
+          {AFTERNIC_TIPS.map((t) => (
+            <div key={t.title} className="flex gap-3 bg-[#161b22] border border-[#30363d] rounded-lg px-4 py-3">
+              <span className="text-lg shrink-0 mt-0.5">{t.icon}</span>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-[#e6edf3]">{t.title}</p>
+                <p className="text-xs text-[#8b949e] mt-0.5 leading-relaxed">{t.body}</p>
+                {t.link && (
+                  <a href={t.link} target="_blank" rel="noopener noreferrer"
+                    className="text-xs text-[#58a6ff] hover:underline mt-1 inline-block">
+                    {t.linkLabel}
+                  </a>
+                )}
+              </div>
+            </div>
           ))}
         </div>
       </div>
