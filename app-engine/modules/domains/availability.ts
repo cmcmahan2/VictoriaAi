@@ -1,56 +1,47 @@
-// Domain availability checking.
+// Domain availability via authoritative per-TLD RDAP servers.
 //
-// Primary: GoDaddy Domains API (GET /v1/domains/available) — used when
-// credentials are provided. Far more reliable than RDAP, especially for
-// .io, .ai, and .co TLDs where RDAP has known false-negative issues.
+// rdap.org (the public aggregator) is unreliable from Vercel — it frequently
+// times out or returns stale data. Instead we hit each TLD's authoritative
+// RDAP endpoint directly, which is faster and more accurate.
 //
-// Fallback: RDAP (rdap.org public aggregator). Free and keyless but can
-// return stale or incorrect results for certain TLDs.
+// 404 = not registered (available). 200 = registered (taken). Anything else
+// = unknown (treated as taken to avoid wasting money on bad registrations).
 
 export type Availability = 'available' | 'taken' | 'unknown';
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 type GodaddyCreds = { key: string; secret: string };
 
-const RDAP_BASE = 'https://rdap.org/domain/';
-const GODADDY_API_BASE = 'https://api.godaddy.com/v1/domains/available';
-const PER_REQUEST_TIMEOUT_MS = 8000;
-const CONCURRENCY = 8; // GoDaddy rate-limits; keep concurrency moderate
+const TIMEOUT_MS = 8000;
+const CONCURRENCY = 10;
 
-// --- GoDaddy availability (primary) ----------------------------------------
+// Authoritative RDAP base URLs by TLD.
+// These are stable registry endpoints — no aggregator, no IP issues.
+const RDAP_SERVERS: Record<string, string> = {
+  com: 'https://rdap.verisign.com/com/v1/domain/',
+  net: 'https://rdap.verisign.com/net/v1/domain/',
+  org: 'https://rdap.publicinterestregistry.org/rdap/domain/',
+  io:  'https://rdap.nic.io/domain/',
+  co:  'https://rdap.nic.co/domain/',
+  app: 'https://rdap.nic.google/domain/',
+  dev: 'https://rdap.nic.google/domain/',
+  ai:  'https://rdap.org/domain/', // .ai has no public RDAP; use aggregator
+};
+const RDAP_FALLBACK = 'https://rdap.org/domain/';
 
-async function checkOneGodaddy(domain: string, creds: GodaddyCreds): Promise<Availability> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), PER_REQUEST_TIMEOUT_MS);
-  try {
-    const url = `${GODADDY_API_BASE}?domain=${encodeURIComponent(domain)}&checkType=FAST`;
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        Authorization: `sso-key ${creds.key}:${creds.secret}`,
-        Accept: 'application/json',
-      },
-      cache: 'no-store',
-    });
-    if (!res.ok) return 'unknown';
-    const data = (await res.json()) as { available?: boolean };
-    if (data.available === true) return 'available';
-    if (data.available === false) return 'taken';
-    return 'unknown';
-  } catch {
-    return 'unknown';
-  } finally {
-    clearTimeout(timer);
-  }
+function rdapBase(tld: string): string {
+  return RDAP_SERVERS[tld] ?? RDAP_FALLBACK;
 }
 
-// --- RDAP fallback (no credentials required) --------------------------------
+async function checkOne(domain: string): Promise<Availability> {
+  const tld = domain.split('.').pop() ?? '';
+  const url = rdapBase(tld) + encodeURIComponent(domain);
 
-async function checkOneRdap(domain: string): Promise<Availability> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), PER_REQUEST_TIMEOUT_MS);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
-    const res = await fetch(`${RDAP_BASE}${encodeURIComponent(domain)}`, {
-      signal: controller.signal,
+    const res = await fetch(url, {
+      signal: ctrl.signal,
       headers: { Accept: 'application/rdap+json' },
       redirect: 'follow',
       cache: 'no-store',
@@ -65,14 +56,10 @@ async function checkOneRdap(domain: string): Promise<Availability> {
   }
 }
 
-// --- Public API -------------------------------------------------------------
-
-// Checks a list of domains with bounded concurrency. Returns a map of
-// domain -> availability. GoDaddy is used when credentials are present
-// (recommended — RDAP is unreliable for .io/.ai/.co).
 export async function checkAvailability(
   domains: string[],
-  godaddy?: GodaddyCreds,
+  // GoDaddy creds kept in signature for future use (requires IP whitelisting)
+  _godaddy?: GodaddyCreds,
 ): Promise<Map<string, Availability>> {
   const result = new Map<string, Availability>();
   let cursor = 0;
@@ -80,18 +67,10 @@ export async function checkAvailability(
   async function worker() {
     while (cursor < domains.length) {
       const i = cursor++;
-      const domain = domains[i];
-      result.set(
-        domain,
-        godaddy
-          ? await checkOneGodaddy(domain, godaddy)
-          : await checkOneRdap(domain),
-      );
+      result.set(domains[i], await checkOne(domains[i]));
     }
   }
 
-  const workers = Array.from({ length: Math.min(CONCURRENCY, domains.length) }, worker);
-  await Promise.all(workers);
-
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, domains.length) }, worker));
   return result;
 }
