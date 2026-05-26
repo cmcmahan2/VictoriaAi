@@ -72,6 +72,7 @@ export default function PortfolioPage() {
   const [form, setForm] = useState(BLANK);
   const [editId, setEditId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => { setDomains(load()); }, []);
 
@@ -93,7 +94,11 @@ export default function PortfolioPage() {
   }
 
   function submit() {
-    if (!form.domain.trim()) return;
+    if (!form.domain.trim()) {
+      setFormError('Domain name is required — type it in, e.g. hbmhub.com');
+      return;
+    }
+    setFormError(null);
     if (editId) {
       persist(domains.map((d) => (d.id === editId ? { ...form, id: editId, addedAt: d.addedAt } : d)));
     } else {
@@ -244,6 +249,11 @@ export default function PortfolioPage() {
               />
             </div>
           </div>
+          {formError && (
+            <p className="mt-3 text-sm text-red-400 bg-red-900/20 border border-red-500/30 rounded px-3 py-2">
+              {formError}
+            </p>
+          )}
           <div className="flex gap-2 mt-4">
             <button
               onClick={submit}
@@ -252,7 +262,7 @@ export default function PortfolioPage() {
               {editId ? 'Save Changes' : 'Add to Portfolio'}
             </button>
             <button
-              onClick={() => setShowForm(false)}
+              onClick={() => { setShowForm(false); setFormError(null); }}
               className="px-4 py-2 border border-[#30363d] hover:border-[#484f58] text-[#8b949e] hover:text-[#e6edf3] text-sm rounded transition-colors"
             >
               Cancel
