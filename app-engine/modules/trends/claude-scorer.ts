@@ -14,7 +14,7 @@ const SYSTEM_PROMPT = `You are a domain investing intelligence analyst. Your job
 
 Rules:
 - Output ONLY valid JSON — no prose, no markdown fences, no explanation.
-- Return 15–25 trends maximum, ranked by commercialScore descending.
+- Return 10–15 trends maximum, ranked by commercialScore descending.
 - "keywords" must be SPECIFIC: "Cursor IDE", "Pika Labs", "Synthesia AI" — NOT generic terms like "generative AI" or "machine learning".
 - "velocity" reflects acceleration: rising = still climbing, peak = at max, declining = falling.
 - "commercialScore" 1-100: will companies pay $1k–$50k for related domains? >70 = yes, 40-70 = maybe, <40 = unlikely.
@@ -57,7 +57,7 @@ export async function scoreTrendsWithClaude(
 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 8192,
+    max_tokens: 2048,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: USER_PROMPT(signals) }],
   });
