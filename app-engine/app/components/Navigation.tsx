@@ -2,6 +2,8 @@
 
 import { usePathname } from 'next/navigation';
 
+const VERSION = 'v1.17';
+
 const links = [
   { href: '/hunt',      label: 'Appraise',   icon: '🔍' },
   { href: '/portfolio', label: 'Portfolio',  icon: '📦' },
@@ -39,7 +41,7 @@ export function Navigation() {
           ))}
         </nav>
         <div className="px-4 py-3 border-t border-[#30363d]">
-          <span className="text-xs text-[#6e7681]">v0.1.0 — Module 1</span>
+          <span className="text-xs text-[#6e7681]">{VERSION}</span>
         </div>
       </aside>
 
@@ -47,7 +49,7 @@ export function Navigation() {
       <header className="md:hidden fixed top-0 inset-x-0 z-40 h-14 bg-[#161b22] border-b border-[#30363d] flex items-center px-4 gap-2">
         <span className="text-sm font-semibold text-[#e6edf3] tracking-wide">FLIP ENGINE</span>
         <span className="text-[#6e7681] text-xs">/ {currentLabel}</span>
-        <span className="ml-auto text-[10px] text-[#6e7681]">v0.1.0</span>
+        <span className="ml-auto text-[10px] text-[#6e7681]">{VERSION}</span>
       </header>
 
       {/* ── Mobile bottom tab bar (hidden on desktop) ── */}
