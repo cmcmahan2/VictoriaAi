@@ -77,6 +77,42 @@ function Verdict({ score }: { score: number }) {
   );
 }
 
+function roundPrice(n: number): number {
+  if (n >= 10000) return Math.round(n / 500) * 500;
+  if (n >= 1000) return Math.round(n / 100) * 100;
+  if (n >= 100) return Math.round(n / 50) * 50;
+  return Math.round(n / 10) * 10;
+}
+
+function AfternicPricing({ low, median, high }: { low: number; median: number; high: number }) {
+  const buyNow = roundPrice(high * 1.1);
+  const floor = roundPrice(median);
+  const minOffer = roundPrice(Math.max(50, low * 0.5));
+  const afternicUrl = 'https://www.afternic.com/sell-domains';
+  return (
+    <div className="bg-[#0d1117] border border-[#30363d] rounded-lg p-4">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs text-[#6e7681] font-medium uppercase tracking-wider">Afternic Pricing</p>
+        <a href={afternicUrl} target="_blank" rel="noopener noreferrer"
+          className="text-xs text-[#58a6ff] hover:underline">List now ↗</a>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: 'Buy Now', value: usd(buyNow), sub: 'Instant purchase price', color: 'text-green-400' },
+          { label: 'Floor Price', value: usd(floor), sub: 'Min you\'d accept fast', color: 'text-yellow-400' },
+          { label: 'Min Offer', value: usd(minOffer), sub: 'Blocks tire-kickers', color: 'text-[#e6edf3]' },
+        ].map(p => (
+          <div key={p.label} className="text-center">
+            <p className={`text-lg font-bold font-mono ${p.color}`}>{p.value}</p>
+            <p className="text-[10px] text-[#6e7681] font-medium mt-0.5">{p.label}</p>
+            <p className="text-[9px] text-[#484f58] mt-0.5 leading-tight">{p.sub}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ValueBar({ low, median, high }: { low: number; median: number; high: number }) {
   const color = median >= 2000 ? 'bg-green-400' : median >= 500 ? 'bg-yellow-400' : 'bg-[#484f58]';
   return (
@@ -277,6 +313,7 @@ export default function AppraisePage() {
               <Verdict score={appraisal.sellability} />
               <h2 className="text-xl font-bold font-mono text-[#e6edf3]">{appraisal.domain}</h2>
               <ValueBar low={appraisal.valueLow} median={appraisal.valueMedian} high={appraisal.valueHigh} />
+              <AfternicPricing low={appraisal.valueLow} median={appraisal.valueMedian} high={appraisal.valueHigh} />
               <p className="text-sm text-[#8b949e] leading-relaxed">{appraisal.reasoning}</p>
               <div className="text-sm">
                 <span className="text-[#6e7681]">Likely buyers: </span>
