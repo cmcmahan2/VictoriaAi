@@ -57,8 +57,8 @@ export async function generateDomainCandidates(
   apiKey: string,
   opts: { perTrend?: number; maxTotal?: number } = {},
 ): Promise<GeneratedCandidate[]> {
-  const perTrend = opts.perTrend ?? 5;
-  const maxTotal = opts.maxTotal ?? 80;
+  const perTrend = opts.perTrend ?? 8;
+  const maxTotal = opts.maxTotal ?? 160;
   if (trends.length === 0) return [];
 
   const client = new Anthropic({ apiKey });
@@ -91,9 +91,12 @@ export async function generateDomainCandidates(
     const sld = sanitizeSld(c.sld);
     if (!sld) continue;
 
-    // Brandable/compound names get more TLD spread; exact-match stays focused.
+    // .com first always — it commands 5-10x higher resale prices than other TLDs.
+    // Exact-match stays .com only; brandable/compound get .com + .io as secondary.
     const tlds =
-      c.strategy === 'exact-match' ? (['com', 'io'] as const) : TARGET_TLDS;
+      c.strategy === 'exact-match'
+        ? (['com'] as const)
+        : (['com', 'io'] as const);
 
     for (const tld of tlds) {
       const domain = `${sld}.${tld}`;

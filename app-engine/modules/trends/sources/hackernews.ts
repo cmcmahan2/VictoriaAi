@@ -7,9 +7,9 @@ export type RawSignal = {
 };
 
 const HN_BASE = 'https://hacker-news.firebaseio.com/v0';
-const CUTOFF_HOURS = 48;
-const MIN_SCORE = 100;
-const MAX_ITEMS = 100;
+const CUTOFF_HOURS = 72;  // wider window catches slower-burning trends
+const MIN_SCORE = 50;     // lower bar catches early risers before they peak
+const MAX_ITEMS = 150;
 
 export async function fetchHackerNews(): Promise<RawSignal[]> {
   const cutoff = Math.floor(Date.now() / 1000) - CUTOFF_HOURS * 3600;
