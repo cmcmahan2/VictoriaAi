@@ -55,7 +55,7 @@ export async function scoreTrendsWithClaude(
 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 4096,
+    max_tokens: 8192,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: USER_PROMPT(signals) }],
   });
@@ -65,12 +65,23 @@ export async function scoreTrendsWithClaude(
     .map((b) => b.text)
     .join('');
 
-  // Extract JSON even if Claude adds any surrounding text
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     throw new Error('Claude returned no valid JSON');
   }
 
-  const parsed = JSON.parse(jsonMatch[0]) as { trends: ScoredTrend[] };
+  // If the response was truncated, salvage completed trend objects rather than crashing.
+  let raw: string = jsonMatch[0];
+  let parsed: { trends: ScoredTrend[] };
+  try {
+    parsed = JSON.parse(raw) as { trends: ScoredTrend[] };
+  } catch {
+    // Trim to the last complete trend object and close the array/object.
+    const lastComplete = raw.lastIndexOf('},');
+    if (lastComplete === -1) throw new Error('Claude returned unparseable JSON');
+    raw = raw.slice(0, lastComplete + 1) + ']}';
+    parsed = JSON.parse(raw) as { trends: ScoredTrend[] };
+  }
+
   return (parsed.trends || []).sort((a, b) => b.commercialScore - a.commercialScore);
 }
