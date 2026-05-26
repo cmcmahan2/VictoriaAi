@@ -79,7 +79,7 @@ export default function CoriPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] max-w-3xl mx-auto p-4">
+    <div className="flex flex-col h-[calc(100dvh-7.5rem)] md:h-[calc(100dvh-4rem)] max-w-3xl mx-auto p-4">
       <div className="mb-4">
         <h1 className="text-xl font-semibold text-[#e6edf3]">Cori</h1>
         <p className="text-sm text-[#8b949e]">Your domain investing assistant</p>

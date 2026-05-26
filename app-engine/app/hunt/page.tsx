@@ -263,7 +263,7 @@ export default function HuntPage() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-3 md:p-6 max-w-4xl mx-auto">
       {/* Token usage tracker */}
       {(cumulative.runs > 0 || lastRunTokens) && (
         <div className="flex flex-wrap gap-3 mb-4 text-xs text-[#6e7681]">
@@ -298,10 +298,10 @@ export default function HuntPage() {
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-6">
-        <div>
+      <div className="flex items-start justify-between mb-6 gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-semibold text-[#e6edf3]">Domain Hunt</h1>
-          <p className="text-sm text-[#8b949e] mt-0.5">
+          <p className="text-xs md:text-sm text-[#8b949e] mt-0.5 leading-snug">
             7 sources → trends → generate names → check availability → value & score
           </p>
         </div>

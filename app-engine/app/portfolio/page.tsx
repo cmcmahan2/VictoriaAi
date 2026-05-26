@@ -122,7 +122,7 @@ export default function PortfolioPage() {
   const profit = totalSaleValue - totalCostSold;
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-3 md:p-6 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
