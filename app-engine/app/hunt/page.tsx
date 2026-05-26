@@ -64,6 +64,11 @@ function ScoreBadge({ score }: { score: number }) {
   return <span className={`text-lg font-bold tabular-nums ${color}`}>{score}</span>;
 }
 
+const GODADDY_URL = (domain: string) =>
+  `https://www.godaddy.com/domainsearch/find?domainToCheck=${encodeURIComponent(domain)}`;
+const AFTERNIC_URL = (domain: string) =>
+  `https://www.afternic.com/forsale/${encodeURIComponent(domain)}`;
+
 function DomainCard({ d, rank }: { d: DomainResult; rank: number }) {
   const [expanded, setExpanded] = useState(false);
   const sellColor =
@@ -114,6 +119,25 @@ function DomainCard({ d, rank }: { d: DomainResult; rank: number }) {
                 From trend: <span className="text-[#e6edf3]">{d.basis || '—'}</span> · valuation by{' '}
                 <span className="text-[#e6edf3]">{d.valueSource}</span>
               </p>
+              {/* Quick-action links — open in new tab, stop card toggle */}
+              <div className="flex gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
+                <a
+                  href={GODADDY_URL(d.domain)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs px-3 py-1 rounded bg-[#238636] hover:bg-[#2ea043] text-white font-medium transition-colors"
+                >
+                  Buy on GoDaddy ↗
+                </a>
+                <a
+                  href={AFTERNIC_URL(d.domain)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs px-3 py-1 rounded border border-[#30363d] hover:border-[#484f58] text-[#8b949e] hover:text-[#e6edf3] transition-colors"
+                >
+                  List on Afternic ↗
+                </a>
+              </div>
             </div>
           )}
         </div>
