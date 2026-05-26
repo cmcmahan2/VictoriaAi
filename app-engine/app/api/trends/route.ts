@@ -5,17 +5,29 @@ import { trends } from '@/lib/db/schema';
 import { unixNow } from '@/lib/utils';
 import { loadEnv } from '@/lib/env';
 
-export const maxDuration = 120; // Vercel: 2 min timeout
+export const maxDuration = 60; // Vercel Hobby plan cap
+
+// Race the intelligence run against a hard timeout so we always return JSON
+// (never a Vercel HTML timeout page that crashes the client JSON parser).
+const TIMEOUT_MS = 55_000;
 
 export async function POST() {
   try {
     const env = loadEnv();
-    const result = await runTrendIntelligence({
-      ANTHROPIC_API_KEY: env.ANTHROPIC_API_KEY,
-      REDDIT_CLIENT_ID: env.REDDIT_CLIENT_ID,
-      REDDIT_CLIENT_SECRET: env.REDDIT_CLIENT_SECRET,
-      PRODUCT_HUNT_TOKEN: env.PRODUCT_HUNT_TOKEN,
-    });
+
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Trend hunt timed out — try again in a moment')), TIMEOUT_MS),
+    );
+
+    const result = await Promise.race([
+      runTrendIntelligence({
+        ANTHROPIC_API_KEY: env.ANTHROPIC_API_KEY,
+        REDDIT_CLIENT_ID: env.REDDIT_CLIENT_ID,
+        REDDIT_CLIENT_SECRET: env.REDDIT_CLIENT_SECRET,
+        PRODUCT_HUNT_TOKEN: env.PRODUCT_HUNT_TOKEN,
+      }),
+      timeoutPromise,
+    ]);
 
     // Persist to DB. Best-effort: on read-only/serverless filesystems the
     // write can fail, but a successful scan should still return its trends.
