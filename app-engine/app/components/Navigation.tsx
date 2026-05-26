@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation';
 
 const links = [
-  { href: '/hunt',      label: 'Hunt',      icon: '🎯' },
+  { href: '/hunt',      label: 'Appraise',   icon: '🔍' },
   { href: '/portfolio', label: 'Portfolio',  icon: '📦' },
   { href: '/outreach',  label: 'Outreach',   icon: '📧' },
   { href: '/analytics', label: 'Analytics',  icon: '📊' },
@@ -51,24 +51,29 @@ export function Navigation() {
       </header>
 
       {/* ── Mobile bottom tab bar (hidden on desktop) ── */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 h-16 bg-[#161b22] border-t border-[#30363d] flex items-stretch">
+      {/* paddingBottom: safe-area-inset-bottom keeps content above iPhone home bar */}
+      <nav
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[#161b22] border-t border-[#30363d] flex items-stretch"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
         {links.map((l) => {
           const active = pathname === l.href;
           return (
             <a
               key={l.href}
               href={l.href}
-              className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${
-                active ? 'text-[#e6edf3]' : 'text-[#6e7681] active:text-[#8b949e]'
+              className={`relative flex-1 flex flex-col items-center justify-center py-2 gap-0.5 min-h-[3.5rem] transition-colors ${
+                active ? 'text-[#e6edf3]' : 'text-[#6e7681]'
               }`}
             >
-              <span className="text-lg leading-none">{l.icon}</span>
-              <span className="text-[9px] font-medium leading-none tracking-wide">
+              {/* Active green underline at the bottom of the tab */}
+              {active && (
+                <span className="absolute top-0 inset-x-2 h-0.5 bg-[#238636] rounded-b-full" />
+              )}
+              <span className="text-xl leading-none">{l.icon}</span>
+              <span className="text-[9px] font-medium leading-none tracking-wide mt-0.5">
                 {l.label}
               </span>
-              {active && (
-                <span className="absolute bottom-0 w-6 h-0.5 bg-[#238636] rounded-t-full" />
-              )}
             </a>
           );
         })}
