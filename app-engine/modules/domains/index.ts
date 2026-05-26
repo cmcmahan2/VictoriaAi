@@ -8,7 +8,9 @@ export type DomainResult = Appraisal & {
   tld: string;
   strategy: string;
   basis: string;
-  estPrice: number; // estimated annual registration cost (USD)
+  estPrice: number; // annual registration cost (USD): real from GoDaddy, else estimated
+  priceConfirmed: boolean;            // true when estPrice is the registrar's real price
+  availabilitySource: 'godaddy' | 'rdap'; // who confirmed it's available
   score: number;    // composite 1-100 used for ranking
   roi: number;      // valueMedian / estPrice
 };
@@ -22,6 +24,7 @@ export type DomainHuntResult = {
     appraised: number;
     durationMs: number;
     valuationSource: 'godaddy' | 'claude' | 'mixed';
+    availabilitySource: 'godaddy' | 'rdap' | 'mixed';
   };
 };
 
@@ -70,9 +73,17 @@ export async function runDomainHunt(
     maxTotal: maxCandidates,
   });
 
-  // 2. Check availability via RDAP.
-  const availabilityMap = await checkAvailability(candidates.map((c) => c.domain));
-  const available = candidates.filter((c) => availabilityMap.get(c.domain) === 'available');
+  // 2. Check availability. GoDaddy (authoritative + real prices) when
+  //    configured, with RDAP filling the gaps; only confirmed-available
+  //    candidates move forward.
+  const godaddyCreds =
+    env.GODADDY_API_KEY && env.GODADDY_API_SECRET
+      ? { key: env.GODADDY_API_KEY, secret: env.GODADDY_API_SECRET }
+      : null;
+  const availabilityMap = await checkAvailability(candidates.map((c) => c.domain), godaddyCreds);
+  const available = candidates.filter(
+    (c) => availabilityMap.get(c.domain)?.status === 'available',
+  );
 
   // 3. Appraise the best available candidates (bounded for time/cost).
   const toAppraise = available.slice(0, maxAppraise);
@@ -84,7 +95,9 @@ export async function runDomainHunt(
     .map((c): DomainResult | null => {
       const a = appraisalByDomain.get(c.domain);
       if (!a) return null;
-      const estPrice = estPriceFor(c.tld);
+      const avail = availabilityMap.get(c.domain);
+      const realPrice = avail?.price;
+      const estPrice = realPrice ?? estPriceFor(c.tld);
       return {
         ...a,
         sld: c.sld,
@@ -92,6 +105,8 @@ export async function runDomainHunt(
         strategy: c.strategy,
         basis: c.basis,
         estPrice,
+        priceConfirmed: realPrice != null,
+        availabilitySource: avail?.source ?? 'rdap',
         roi: Math.round((a.valueMedian / estPrice) * 10) / 10,
         score: compositeScore(a, c.sld),
       };
@@ -103,6 +118,12 @@ export async function runDomainHunt(
   const valuationSource: DomainHuntResult['meta']['valuationSource'] =
     sources.size > 1 ? 'mixed' : sources.has('godaddy') ? 'godaddy' : 'claude';
 
+  const availSources = new Set(
+    available.map((c) => availabilityMap.get(c.domain)?.source).filter(Boolean),
+  );
+  const availabilitySource: DomainHuntResult['meta']['availabilitySource'] =
+    availSources.size > 1 ? 'mixed' : availSources.has('godaddy') ? 'godaddy' : 'rdap';
+
   return {
     domains,
     meta: {
@@ -112,6 +133,7 @@ export async function runDomainHunt(
       appraised: domains.length,
       durationMs: Date.now() - t0,
       valuationSource,
+      availabilitySource,
     },
   };
 }

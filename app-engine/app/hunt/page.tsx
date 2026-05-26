@@ -25,6 +25,8 @@ type DomainResult = {
   strategy: string;
   basis: string;
   estPrice: number;
+  priceConfirmed: boolean;
+  availabilitySource: 'godaddy' | 'rdap';
   valueLow: number;
   valueMedian: number;
   valueHigh: number;
@@ -43,6 +45,7 @@ type DomainMeta = {
   appraised: number;
   durationMs: number;
   valuationSource: 'godaddy' | 'claude' | 'mixed';
+  availabilitySource: 'godaddy' | 'rdap' | 'mixed';
 };
 
 type Phase = 'idle' | 'trends' | 'domains' | 'done' | 'error';
@@ -100,8 +103,41 @@ function ScoreBadge({ score }: { score: number }) {
 
 function DomainCard({ d, rank }: { d: DomainResult; rank: number }) {
   const [expanded, setExpanded] = useState(false);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'exists' | 'error'>('idle');
   const sellColor =
     d.sellability >= 70 ? 'text-green-400' : d.sellability >= 40 ? 'text-yellow-400' : 'text-red-400';
+
+  async function addToPortfolio(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (saveState === 'saving' || saveState === 'saved') return;
+    setSaveState('saving');
+    try {
+      const res = await fetch('/api/portfolio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          domain: d.domain,
+          registrar: 'GoDaddy',
+          costBasis: d.estPrice,
+          currentValuation: d.valueMedian,
+        }),
+      });
+      const data = await res.json();
+      if (res.status === 409) setSaveState('exists');
+      else if (!data.ok) setSaveState('error');
+      else setSaveState('saved');
+    } catch {
+      setSaveState('error');
+    }
+  }
+
+  const saveLabel = {
+    idle: '+ Add to Portfolio',
+    saving: 'Adding…',
+    saved: '✓ In Portfolio',
+    exists: '✓ Already added',
+    error: 'Failed — retry',
+  }[saveState];
 
   return (
     <div
@@ -117,9 +153,21 @@ function DomainCard({ d, rank }: { d: DomainResult; rank: number }) {
             <span className="text-xs px-2 py-0.5 rounded border border-[#30363d] text-[#8b949e]">
               {d.strategy}
             </span>
-            <span className="text-xs px-2 py-0.5 rounded border border-green-400/30 text-green-400 bg-green-400/10">
-              available
-            </span>
+            {d.availabilitySource === 'godaddy' ? (
+              <span
+                title="Confirmed available by GoDaddy's registrar API"
+                className="text-xs px-2 py-0.5 rounded border border-green-400/30 text-green-400 bg-green-400/10"
+              >
+                ✓ available
+              </span>
+            ) : (
+              <span
+                title="Appears unregistered per RDAP — verify at checkout"
+                className="text-xs px-2 py-0.5 rounded border border-yellow-400/30 text-yellow-400 bg-yellow-400/10"
+              >
+                likely available
+              </span>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm">
@@ -129,6 +177,7 @@ function DomainCard({ d, rank }: { d: DomainResult; rank: number }) {
             </span>
             <span className="text-[#8b949e]">
               Buy <span className="text-[#e6edf3] font-medium">{usd(d.estPrice)}/yr</span>
+              {!d.priceConfirmed && <span className="text-[#6e7681]"> est.</span>}
             </span>
             <span className="text-[#8b949e]">
               ROI <span className="text-[#e6edf3] font-medium">{d.roi}x</span>
@@ -149,7 +198,20 @@ function DomainCard({ d, rank }: { d: DomainResult; rank: number }) {
             >
               Buy at GoDaddy ↗
             </a>
-            <span className="text-xs text-[#6e7681]">click for more options</span>
+            <button
+              onClick={addToPortfolio}
+              disabled={saveState === 'saving' || saveState === 'saved' || saveState === 'exists'}
+              className={`text-xs font-medium px-3 py-1 rounded-md border transition-colors ${
+                saveState === 'saved' || saveState === 'exists'
+                  ? 'border-green-400/30 text-green-400 bg-green-400/10 cursor-default'
+                  : saveState === 'error'
+                    ? 'border-red-400/40 text-red-400 hover:bg-red-400/10'
+                    : 'border-[#30363d] text-[#8b949e] hover:text-[#e6edf3] hover:border-[#484f58]'
+              }`}
+            >
+              {saveLabel}
+            </button>
+            <span className="text-xs text-[#6e7681]">click card for more options</span>
           </div>
 
           {expanded && (
@@ -304,7 +366,7 @@ export default function HuntPage() {
             <>
               <p className="text-[#e6edf3] font-medium">Step 2/2 · Finding & valuing domains…</p>
               <p className="text-sm text-[#8b949e] mt-1">
-                Generating names → RDAP availability → appraisal & sellability
+                Generating names → registrar availability → appraisal & sellability
               </p>
               {trendMeta && (
                 <p className="text-xs text-[#6e7681] mt-2">{trends.length} trends found</p>
@@ -330,6 +392,10 @@ export default function HuntPage() {
               <span className="text-[#e6edf3] font-medium">{domainMeta.generated}</span> generated →{' '}
               <span className="text-[#e6edf3] font-medium">{domainMeta.available}</span> available →{' '}
               <span className="text-[#e6edf3] font-medium">{domainMeta.appraised}</span> valued
+            </span>
+            <span className="text-[#30363d]">|</span>
+            <span className="text-sm text-[#8b949e]">
+              availability: <span className="text-[#e6edf3]">{domainMeta.availabilitySource}</span>
             </span>
             <span className="text-[#30363d]">|</span>
             <span className="text-sm text-[#8b949e]">
