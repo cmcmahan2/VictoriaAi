@@ -5,7 +5,7 @@ import { fetchGoogleTrends } from './sources/googletrends';
 import { fetchGithubTrending } from './sources/github';
 import { fetchYCombinator } from './sources/ycombinator';
 import { fetchCrunchbase } from './sources/crunchbase';
-import { scoreTrendsWithClaude, type ScoredTrend } from './claude-scorer';
+import { scoreTrendsWithClaude, type ScoredTrend, type TokenUsage } from './claude-scorer';
 import type { RawSignal } from './sources/hackernews';
 
 export type TrendRunResult = {
@@ -13,6 +13,7 @@ export type TrendRunResult = {
   signalCount: number;
   sourceBreakdown: Record<string, number>;
   durationMs: number;
+  usage: TokenUsage;
 };
 
 export async function runTrendIntelligence(env: {
@@ -49,10 +50,10 @@ export async function runTrendIntelligence(env: {
   console.log('[trends] Source breakdown:', sourceBreakdown);
   console.log('[trends] Sending to Claude for scoring...');
 
-  const trends = await scoreTrendsWithClaude(allSignals, env.ANTHROPIC_API_KEY);
+  const { trends, usage } = await scoreTrendsWithClaude(allSignals, env.ANTHROPIC_API_KEY);
 
   const durationMs = Date.now() - t0;
   console.log(`[trends] Complete — ${trends.length} trends in ${durationMs}ms`);
 
-  return { trends, signalCount: allSignals.length, sourceBreakdown, durationMs };
+  return { trends, signalCount: allSignals.length, sourceBreakdown, durationMs, usage };
 }

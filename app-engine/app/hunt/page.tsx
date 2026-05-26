@@ -1,6 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+// Sonnet pricing (per million tokens)
+const INPUT_PRICE_PER_M = 3.0;
+const OUTPUT_PRICE_PER_M = 15.0;
+
+function calcCost(inputTokens: number, outputTokens: number): number {
+  return (inputTokens / 1_000_000) * INPUT_PRICE_PER_M + (outputTokens / 1_000_000) * OUTPUT_PRICE_PER_M;
+}
+
+const USAGE_KEY = 'victoria_token_usage';
+type CumulativeUsage = { inputTokens: number; outputTokens: number; runs: number };
+
+function loadUsage(): CumulativeUsage {
+  if (typeof window === 'undefined') return { inputTokens: 0, outputTokens: 0, runs: 0 };
+  try { return JSON.parse(localStorage.getItem(USAGE_KEY) || 'null') ?? { inputTokens: 0, outputTokens: 0, runs: 0 }; }
+  catch { return { inputTokens: 0, outputTokens: 0, runs: 0 }; }
+}
+
+function saveUsage(u: CumulativeUsage) { localStorage.setItem(USAGE_KEY, JSON.stringify(u)); }
 
 type Trend = {
   name: string;
@@ -16,6 +35,7 @@ type RunMeta = {
   sourceBreakdown: Record<string, number>;
   durationMs: number;
   savedTrends: number;
+  usage?: { inputTokens: number; outputTokens: number };
 };
 
 type DomainResult = {
@@ -167,6 +187,10 @@ export default function HuntPage() {
   const [domainMeta, setDomainMeta] = useState<DomainMeta | null>(null);
   const [showTrends, setShowTrends] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cumulative, setCumulative] = useState<CumulativeUsage>({ inputTokens: 0, outputTokens: 0, runs: 0 });
+  const [lastRunTokens, setLastRunTokens] = useState<{ inputTokens: number; outputTokens: number } | null>(null);
+
+  useEffect(() => { setCumulative(loadUsage()); }, []);
 
   const running = phase === 'trends' || phase === 'domains';
 
@@ -176,6 +200,7 @@ export default function HuntPage() {
     setTrendMeta(null);
     setDomains([]);
     setDomainMeta(null);
+    setLastRunTokens(null);
 
     try {
       // Phase 1 — trends
@@ -207,11 +232,28 @@ export default function HuntPage() {
         ok: boolean;
         domains?: DomainResult[];
         meta?: DomainMeta;
+        usage?: { inputTokens: number; outputTokens: number };
         error?: string;
       };
       if (!dData.ok) throw new Error(dData.error || 'Domain hunt failed');
       setDomains(dData.domains || []);
       setDomainMeta(dData.meta || null);
+
+      // Aggregate token usage across both phases and persist
+      const tIn = tData.meta?.usage?.inputTokens ?? 0;
+      const tOut = tData.meta?.usage?.outputTokens ?? 0;
+      const dIn = dData.usage?.inputTokens ?? 0;
+      const dOut = dData.usage?.outputTokens ?? 0;
+      const runTokens = { inputTokens: tIn + dIn, outputTokens: tOut + dOut };
+      setLastRunTokens(runTokens);
+      const prev = loadUsage();
+      const next: CumulativeUsage = {
+        inputTokens: prev.inputTokens + runTokens.inputTokens,
+        outputTokens: prev.outputTokens + runTokens.outputTokens,
+        runs: prev.runs + 1,
+      };
+      saveUsage(next);
+      setCumulative(next);
 
       setPhase('done');
     } catch (err) {
@@ -222,6 +264,40 @@ export default function HuntPage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
+      {/* Token usage tracker */}
+      {(cumulative.runs > 0 || lastRunTokens) && (
+        <div className="flex flex-wrap gap-3 mb-4 text-xs text-[#6e7681]">
+          {lastRunTokens && (
+            <span className="px-2 py-1 bg-[#161b22] border border-[#30363d] rounded">
+              Last run:{' '}
+              <span className="text-[#e6edf3]">
+                {(lastRunTokens.inputTokens + lastRunTokens.outputTokens).toLocaleString()} tokens
+              </span>
+              {' '}≈{' '}
+              <span className="text-yellow-400">
+                ${calcCost(lastRunTokens.inputTokens, lastRunTokens.outputTokens).toFixed(3)}
+              </span>
+            </span>
+          )}
+          <span className="px-2 py-1 bg-[#161b22] border border-[#30363d] rounded">
+            All-time ({cumulative.runs} run{cumulative.runs !== 1 ? 's' : ''}):{' '}
+            <span className="text-[#e6edf3]">
+              {(cumulative.inputTokens + cumulative.outputTokens).toLocaleString()} tokens
+            </span>
+            {' '}≈{' '}
+            <span className="text-yellow-400">
+              ${calcCost(cumulative.inputTokens, cumulative.outputTokens).toFixed(2)} spent
+            </span>
+          </span>
+          <button
+            onClick={() => { saveUsage({ inputTokens: 0, outputTokens: 0, runs: 0 }); setCumulative({ inputTokens: 0, outputTokens: 0, runs: 0 }); }}
+            className="px-2 py-1 text-[#484f58] hover:text-[#6e7681] transition-colors"
+          >
+            reset
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-[#e6edf3]">Domain Hunt</h1>

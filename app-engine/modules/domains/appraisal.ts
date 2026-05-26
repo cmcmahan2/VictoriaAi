@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import type { TokenUsage } from '../trends/claude-scorer';
 import type { GeneratedCandidate } from './generate';
 
 export type Appraisal = {
@@ -76,14 +77,14 @@ Return JSON:
 async function claudeAppraise(
   candidates: GeneratedCandidate[],
   apiKey: string,
-): Promise<Map<string, Omit<Appraisal, 'valueSource'>>> {
+): Promise<{ map: Map<string, Omit<Appraisal, 'valueSource'>>; usage: TokenUsage }> {
   const map = new Map<string, Omit<Appraisal, 'valueSource'>>();
-  if (candidates.length === 0) return map;
+  if (candidates.length === 0) return { map, usage: { inputTokens: 0, outputTokens: 0 } };
 
   const client = new Anthropic({ apiKey });
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
-    max_tokens: 4096,
+    max_tokens: 8192,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: userPrompt(candidates) }],
   });
@@ -103,7 +104,10 @@ async function claudeAppraise(
   for (const a of parsed.appraisals || []) {
     if (a.domain) map.set(a.domain.toLowerCase(), a);
   }
-  return map;
+  return {
+    map,
+    usage: { inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens },
+  };
 }
 
 // Appraises available candidates. GoDaddy GoValue supplies the headline number
@@ -112,15 +116,15 @@ async function claudeAppraise(
 export async function appraiseDomains(
   candidates: GeneratedCandidate[],
   env: { ANTHROPIC_API_KEY: string; GODADDY_API_KEY?: string; GODADDY_API_SECRET?: string },
-): Promise<Appraisal[]> {
-  if (candidates.length === 0) return [];
+): Promise<{ appraisals: Appraisal[]; usage: TokenUsage }> {
+  if (candidates.length === 0) return { appraisals: [], usage: { inputTokens: 0, outputTokens: 0 } };
 
   const godaddy =
     env.GODADDY_API_KEY && env.GODADDY_API_SECRET
       ? { key: env.GODADDY_API_KEY, secret: env.GODADDY_API_SECRET }
       : null;
 
-  const [claudeMap, godaddyValues] = await Promise.all([
+  const [{ map: claudeMap, usage }, godaddyValues] = await Promise.all([
     claudeAppraise(candidates, env.ANTHROPIC_API_KEY),
     godaddy
       ? Promise.all(
@@ -129,7 +133,7 @@ export async function appraiseDomains(
       : Promise.resolve(new Map<string, number | null>()),
   ]);
 
-  return candidates.map((c) => {
+  const appraisals = candidates.map((c) => {
     const claude = claudeMap.get(c.domain);
     const gv = godaddyValues.get(c.domain) ?? null;
 
@@ -159,4 +163,6 @@ export async function appraiseDomains(
 
     return { ...base, domain: c.domain, valueSource: 'claude' as const };
   });
+
+  return { appraisals, usage };
 }

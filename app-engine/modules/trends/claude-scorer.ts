@@ -45,11 +45,13 @@ Return a JSON array of trend objects with this exact schema:
 }
 `;
 
+export type TokenUsage = { inputTokens: number; outputTokens: number };
+
 export async function scoreTrendsWithClaude(
   signals: RawSignal[],
   apiKey: string,
-): Promise<ScoredTrend[]> {
-  if (signals.length === 0) return [];
+): Promise<{ trends: ScoredTrend[]; usage: TokenUsage }> {
+  if (signals.length === 0) return { trends: [], usage: { inputTokens: 0, outputTokens: 0 } };
 
   const client = new Anthropic({ apiKey });
 
@@ -59,6 +61,11 @@ export async function scoreTrendsWithClaude(
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: USER_PROMPT(signals) }],
   });
+
+  const usage: TokenUsage = {
+    inputTokens: response.usage.input_tokens,
+    outputTokens: response.usage.output_tokens,
+  };
 
   const text = response.content
     .filter((b) => b.type === 'text')
@@ -83,5 +90,6 @@ export async function scoreTrendsWithClaude(
     parsed = JSON.parse(raw) as { trends: ScoredTrend[] };
   }
 
-  return (parsed.trends || []).sort((a, b) => b.commercialScore - a.commercialScore);
+  const trends = (parsed.trends || []).sort((a, b) => b.commercialScore - a.commercialScore);
+  return { trends, usage };
 }

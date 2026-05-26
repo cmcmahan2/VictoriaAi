@@ -25,7 +25,7 @@ export async function POST(req: Request) {
       GODADDY_API_SECRET: env.GODADDY_API_SECRET,
     });
 
-    return NextResponse.json({ ok: true, domains: result.domains, meta: result.meta });
+    return NextResponse.json({ ok: true, domains: result.domains, meta: result.meta, usage: result.meta.usage });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     console.error('[api/domains] Error:', message);

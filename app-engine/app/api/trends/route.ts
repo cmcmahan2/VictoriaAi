@@ -55,6 +55,7 @@ export async function POST() {
         sourceBreakdown: result.sourceBreakdown,
         durationMs: result.durationMs,
         savedTrends: insertedIds.length,
+        usage: result.usage,
       },
     });
   } catch (err) {
