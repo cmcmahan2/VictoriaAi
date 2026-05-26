@@ -50,19 +50,6 @@ function usd(n: number) {
   return '$' + Math.round(n).toLocaleString();
 }
 
-function SellBadge({ score }: { score: number }) {
-  const { label, style } =
-    score >= 70
-      ? { label: 'Likely to sell', style: 'text-green-400 bg-green-400/10 border-green-400/30' }
-      : score >= 40
-      ? { label: 'Possible sale', style: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/30' }
-      : { label: 'Hard sell', style: 'text-red-400 bg-red-400/10 border-red-400/30' };
-  return (
-    <span className={`text-xs px-2 py-0.5 rounded border font-medium ${style}`}>
-      {score}/100 · {label}
-    </span>
-  );
-}
 
 function ValueBar({ low, median, high }: { low: number; median: number; high: number }) {
   const color =
@@ -162,11 +149,35 @@ export default function AppraisePage() {
       {/* Result */}
       {result && (
         <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-5 mb-6 space-y-4">
-          {/* Domain + verdict */}
-          <div className="flex items-start justify-between gap-3 flex-wrap">
-            <h2 className="text-xl font-bold font-mono text-[#e6edf3]">{result.domain}</h2>
-            <SellBadge score={result.sellability} />
-          </div>
+          {/* Big verdict banner */}
+          {result.sellability >= 60 ? (
+            <div className="flex items-center gap-3 bg-green-400/10 border border-green-400/30 rounded-lg px-4 py-3">
+              <span className="text-2xl">✅</span>
+              <div>
+                <p className="text-green-400 font-bold text-sm">BUY — Sell score {result.sellability}/100</p>
+                <p className="text-xs text-green-400/70">Clears the 60+ threshold. Worth registering.</p>
+              </div>
+            </div>
+          ) : result.sellability >= 40 ? (
+            <div className="flex items-center gap-3 bg-yellow-400/10 border border-yellow-400/30 rounded-lg px-4 py-3">
+              <span className="text-2xl">⚠️</span>
+              <div>
+                <p className="text-yellow-400 font-bold text-sm">RISKY — Sell score {result.sellability}/100</p>
+                <p className="text-xs text-yellow-400/70">Below 60. Only buy if ROI is very high.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 bg-red-400/10 border border-red-400/30 rounded-lg px-4 py-3">
+              <span className="text-2xl">❌</span>
+              <div>
+                <p className="text-red-400 font-bold text-sm">SKIP — Sell score {result.sellability}/100</p>
+                <p className="text-xs text-red-400/70">Low buyer demand. Keep looking.</p>
+              </div>
+            </div>
+          )}
+
+          {/* Domain name */}
+          <h2 className="text-xl font-bold font-mono text-[#e6edf3]">{result.domain}</h2>
 
           {/* Value bar */}
           <ValueBar low={result.valueLow} median={result.valueMedian} high={result.valueHigh} />
