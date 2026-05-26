@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { ScoredTrend } from '../trends/claude-scorer';
+import type { ScoredTrend, TokenUsage } from '../trends/claude-scorer';
 
 export type GeneratedCandidate = {
   domain: string;      // full domain, lowercase, e.g. "cursorflow.com"
@@ -56,10 +56,10 @@ export async function generateDomainCandidates(
   trends: ScoredTrend[],
   apiKey: string,
   opts: { perTrend?: number; maxTotal?: number } = {},
-): Promise<GeneratedCandidate[]> {
+): Promise<{ candidates: GeneratedCandidate[]; usage: TokenUsage }> {
   const perTrend = opts.perTrend ?? 8;
   const maxTotal = opts.maxTotal ?? 160;
-  if (trends.length === 0) return [];
+  if (trends.length === 0) return { candidates: [], usage: { inputTokens: 0, outputTokens: 0 } };
 
   const client = new Anthropic({ apiKey });
 
@@ -109,9 +109,17 @@ export async function generateDomainCandidates(
         strategy: c.strategy || 'brandable',
         basis: c.basis || '',
       });
-      if (out.length >= maxTotal) return out;
+      if (out.length >= maxTotal) {
+        return {
+          candidates: out,
+          usage: { inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens },
+        };
+      }
     }
   }
 
-  return out;
+  return {
+    candidates: out,
+    usage: { inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens },
+  };
 }

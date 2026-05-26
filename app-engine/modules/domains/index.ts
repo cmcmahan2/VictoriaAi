@@ -1,4 +1,4 @@
-import type { ScoredTrend } from '../trends/claude-scorer';
+import type { ScoredTrend, TokenUsage } from '../trends/claude-scorer';
 import { generateDomainCandidates } from './generate';
 import { checkAvailability } from './availability';
 import { appraiseDomains, type Appraisal } from './appraisal';
@@ -22,6 +22,7 @@ export type DomainHuntResult = {
     appraised: number;
     durationMs: number;
     valuationSource: 'godaddy' | 'claude' | 'mixed';
+    usage: TokenUsage;
   };
 };
 
@@ -66,7 +67,7 @@ export async function runDomainHunt(
 
   // 1. Generate candidates from the top trends.
   const topTrends = trends.slice(0, maxTrends);
-  const candidates = await generateDomainCandidates(topTrends, env.ANTHROPIC_API_KEY, {
+  const { candidates, usage: genUsage } = await generateDomainCandidates(topTrends, env.ANTHROPIC_API_KEY, {
     maxTotal: maxCandidates,
   });
 
@@ -81,7 +82,7 @@ export async function runDomainHunt(
 
   // 3. Appraise the best available candidates (bounded for time/cost).
   const toAppraise = available.slice(0, maxAppraise);
-  const appraisals = await appraiseDomains(toAppraise, env);
+  const { appraisals, usage: appraisalUsage } = await appraiseDomains(toAppraise, env);
   const appraisalByDomain = new Map(appraisals.map((a) => [a.domain, a]));
 
   // 4. Merge, score, rank.
@@ -117,6 +118,10 @@ export async function runDomainHunt(
       appraised: domains.length,
       durationMs: Date.now() - t0,
       valuationSource,
+      usage: {
+        inputTokens: genUsage.inputTokens + appraisalUsage.inputTokens,
+        outputTokens: genUsage.outputTokens + appraisalUsage.outputTokens,
+      },
     },
   };
 }
