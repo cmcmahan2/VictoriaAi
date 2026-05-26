@@ -109,11 +109,13 @@ function HuntCard({ d, rank }: { d: DomainResult; rank: number }) {
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-mono font-semibold text-[#e6edf3]">{d.domain}</span>
             <span className={`text-xs px-1.5 py-0.5 rounded border ${
-              d.sellability >= 60
+              d.score >= 60
                 ? 'text-green-400 border-green-400/30 bg-green-400/10'
-                : 'text-yellow-400 border-yellow-400/30 bg-yellow-400/10'
+                : d.score >= 40
+                ? 'text-yellow-400 border-yellow-400/30 bg-yellow-400/10'
+                : 'text-red-400 border-red-400/30 bg-red-400/10'
             }`}>
-              {d.sellability >= 60 ? '✅ BUY' : '⚠️ RISKY'} · {d.sellability}
+              {d.score >= 60 ? '✅ BUY' : d.score >= 40 ? '⚠️ RISKY' : '❌ SKIP'} · {d.score}
             </span>
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-sm text-[#8b949e]">
@@ -143,8 +145,8 @@ function HuntCard({ d, rank }: { d: DomainResult; rank: number }) {
           )}
         </div>
         <span className={`shrink-0 text-lg font-bold tabular-nums ${
-          d.sellability >= 60 ? 'text-green-400' : 'text-yellow-400'
-        }`}>{d.sellability}</span>
+          d.score >= 60 ? 'text-green-400' : d.score >= 40 ? 'text-yellow-400' : 'text-red-400'
+        }`}>{d.score}</span>
       </div>
     </div>
   );
@@ -215,9 +217,7 @@ export default function AppraisePage() {
       };
       if (!dData.ok) throw new Error(dData.error || 'Domain scan failed');
 
-      // Only keep sell score 60+
-      const quality = (dData.domains || []).filter(d => d.sellability >= 60);
-      setDomains(quality);
+      setDomains(dData.domains || []);
       setHuntMeta(dData.meta || null);
       setHuntPhase('done');
     } catch (err) {
@@ -318,7 +318,7 @@ export default function AppraisePage() {
         <>
           <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4 mb-6">
             <p className="text-sm text-[#8b949e] mb-3">
-              Scans 7 live sources for trending topics, generates domain candidates, checks availability, and returns only domains with a <span className="text-green-400 font-medium">sell score 60+</span>.
+              Scans 7 live sources for trending topics, generates domain candidates, checks availability, and ranks all available domains by sell score.
             </p>
             <button onClick={runHunt} disabled={huntPhase === 'trends' || huntPhase === 'domains'}
               className="w-full py-2.5 bg-[#238636] hover:bg-[#2ea043] disabled:bg-[#1c2128] disabled:text-[#484f58] text-white text-sm font-medium rounded-lg transition-colors">
@@ -336,14 +336,14 @@ export default function AppraisePage() {
             <div className="mb-4 flex items-center justify-between">
               <p className="text-xs text-[#6e7681]">
                 {huntMeta && `${huntMeta.generated} generated → ${huntMeta.available} available → `}
-                <span className="text-green-400 font-medium">{domains.length} scored 60+</span>
+                <span className="text-[#e6edf3] font-medium">{domains.length} ranked</span>
               </p>
             </div>
           )}
 
           {huntPhase === 'done' && domains.length === 0 && (
             <div className="border border-dashed border-[#30363d] rounded-lg p-8 text-center">
-              <p className="text-[#6e7681] text-sm">No domains hit 60+ this run — try again in a few minutes for different trends.</p>
+              <p className="text-[#6e7681] text-sm">No available domains found this run — try again in a few minutes for different trends.</p>
             </div>
           )}
 

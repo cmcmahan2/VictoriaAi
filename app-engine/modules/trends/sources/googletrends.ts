@@ -6,10 +6,12 @@ export async function fetchGoogleTrends(): Promise<RawSignal[]> {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const googleTrends = require('google-trends-api');
 
-    const rawJson: string = await googleTrends.dailyTrends({
-      trendDate: new Date(),
-      geo: 'US',
-    });
+    const rawJson: string = await Promise.race([
+      googleTrends.dailyTrends({ trendDate: new Date(), geo: 'US' }) as Promise<string>,
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Google Trends timeout')), 8000),
+      ),
+    ]);
 
     const parsed = JSON.parse(rawJson) as {
       default?: {
