@@ -37,6 +37,7 @@
     "node-cron": "^3.0.3",
     "react": "^18",
     "react-dom": "^18",
+    "recharts": "^3.8.1",
     "resend": "^3.2.0",
     "snoowrap": "^1.23.0",
     "tailwind-merge": "^2.3.0"
