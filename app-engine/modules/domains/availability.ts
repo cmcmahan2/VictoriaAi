@@ -1,69 +1,46 @@
-// Domain availability checking.
+// Domain availability via authoritative per-TLD RDAP servers.
 //
-// Strategy (in order):
-// 1. GoDaddy API — accurate but requires IP whitelisting for production;
-//    from Vercel serverless the IP is dynamic so requests often fail.
-// 2. RDAP (rdap.org) — free, no auth, works from any IP. Unreliable for
-//    .io/.ai/.co (can return 404 for taken domains). Used as primary when
-//    GoDaddy fails and as sole checker when no credentials are configured.
-// 3. Domainr (api.domainr.com) — fast, JSON, works from serverless, free
-//    for light use. Used as a secondary confirmation for RDAP "available"
-//    results on TLDs known to have RDAP accuracy issues.
+// rdap.org (the public aggregator) is unreliable from Vercel — it frequently
+// times out or returns stale data. Instead we hit each TLD's authoritative
+// RDAP endpoint directly, which is faster and more accurate.
 //
-// Final rule: a domain is marked available only when at least one authoritative
-// source confirms it. "unknown" from all sources → treated as taken (safe).
+// 404 = not registered (available). 200 = registered (taken). Anything else
+// = unknown (treated as taken to avoid wasting money on bad registrations).
 
 export type Availability = 'available' | 'taken' | 'unknown';
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 type GodaddyCreds = { key: string; secret: string };
 
-const RDAP_BASE = 'https://rdap.org/domain/';
-const GODADDY_API_BASE = 'https://api.godaddy.com/v1/domains/available';
-// Domainr's status API — no key required, returns machine-readable codes
-const DOMAINR_BASE = 'https://api.domainr.com/v2/status?domain=';
-const TIMEOUT_MS = 7000;
-const CONCURRENCY = 6;
+const TIMEOUT_MS = 8000;
+const CONCURRENCY = 10;
 
-// TLDs where RDAP is known to produce false "available" results
-const RDAP_UNRELIABLE_TLDS = new Set(['io', 'ai', 'co', 'app', 'dev']);
+// Authoritative RDAP base URLs by TLD.
+// These are stable registry endpoints — no aggregator, no IP issues.
+const RDAP_SERVERS: Record<string, string> = {
+  com: 'https://rdap.verisign.com/com/v1/domain/',
+  net: 'https://rdap.verisign.com/net/v1/domain/',
+  org: 'https://rdap.publicinterestregistry.org/rdap/domain/',
+  io:  'https://rdap.nic.io/domain/',
+  co:  'https://rdap.nic.co/domain/',
+  app: 'https://rdap.nic.google/domain/',
+  dev: 'https://rdap.nic.google/domain/',
+  ai:  'https://rdap.org/domain/', // .ai has no public RDAP; use aggregator
+};
+const RDAP_FALLBACK = 'https://rdap.org/domain/';
 
-function tldOf(domain: string): string {
-  return domain.split('.').pop() ?? '';
+function rdapBase(tld: string): string {
+  return RDAP_SERVERS[tld] ?? RDAP_FALLBACK;
 }
 
-// --- GoDaddy (most accurate, but fails without IP whitelist on Vercel) ------
+async function checkOne(domain: string): Promise<Availability> {
+  const tld = domain.split('.').pop() ?? '';
+  const url = rdapBase(tld) + encodeURIComponent(domain);
 
-async function checkGodaddy(domain: string, creds: GodaddyCreds): Promise<Availability> {
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
-    const res = await fetch(
-      `${GODADDY_API_BASE}?domain=${encodeURIComponent(domain)}&checkType=FAST`,
-      {
-        signal: ctrl.signal,
-        headers: { Authorization: `sso-key ${creds.key}:${creds.secret}`, Accept: 'application/json' },
-        cache: 'no-store',
-      },
-    );
-    if (!res.ok) return 'unknown';
-    const data = (await res.json()) as { available?: boolean };
-    if (data.available === true) return 'available';
-    if (data.available === false) return 'taken';
-    return 'unknown';
-  } catch {
-    return 'unknown';
-  } finally {
-    clearTimeout(t);
-  }
-}
-
-// --- RDAP (free, works from any IP, unreliable on some TLDs) ----------------
-
-async function checkRdap(domain: string): Promise<Availability> {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-  try {
-    const res = await fetch(`${RDAP_BASE}${encodeURIComponent(domain)}`, {
+    const res = await fetch(url, {
       signal: ctrl.signal,
       headers: { Accept: 'application/rdap+json' },
       redirect: 'follow',
@@ -75,65 +52,14 @@ async function checkRdap(domain: string): Promise<Availability> {
   } catch {
     return 'unknown';
   } finally {
-    clearTimeout(t);
+    clearTimeout(timer);
   }
 }
-
-// --- Domainr (serverless-safe secondary confirmation) -----------------------
-
-async function checkDomainr(domain: string): Promise<Availability> {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-  try {
-    const res = await fetch(`${DOMAINR_BASE}${encodeURIComponent(domain)}`, {
-      signal: ctrl.signal,
-      headers: { Accept: 'application/json' },
-      cache: 'no-store',
-    });
-    if (!res.ok) return 'unknown';
-    const data = (await res.json()) as { status?: { domain: string; status: string }[] };
-    const entry = data.status?.find((s) => s.domain.toLowerCase() === domain.toLowerCase());
-    if (!entry) return 'unknown';
-    // Domainr status codes: "undelegated inactive" / "available" → available
-    // "active" / "inactive" (when registered) → taken
-    const s = entry.status.toLowerCase();
-    if (s.includes('available') || s.includes('undelegated inactive')) return 'available';
-    if (s.includes('active') || s.includes('inactive') || s.includes('reserved')) return 'taken';
-    return 'unknown';
-  } catch {
-    return 'unknown';
-  } finally {
-    clearTimeout(t);
-  }
-}
-
-// --- Composite check --------------------------------------------------------
-
-async function checkOne(domain: string, godaddy?: GodaddyCreds): Promise<Availability> {
-  // Try GoDaddy first if credentials present
-  if (godaddy) {
-    const gd = await checkGodaddy(domain, godaddy);
-    if (gd !== 'unknown') return gd;
-    // GoDaddy failed (likely IP whitelist issue) — fall through to RDAP+Domainr
-  }
-
-  const rdap = await checkRdap(domain);
-
-  // For TLDs where RDAP is known to lie, require Domainr to confirm "available"
-  if (rdap === 'available' && RDAP_UNRELIABLE_TLDS.has(tldOf(domain))) {
-    const domainr = await checkDomainr(domain);
-    // Both must agree it's available, or treat as unknown (safe default)
-    return domainr === 'available' ? 'available' : 'unknown';
-  }
-
-  return rdap;
-}
-
-// --- Public API -------------------------------------------------------------
 
 export async function checkAvailability(
   domains: string[],
-  godaddy?: GodaddyCreds,
+  // GoDaddy creds kept in signature for future use (requires IP whitelisting)
+  _godaddy?: GodaddyCreds,
 ): Promise<Map<string, Availability>> {
   const result = new Map<string, Availability>();
   let cursor = 0;
@@ -141,7 +67,7 @@ export async function checkAvailability(
   async function worker() {
     while (cursor < domains.length) {
       const i = cursor++;
-      result.set(domains[i], await checkOne(domains[i], godaddy));
+      result.set(domains[i], await checkOne(domains[i]));
     }
   }
 
