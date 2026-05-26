@@ -41,7 +41,7 @@ async function AlbumReviews({ albumId }: { albumId: string }) {
 
   return (
     <div className="space-y-4">
-      {reviews.map((r) => (
+      {reviews.map((r: (typeof reviews)[number]) => (
         <ReviewCard
           key={r.id}
           id={r.id}
