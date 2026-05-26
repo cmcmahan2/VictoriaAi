@@ -12,8 +12,8 @@ export type Availability = 'available' | 'taken' | 'unknown';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 type GodaddyCreds = { key: string; secret: string };
 
-const TIMEOUT_MS = 8000;
-const CONCURRENCY = 10;
+const TIMEOUT_MS = 6000;
+const CONCURRENCY = 20;
 
 // Authoritative RDAP base URLs by TLD.
 // These are stable registry endpoints — no aggregator, no IP issues.

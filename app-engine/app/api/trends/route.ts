@@ -9,7 +9,7 @@ export const maxDuration = 60; // Vercel Hobby plan cap
 
 // Race the intelligence run against a hard timeout so we always return JSON
 // (never a Vercel HTML timeout page that crashes the client JSON parser).
-const TIMEOUT_MS = 55_000;
+const TIMEOUT_MS = 45_000;
 
 export async function POST() {
   try {

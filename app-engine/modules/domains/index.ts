@@ -61,9 +61,9 @@ export async function runDomainHunt(
   opts: { maxTrends?: number; maxCandidates?: number; maxAppraise?: number } = {},
 ): Promise<DomainHuntResult> {
   const t0 = Date.now();
-  const maxTrends = opts.maxTrends ?? 20;
-  const maxCandidates = opts.maxCandidates ?? 160;
-  const maxAppraise = opts.maxAppraise ?? 40;
+  const maxTrends = opts.maxTrends ?? 10;
+  const maxCandidates = opts.maxCandidates ?? 60;
+  const maxAppraise = opts.maxAppraise ?? 20;
 
   // 1. Generate candidates from the top trends.
   const topTrends = trends.slice(0, maxTrends);
