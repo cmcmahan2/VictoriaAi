@@ -5,6 +5,8 @@ import { loadEnv } from '@/lib/env';
 
 export const maxDuration = 60; // Vercel Hobby cap
 
+const TIMEOUT_MS = 50_000;
+
 export async function POST(req: Request) {
   try {
     const env = loadEnv();
@@ -19,11 +21,18 @@ export async function POST(req: Request) {
       );
     }
 
-    const result = await runDomainHunt(trends, {
-      ANTHROPIC_API_KEY: env.ANTHROPIC_API_KEY,
-      GODADDY_API_KEY: env.GODADDY_API_KEY,
-      GODADDY_API_SECRET: env.GODADDY_API_SECRET,
-    });
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Domain hunt timed out — try again in a moment')), TIMEOUT_MS),
+    );
+
+    const result = await Promise.race([
+      runDomainHunt(trends, {
+        ANTHROPIC_API_KEY: env.ANTHROPIC_API_KEY,
+        GODADDY_API_KEY: env.GODADDY_API_KEY,
+        GODADDY_API_SECRET: env.GODADDY_API_SECRET,
+      }),
+      timeoutPromise,
+    ]);
 
     return NextResponse.json({ ok: true, domains: result.domains, meta: result.meta, usage: result.meta.usage });
   } catch (err) {
