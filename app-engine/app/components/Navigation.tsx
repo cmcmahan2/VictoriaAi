@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 
-const VERSION = 'v1.18';
+const VERSION = 'v1.20';
 
 const links = [
   { href: '/hunt',      label: 'Appraise',   icon: '🔍' },
