@@ -5,6 +5,7 @@ import { fetchGoogleTrends } from './sources/googletrends';
 import { fetchGithubTrending } from './sources/github';
 import { fetchYCombinator } from './sources/ycombinator';
 import { fetchCrunchbase } from './sources/crunchbase';
+import { fetchWikipediaTrends } from './sources/wikipedia';
 import { scoreTrendsWithClaude, type ScoredTrend } from './claude-scorer';
 import type { RawSignal } from './sources/hackernews';
 
@@ -25,7 +26,7 @@ export async function runTrendIntelligence(env: {
   console.log('[trends] Starting multi-source intelligence run...');
 
   // Fetch all sources in parallel — each gracefully returns [] on failure
-  const [hn, reddit, ph, gtrends, github, yc, cb] = await Promise.all([
+  const [hn, reddit, ph, gtrends, github, yc, cb, wiki] = await Promise.all([
     fetchHackerNews(),
     fetchReddit(env.REDDIT_CLIENT_ID, env.REDDIT_CLIENT_SECRET),
     fetchProductHunt(env.PRODUCT_HUNT_TOKEN),
@@ -33,9 +34,10 @@ export async function runTrendIntelligence(env: {
     fetchGithubTrending(),
     fetchYCombinator(),
     fetchCrunchbase(),
+    fetchWikipediaTrends(),
   ]);
 
-  const allSignals: RawSignal[] = [...hn, ...reddit, ...ph, ...gtrends, ...github, ...yc, ...cb];
+  const allSignals: RawSignal[] = [...hn, ...reddit, ...ph, ...gtrends, ...github, ...yc, ...cb, ...wiki];
 
   const sourceBreakdown: Record<string, number> = {};
   for (const s of allSignals) {

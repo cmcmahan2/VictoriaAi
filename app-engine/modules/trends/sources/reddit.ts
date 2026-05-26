@@ -1,12 +1,37 @@
 import type { RawSignal } from './hackernews';
 
+// Broad spread across commercial verticals — not just tech/AI. These are
+// subreddits where real consumer and business demand surfaces, which is where
+// easy-to-sell domains come from.
 const DEFAULT_SUBREDDITS = [
+  // Tech / startup
   'startups',
+  'SaaS',
   'artificial',
   'technology',
   'cryptocurrency',
-  'SaaS',
-  'MachineLearning',
+  // Business / money / side hustles
+  'Entrepreneur',
+  'smallbusiness',
+  'personalfinance',
+  'sidehustle',
+  'ecommerce',
+  // Health / wellness / lifestyle
+  'fitness',
+  'nutrition',
+  'skincareaddiction',
+  'mentalhealth',
+  // Home / food / hobbies
+  'food',
+  'HomeImprovement',
+  'gardening',
+  'gaming',
+  'travel',
+  // Consumer / culture
+  'BuyItForLife',
+  'pets',
+  'parenting',
+  'fashion',
 ];
 
 type RedditPost = {

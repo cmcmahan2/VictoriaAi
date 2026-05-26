@@ -32,6 +32,7 @@ type DomainResult = {
   valueHigh: number;
   valueSource: 'godaddy' | 'claude';
   sellability: number;
+  demand: number;
   buyers: string;
   reasoning: string;
   score: number;
@@ -140,6 +141,8 @@ function DomainCard({ d, rank }: { d: DomainResult; rank: number }) {
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'exists' | 'error'>('idle');
   const sellColor =
     d.sellability >= 70 ? 'text-green-400' : d.sellability >= 40 ? 'text-yellow-400' : 'text-red-400';
+  const demandColor =
+    d.demand >= 70 ? 'text-green-400' : d.demand >= 40 ? 'text-yellow-400' : 'text-red-400';
 
   async function addToPortfolio(e: React.MouseEvent) {
     e.stopPropagation();
@@ -221,8 +224,11 @@ function DomainCard({ d, rank }: { d: DomainResult; rank: number }) {
             <span className="text-[#8b949e]">
               ROI <span className="text-blue-400 font-bold">{d.roi}x</span>
             </span>
-            <span className="text-[#8b949e]">
+            <span className="text-[#8b949e]" title="Likelihood this specific name sells">
               Sellability <span className={`font-medium ${sellColor}`}>{d.sellability}/100</span>
+            </span>
+            <span className="text-[#8b949e]" title="Size of the buyer pool / how easy to sell">
+              Demand <span className={`font-medium ${demandColor}`}>{d.demand}/100</span>
             </span>
           </div>
 
@@ -422,12 +428,18 @@ export default function HuntPage() {
   const [domains, setDomains] = useState<DomainResult[]>([]);
   const [domainMeta, setDomainMeta] = useState<DomainMeta | null>(null);
   const [showTrends, setShowTrends] = useState(false);
+  const [sortBy, setSortBy] = useState<'roi' | 'demand' | 'score'>('demand');
   const [error, setError] = useState<string | null>(null);
 
   const running = phase === 'trends' || phase === 'domains';
 
-  // Sort by ROI desc (most profitable first) and keep the top 10.
-  const top10 = [...domains].sort((a, b) => b.roi - a.roi).slice(0, TOP_N);
+  // Rank by the chosen metric, then keep the top 10.
+  const sorters: Record<typeof sortBy, (a: DomainResult, b: DomainResult) => number> = {
+    roi: (a, b) => b.roi - a.roi,
+    demand: (a, b) => b.demand - a.demand || b.score - a.score,
+    score: (a, b) => b.score - a.score,
+  };
+  const top10 = [...domains].sort(sorters[sortBy]).slice(0, TOP_N);
 
   async function runHunt() {
     setError(null);
@@ -514,7 +526,8 @@ export default function HuntPage() {
             <>
               <p className="text-[#e6edf3] font-medium">Step 1/2 · Collecting trend signals…</p>
               <p className="text-sm text-[#8b949e] mt-1">
-                Hacker News · Reddit · Product Hunt · Google Trends · GitHub · YC · Crunchbase
+                Hacker News · Reddit (20+ verticals) · Product Hunt · Google Trends · GitHub · YC ·
+                Crunchbase · Wikipedia
               </p>
             </>
           ) : (
@@ -554,7 +567,30 @@ export default function HuntPage() {
               available →{' '}
               <span className="text-[#e6edf3] font-medium">{domainMeta.appraised}</span>{' '}
               valued →{' '}
-              <span className="text-blue-400 font-semibold">top {Math.min(TOP_N, top10.length)} by ROI</span>
+              <span className="text-blue-400 font-semibold">
+                top {Math.min(TOP_N, top10.length)}
+              </span>
+            </span>
+            <span className="text-[#30363d]">|</span>
+            <span className="flex items-center gap-1.5 text-[#8b949e]">
+              rank by:
+              {([
+                ['demand', 'easiest to sell'],
+                ['roi', 'most profitable'],
+                ['score', 'overall'],
+              ] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setSortBy(key)}
+                  className={`px-2 py-0.5 rounded border transition-colors ${
+                    sortBy === key
+                      ? 'border-blue-400/40 text-blue-400 bg-blue-400/10'
+                      : 'border-[#30363d] text-[#8b949e] hover:border-[#484f58]'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </span>
             <span className="text-[#30363d]">|</span>
             <span className="text-[#8b949e]">
@@ -615,8 +651,8 @@ export default function HuntPage() {
           <BuySellGuide />
           <div className="border border-dashed border-[#30363d] rounded-lg p-12 text-center">
             <p className="text-[#6e7681] text-sm">
-              Press Run Hunt — finds trends, generates domain names, confirms availability, and
-              ranks the top {TOP_N} by ROI.
+              Press Run Hunt — finds trends across many industries, generates domain names,
+              confirms availability, scores demand & profitability, and ranks the top {TOP_N}.
             </p>
             <p className="text-xs text-[#484f58] mt-2">
               Requires ANTHROPIC_API_KEY. GODADDY_API_KEY/SECRET enables registrar-confirmed

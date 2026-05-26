@@ -46,14 +46,16 @@ function estPriceFor(tld: string): number {
   return TLD_PRICE[tld] ?? DEFAULT_PRICE;
 }
 
-// Composite score: a buyable domain needs both worth and a buyer. We weight
-// sellability heavily, then layer in value (log-scaled so a $50k name doesn't
-// drown out everything) and a small premium for short, clean names.
+// Composite score: a buyable domain needs worth, a buyer, AND a liquid market.
+// We weight sellability (does THIS name sell) and demand (how many buyers / how
+// easy to sell) most heavily, then layer in value (log-scaled so a $50k name
+// doesn't drown out everything) and a small premium for short, clean names.
 function compositeScore(a: Appraisal, sld: string): number {
   const sellability = Math.max(0, Math.min(100, a.sellability)); // 0-100
+  const demand = Math.max(0, Math.min(100, a.demand));           // 0-100
   const valueScore = Math.min(100, (Math.log10(Math.max(a.valueMedian, 1)) / 5) * 100); // $1=0, $100k=100
   const lengthBonus = sld.length <= 8 ? 10 : sld.length <= 12 ? 5 : 0;
-  const raw = sellability * 0.55 + valueScore * 0.35 + lengthBonus;
+  const raw = sellability * 0.4 + demand * 0.3 + valueScore * 0.2 + lengthBonus;
   return Math.round(Math.max(0, Math.min(100, raw)));
 }
 

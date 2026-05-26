@@ -7,7 +7,8 @@ export type Appraisal = {
   valueMedian: number;
   valueHigh: number;
   valueSource: 'godaddy' | 'claude';
-  sellability: number; // 1-100: likelihood an end-user buyer pays for it
+  sellability: number; // 1-100: likelihood THIS name sells to an end-user buyer
+  demand: number;      // 1-100: size of the buyer pool / market liquidity for it
   buyers: string;      // who would plausibly buy it
   reasoning: string;   // one-line justification
 };
@@ -46,8 +47,9 @@ const SYSTEM_PROMPT = `You are a domain valuation and liquidity analyst for a pr
 Rules:
 - Output ONLY valid JSON. No prose, no markdown fences.
 - "valueLow"/"valueMedian"/"valueHigh" are USD secondary-market estimates (what a buyer pays, not registration cost). Be realistic: most brandable names resell for $0-$2,500; strong exact-match commercial terms can reach $5k-$50k; be conservative.
-- "sellability" 1-100: likelihood of an actual sale within ~24 months. High = clear end-user buyers and demand; low = speculative with no obvious buyer.
-- "buyers": a short phrase naming who would buy it (e.g. "AI code-tooling startups").
+- "sellability" 1-100: likelihood THIS specific name sells within ~24 months — depends on name quality, brandability, and fit.
+- "demand" 1-100: how LARGE the buyer pool is and how LIQUID the market is for a name like this. Broad categories with thousands of potential small-business/startup buyers (fitness, finance, food, e-commerce, local services) score high; narrow one-buyer niches score low. A name can be highly brandable (high sellability) but still have a small market (low demand), or vice versa — judge them independently.
+- "buyers": a short phrase naming who would buy it (e.g. "AI code-tooling startups", "local fitness studios").
 - "reasoning": one concise sentence.
 - A great name nobody will buy is worth little — weight real buyer demand heavily.`;
 
@@ -66,6 +68,7 @@ Return JSON:
       "valueMedian": 900,
       "valueHigh": 2500,
       "sellability": 62,
+      "demand": 70,
       "buyers": "AI dev-tool startups",
       "reasoning": "Brandable compound tied to a hot IDE trend with plausible startup buyers."
     }
@@ -140,6 +143,7 @@ export async function appraiseDomains(
       valueMedian: 300,
       valueHigh: 800,
       sellability: 30,
+      demand: 30,
       buyers: 'unknown',
       reasoning: 'No appraisal returned; default conservative estimate.',
     };
@@ -152,6 +156,7 @@ export async function appraiseDomains(
         valueHigh: Math.round(gv * 2),
         valueSource: 'godaddy' as const,
         sellability: base.sellability,
+        demand: base.demand,
         buyers: base.buyers,
         reasoning: base.reasoning,
       };
