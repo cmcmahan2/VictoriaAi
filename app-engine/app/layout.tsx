@@ -44,7 +44,7 @@ function Sidebar() {
         ))}
       </nav>
       <div className="px-4 py-3 border-t border-[#30363d]">
-        <span className="text-xs text-[#6e7681]">v0.1.0 — Module 1</span>
+        <span className="text-xs text-[#6e7681]">v0.3.0 — Portfolio</span>
       </div>
     </aside>
   );
