@@ -70,8 +70,13 @@ export async function runDomainHunt(
     maxTotal: maxCandidates,
   });
 
-  // 2. Check availability via RDAP.
-  const availabilityMap = await checkAvailability(candidates.map((c) => c.domain));
+  // 2. Check availability. GoDaddy API is used when credentials are present;
+  //    it is significantly more accurate than RDAP for .io, .ai, and .co TLDs.
+  const godaddy =
+    env.GODADDY_API_KEY && env.GODADDY_API_SECRET
+      ? { key: env.GODADDY_API_KEY, secret: env.GODADDY_API_SECRET }
+      : undefined;
+  const availabilityMap = await checkAvailability(candidates.map((c) => c.domain), godaddy);
   const available = candidates.filter((c) => availabilityMap.get(c.domain) === 'available');
 
   // 3. Appraise the best available candidates (bounded for time/cost).
