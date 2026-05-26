@@ -31,10 +31,106 @@ const STATUS_LABELS: Record<Status, string> = {
   sold:     'Sold',
 };
 
+const AFTERNIC_TIPS = [
+  {
+    icon: '💸',
+    title: 'Use Afternic nameservers',
+    body: 'Point your domain to Afternic\'s nameservers (dns1.afternic.com / dns2.afternic.com) and your commission drops from 20% to 15%. Do this in your registrar\'s DNS settings.',
+    link: 'https://www.afternic.com/forsale',
+    linkLabel: 'Set up lander ↗',
+  },
+  {
+    icon: '🏷️',
+    title: 'Always set a Buy Now price',
+    body: 'Domains with a Buy Now price sell 3× faster than make-offer-only listings. Price at your target — buyers can still negotiate down, but BIN signals you\'re serious.',
+    link: null,
+    linkLabel: null,
+  },
+  {
+    icon: '🔒',
+    title: 'Set a minimum offer',
+    body: 'Set a minimum offer of at least $200–$500 to filter out tire-kickers and low-ballers. Afternic won\'t show offers below your minimum.',
+    link: null,
+    linkLabel: null,
+  },
+  {
+    icon: '📡',
+    title: 'Enable Fast Transfer',
+    body: 'Enroll in Afternic\'s Fast Transfer network so buyers can complete the transfer instantly without waiting for you. Dramatically reduces drop-off after a sale.',
+    link: 'https://www.afternic.com/sell-domains/fast-transfer',
+    linkLabel: 'Learn more ↗',
+  },
+  {
+    icon: '📋',
+    title: 'List on GoDaddy Premium too',
+    body: 'Afternic automatically syncs to GoDaddy\'s premium listings — the most visited domain marketplace in the world. No extra steps needed once your Afternic listing is live.',
+    link: null,
+    linkLabel: null,
+  },
+  {
+    icon: '⏱️',
+    title: 'Be patient — avg. time to sell is 12–18 months',
+    body: 'Most domain sales take 1–2 years. Don\'t slash your price after a few weeks. Renew for at least one year and let the buyer pool grow.',
+    link: null,
+    linkLabel: null,
+  },
+];
+
 const GODADDY_URL = (d: string) =>
   `https://www.godaddy.com/domainsearch/find?domainToCheck=${encodeURIComponent(d)}`;
 const AFTERNIC_URL = (d: string) =>
   `https://www.afternic.com/forsale/${encodeURIComponent(d)}`;
+
+const SELL_PLATFORMS = [
+  {
+    name: 'Afternic',
+    url: 'https://www.afternic.com/sell-domains',
+    commission: '20–25%',
+    tag: 'Best reach',
+    tagColor: 'text-green-400 border-green-400/30 bg-green-400/10',
+    desc: 'GoDaddy\'s network — your listing appears across 100+ registrars. Best for passive, set-and-forget selling.',
+  },
+  {
+    name: 'Dan.com',
+    url: 'https://dan.com/sell-domains/',
+    commission: '9%',
+    tag: 'Lowest fee',
+    tagColor: 'text-blue-400 border-blue-400/30 bg-blue-400/10',
+    desc: 'Lowest commission of the major platforms. Clean lander pages and fast payouts.',
+  },
+  {
+    name: 'Sedo',
+    url: 'https://sedo.com/us/sell-domain-names/',
+    commission: '15%',
+    tag: 'Global buyers',
+    tagColor: 'text-purple-400 border-purple-400/30 bg-purple-400/10',
+    desc: 'Large international buyer pool. Good for premium .com and country-code domains.',
+  },
+  {
+    name: 'Squadhelp',
+    url: 'https://www.squadhelp.com/sell-domains',
+    commission: '7.5–30%',
+    tag: 'Brandables',
+    tagColor: 'text-orange-400 border-orange-400/30 bg-orange-400/10',
+    desc: 'Curated marketplace for brandable names. Higher prices but requires approval.',
+  },
+  {
+    name: 'Flippa',
+    url: 'https://flippa.com/domains',
+    commission: '5–10%',
+    tag: 'Auctions',
+    tagColor: 'text-yellow-400 border-yellow-400/30 bg-yellow-400/10',
+    desc: 'Best if your domain has traffic or existing backlinks. Auction format drives competitive bids.',
+  },
+  {
+    name: 'GoDaddy Auctions',
+    url: 'https://auctions.godaddy.com/trpItemListing.aspx?miid=580',
+    commission: '$4.99/yr + 20%',
+    tag: 'High traffic',
+    tagColor: 'text-[#8b949e] border-[#8b949e]/30 bg-[#8b949e]/10',
+    desc: 'Millions of buyers browse GoDaddy auctions daily. Great for domains you want sold fast.',
+  },
+];
 
 function usd(n: number) {
   return '$' + Math.round(n).toLocaleString();
@@ -277,6 +373,53 @@ export default function PortfolioPage() {
           <p className="text-[#6e7681] text-sm">No domains yet — click Add Domain to track your first one.</p>
         </div>
       )}
+
+      {/* Where to sell */}
+      <div className="mb-6">
+        <p className="text-xs text-[#6e7681] font-medium uppercase tracking-wider mb-3">Where to Sell</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {SELL_PLATFORMS.map((p) => (
+            <a
+              key={p.name}
+              href={p.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block p-3 bg-[#161b22] border border-[#30363d] hover:border-[#484f58] rounded-lg transition-colors group"
+            >
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-[#e6edf3] group-hover:text-white">{p.name}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${p.tagColor}`}>{p.tag}</span>
+                </div>
+                <span className="text-xs text-[#6e7681] shrink-0">{p.commission}</span>
+              </div>
+              <p className="text-xs text-[#6e7681] leading-relaxed">{p.desc}</p>
+            </a>
+          ))}
+        </div>
+      </div>
+
+      {/* Afternic tips */}
+      <div className="mb-6">
+        <p className="text-xs text-[#6e7681] font-medium uppercase tracking-wider mb-3">Afternic — How to Sell Faster</p>
+        <div className="flex flex-col gap-2">
+          {AFTERNIC_TIPS.map((t) => (
+            <div key={t.title} className="flex gap-3 bg-[#161b22] border border-[#30363d] rounded-lg px-4 py-3">
+              <span className="text-lg shrink-0 mt-0.5">{t.icon}</span>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-[#e6edf3]">{t.title}</p>
+                <p className="text-xs text-[#8b949e] mt-0.5 leading-relaxed">{t.body}</p>
+                {t.link && (
+                  <a href={t.link} target="_blank" rel="noopener noreferrer"
+                    className="text-xs text-[#58a6ff] hover:underline mt-1 inline-block">
+                    {t.linkLabel}
+                  </a>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       <div className="flex flex-col gap-2">
         {domains.map((d) => {
