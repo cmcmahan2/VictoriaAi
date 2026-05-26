@@ -7,22 +7,44 @@ async function testGodaddy() {
   const secret = process.env.GODADDY_API_SECRET;
   if (!key || !secret) return { ok: false, error: 'Keys not configured in environment.' };
 
+  const headers = {
+    Authorization: `sso-key ${key}:${secret}`,
+    Accept: 'application/json',
+  };
+
   try {
-    const res = await fetch('https://api.godaddy.com/v1/appraisal/example.com', {
-      headers: {
-        Authorization: `sso-key ${key}:${secret}`,
-        Accept: 'application/json',
-      },
-    });
-    if (res.status === 401 || res.status === 403) {
+    // Step 1: verify credentials against the shopper profile endpoint (always accessible)
+    const authRes = await fetch('https://api.godaddy.com/v1/shoppers/me', { headers });
+    if (authRes.status === 401) {
       return {
         ok: false,
         error:
-          'GoDaddy rejected the credentials (401/403). Double-check your key and secret. ' +
-          'Note: GoValue requires a production API key — OTE (sandbox) keys will not work.',
+          'Invalid credentials (401). Your GODADDY_API_KEY or GODADDY_API_SECRET is wrong. ' +
+          'Go to developer.godaddy.com → Keys, copy the KEY and SECRET from the Production row.',
       };
     }
-    if (!res.ok) return { ok: false, error: `GoDaddy returned HTTP ${res.status}.` };
+    if (authRes.status === 403) {
+      return {
+        ok: false,
+        error:
+          'Credentials are valid but access was denied (403). Make sure you agreed to the API ' +
+          'Terms of Service in the GoDaddy developer portal.',
+      };
+    }
+
+    // Step 2: test GoValue specifically — it requires additional access beyond basic auth
+    const gvRes = await fetch('https://api.godaddy.com/v1/appraisal/example.com', { headers });
+    if (gvRes.status === 401 || gvRes.status === 403) {
+      return {
+        ok: false,
+        error:
+          `Your credentials are valid but GoValue returned ${gvRes.status}. ` +
+          'The GoValue appraisal API requires your GoDaddy account to have API reseller access enabled. ' +
+          'Contact GoDaddy support at developer.godaddy.com to request GoValue access, or the app will ' +
+          'fall back to Claude estimates automatically.',
+      };
+    }
+    if (!gvRes.ok) return { ok: false, error: `GoValue returned HTTP ${gvRes.status}.` };
     return { ok: true };
   } catch (e) {
     return { ok: false, error: `Network error: ${(e as Error).message}` };
