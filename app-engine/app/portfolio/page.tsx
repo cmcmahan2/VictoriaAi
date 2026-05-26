@@ -36,6 +36,57 @@ const GODADDY_URL = (d: string) =>
 const AFTERNIC_URL = (d: string) =>
   `https://www.afternic.com/forsale/${encodeURIComponent(d)}`;
 
+const SELL_PLATFORMS = [
+  {
+    name: 'Afternic',
+    url: 'https://www.afternic.com/sell-domains',
+    commission: '20–25%',
+    tag: 'Best reach',
+    tagColor: 'text-green-400 border-green-400/30 bg-green-400/10',
+    desc: 'GoDaddy\'s network — your listing appears across 100+ registrars. Best for passive, set-and-forget selling.',
+  },
+  {
+    name: 'Dan.com',
+    url: 'https://dan.com/sell-domains/',
+    commission: '9%',
+    tag: 'Lowest fee',
+    tagColor: 'text-blue-400 border-blue-400/30 bg-blue-400/10',
+    desc: 'Lowest commission of the major platforms. Clean lander pages and fast payouts.',
+  },
+  {
+    name: 'Sedo',
+    url: 'https://sedo.com/us/sell-domain-names/',
+    commission: '15%',
+    tag: 'Global buyers',
+    tagColor: 'text-purple-400 border-purple-400/30 bg-purple-400/10',
+    desc: 'Large international buyer pool. Good for premium .com and country-code domains.',
+  },
+  {
+    name: 'Squadhelp',
+    url: 'https://www.squadhelp.com/sell-domains',
+    commission: '7.5–30%',
+    tag: 'Brandables',
+    tagColor: 'text-orange-400 border-orange-400/30 bg-orange-400/10',
+    desc: 'Curated marketplace for brandable names. Higher prices but requires approval.',
+  },
+  {
+    name: 'Flippa',
+    url: 'https://flippa.com/domains',
+    commission: '5–10%',
+    tag: 'Auctions',
+    tagColor: 'text-yellow-400 border-yellow-400/30 bg-yellow-400/10',
+    desc: 'Best if your domain has traffic or existing backlinks. Auction format drives competitive bids.',
+  },
+  {
+    name: 'GoDaddy Auctions',
+    url: 'https://auctions.godaddy.com/trpItemListing.aspx?miid=580',
+    commission: '$4.99/yr + 20%',
+    tag: 'High traffic',
+    tagColor: 'text-[#8b949e] border-[#8b949e]/30 bg-[#8b949e]/10',
+    desc: 'Millions of buyers browse GoDaddy auctions daily. Great for domains you want sold fast.',
+  },
+];
+
 function usd(n: number) {
   return '$' + Math.round(n).toLocaleString();
 }
@@ -277,6 +328,31 @@ export default function PortfolioPage() {
           <p className="text-[#6e7681] text-sm">No domains yet — click Add Domain to track your first one.</p>
         </div>
       )}
+
+      {/* Where to sell */}
+      <div className="mb-6">
+        <p className="text-xs text-[#6e7681] font-medium uppercase tracking-wider mb-3">Where to Sell</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {SELL_PLATFORMS.map((p) => (
+            <a
+              key={p.name}
+              href={p.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block p-3 bg-[#161b22] border border-[#30363d] hover:border-[#484f58] rounded-lg transition-colors group"
+            >
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-[#e6edf3] group-hover:text-white">{p.name}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${p.tagColor}`}>{p.tag}</span>
+                </div>
+                <span className="text-xs text-[#6e7681] shrink-0">{p.commission}</span>
+              </div>
+              <p className="text-xs text-[#6e7681] leading-relaxed">{p.desc}</p>
+            </a>
+          ))}
+        </div>
+      </div>
 
       <div className="flex flex-col gap-2">
         {domains.map((d) => {
