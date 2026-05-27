@@ -39,7 +39,6 @@ model Album {
   artistId    String
   releaseYear Int
   coverUrl    String?
-  description String?
   genres      String[]
   avgRating   Float?
   ratingCount Int      @default(0)
