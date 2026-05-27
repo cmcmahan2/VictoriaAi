@@ -4,50 +4,50 @@ interface RedditPost {
   data: {
     id: string;
     title: string;
-    url: string;
     score: number;
     num_comments: number;
     subreddit: string;
     permalink: string;
-    thumbnail: string;
     created_utc: number;
-    selftext: string;
     author: string;
+    url: string;
   };
 }
 
-export async function GET() {
+async function fetchSubreddit(sub: string) {
   try {
-    const subreddits = ["music", "hiphopheads", "indieheads", "popheads"];
-    const chosen = subreddits[Math.floor(Math.random() * subreddits.length)];
-
-    const res = await fetch(
-      `https://www.reddit.com/r/${chosen}/hot.json?limit=15`,
-      {
-        headers: { "User-Agent": "tracklist-app/1.0" },
-        next: { revalidate: 300 },
-      }
-    );
-
-    if (!res.ok) throw new Error("Reddit unavailable");
+    const res = await fetch(`https://www.reddit.com/r/${sub}/hot.json?limit=8`, {
+      headers: { "User-Agent": "tracklist-app/1.0" },
+      next: { revalidate: 300 },
+    });
+    if (!res.ok) return [];
     const json = await res.json();
-
-    const posts = (json.data?.children as RedditPost[])
-      .map((p) => ({
-        id: p.data.id,
-        title: p.data.title,
-        url: `https://reddit.com${p.data.permalink}`,
-        score: p.data.score,
-        comments: p.data.num_comments,
-        subreddit: p.data.subreddit,
-        author: p.data.author,
-        created: p.data.created_utc,
-      }))
-      .filter((p) => !p.title.includes("[DISCUSSION]") || p.comments > 20)
-      .slice(0, 8);
-
-    return NextResponse.json({ posts, subreddit: chosen });
+    return (json.data?.children as RedditPost[]).map((p) => ({
+      id: p.data.id,
+      title: p.data.title,
+      url: `https://reddit.com${p.data.permalink}`,
+      score: p.data.score,
+      comments: p.data.num_comments,
+      subreddit: p.data.subreddit,
+      created: p.data.created_utc,
+    }));
   } catch {
-    return NextResponse.json({ posts: [], subreddit: "music" });
+    return [];
   }
+}
+
+export async function GET() {
+  const subreddits = ["Music", "hiphopheads", "indieheads", "popheads", "rnb", "metal"];
+
+  // Pick 2 random subreddits to mix up the content
+  const shuffled = [...subreddits].sort(() => Math.random() - 0.5).slice(0, 2);
+
+  const results = await Promise.allSettled(shuffled.map(fetchSubreddit));
+
+  const posts = results
+    .flatMap((r) => (r.status === "fulfilled" ? r.value : []))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 10);
+
+  return NextResponse.json({ posts, subreddits: shuffled });
 }

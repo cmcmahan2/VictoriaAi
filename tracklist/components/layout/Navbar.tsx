@@ -26,6 +26,7 @@ export function Navbar() {
 
   const navLinks = [
     { href: "/search", label: "Albums" },
+    { href: "/charts", label: "Charts" },
     { href: "/members", label: "Members" },
     { href: "/hot-takes", label: "Hot Takes" },
     ...(session ? [{ href: "/feed", label: "Feed" }] : []),
@@ -185,6 +186,10 @@ export function Navbar() {
           <Link href="/search" className={`flex flex-col items-center gap-0.5 px-3 py-2 ${pathname?.startsWith("/search") ? "text-[#E8B84B]" : "text-[#555]"}`}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <span className="text-[10px]">Albums</span>
+          </Link>
+          <Link href="/charts" className={`flex flex-col items-center gap-0.5 px-3 py-2 ${pathname?.startsWith("/charts") ? "text-[#E8B84B]" : "text-[#555]"}`}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            <span className="text-[10px]">Charts</span>
           </Link>
           <Link href="/hot-takes" className={`flex flex-col items-center gap-0.5 px-3 py-2 ${pathname?.startsWith("/hot-takes") ? "text-[#E8B84B]" : "text-[#555]"}`}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>

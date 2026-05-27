@@ -8,6 +8,7 @@ import { AlbumCard, AlbumCardSkeleton } from "@/components/ui/AlbumCard"
 import { ReviewCard, ReviewCardSkeleton } from "@/components/ui/ReviewCard"
 import { UserAvatar } from "@/components/ui/UserAvatar"
 import { TrendingTopics } from "@/components/home/TrendingTopics"
+import { NewReleasesStrip } from "@/components/home/NewReleasesStrip"
 
 async function JustRated() {
   const ratings = await prisma.rating.findMany({
@@ -299,6 +300,15 @@ export default function HomePage() {
       <Suspense fallback={<div className="min-h-[360px] bg-[#111] rounded-2xl animate-pulse mb-10" />}>
         <FeaturedAlbum />
       </Suspense>
+
+      {/* New Releases from Spotify */}
+      <section className="mb-10">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[#888] text-xs uppercase tracking-widest">New This Week</p>
+          <Link href="/charts" className="text-[#888] text-xs hover:text-[#E8B84B] transition-colors">Charts →</Link>
+        </div>
+        <NewReleasesStrip />
+      </section>
 
       {/* Just Rated Strip */}
       <Suspense fallback={null}>
