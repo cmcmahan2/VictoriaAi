@@ -2,18 +2,17 @@
 
 import { useEffect, useState } from "react";
 
-export function AlbumBlurb({ albumId, initialDescription }: { albumId: string; initialDescription?: string | null }) {
-  const [description, setDescription] = useState<string | null>(initialDescription ?? null);
-  const [loading, setLoading] = useState(!initialDescription);
+export function AlbumBlurb({ albumId }: { albumId: string }) {
+  const [description, setDescription] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (initialDescription) return;
     fetch(`/api/album-blurb/${albumId}`)
       .then((r) => r.json())
       .then((data: { description?: string | null }) => setDescription(data.description ?? null))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [albumId, initialDescription]);
+  }, [albumId]);
 
   if (loading) {
     return (

@@ -48,7 +48,7 @@ async function AlbumReviews({ albumId }: { albumId: string }) {
     orderBy: { createdAt: "desc" },
     take: 20,
     include: { user: { select: { username: true, avatarUrl: true } } },
-  });
+  }).catch(() => []);
 
   if (reviews.length === 0) {
     return <p className="text-[#888] py-8 text-center">No reviews yet. Be the first to write one!</p>;
@@ -75,7 +75,7 @@ async function AlbumReviews({ albumId }: { albumId: string }) {
 }
 
 async function AlbumRatingStats({ albumId }: { albumId: string }) {
-  const ratings = await prisma.rating.findMany({ where: { albumId } });
+  const ratings = await prisma.rating.findMany({ where: { albumId } }).catch(() => []);
 
   const distribution: Record<string, number> = {};
   for (const r of ratings) {
@@ -138,7 +138,7 @@ async function SimilarAlbums({ genres, currentAlbumId }: { genres: string[]; cur
     },
     orderBy: [{ ratingCount: "desc" }, { avgRating: "desc" }],
     take: 6,
-  });
+  }).catch(() => []);
 
   if (similar.length === 0) return null;
 
@@ -233,7 +233,7 @@ export default async function AlbumPage({ params }: { params: Promise<{ albumId:
             </div>
           )}
 
-          <AlbumBlurb albumId={album.id} initialDescription={album.description} />
+          <AlbumBlurb albumId={album.id} />
 
           <div className="flex items-center gap-6 flex-wrap">
             {album.avgRating != null && (
