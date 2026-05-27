@@ -2,9 +2,11 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import Image from "next/image";
+import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { getArtist, getArtistAlbums, spotifyAlbumToDbAlbum } from "@/lib/spotify";
 import { GenreTag } from "@/components/ui/GenreTag";
+import { MusicBrainzBio } from "@/components/artist/MusicBrainzBio";
 
 interface PageProps {
   params: Promise<{ artistId: string }>;
@@ -120,6 +122,10 @@ export default async function ArtistPage({ params }: PageProps) {
               {allGenres.slice(0, 8).map((g) => <GenreTag key={g} genre={g} />)}
             </div>
           )}
+
+          <Suspense fallback={null}>
+            <MusicBrainzBio artistName={displayName} />
+          </Suspense>
         </div>
       </div>
 

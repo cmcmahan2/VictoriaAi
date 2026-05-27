@@ -14,6 +14,7 @@ import { DebateBoard } from "@/components/album/DebateBoard";
 import { WatchlistButton } from "@/components/album/WatchlistButton";
 import { ReviewComments } from "@/components/album/ReviewComments";
 import { AlbumBlurb } from "@/components/album/AlbumBlurb";
+import { MusicBrainzInfo } from "@/components/album/MusicBrainzInfo";
 import { Suspense } from "react";
 
 async function getOrCacheAlbum(albumId: string) {
@@ -304,6 +305,11 @@ export default async function AlbumPage({ params }: { params: Promise<{ albumId:
             <h3 className="text-sm font-semibold text-[#888] uppercase tracking-widest mb-4">Debate</h3>
             <DebateBoard albumId={album.id} />
           </section>
+
+          {/* MusicBrainz release info */}
+          <Suspense fallback={null}>
+            <MusicBrainzInfo artist={album.artistName} title={album.title} />
+          </Suspense>
 
           {/* Tracklist */}
           {tracks.length > 0 && (
