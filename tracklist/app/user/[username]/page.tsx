@@ -117,6 +117,12 @@ export default async function UserProfilePage({ params }: PageProps) {
               )}
             </div>
             <FollowButton targetUserId={user.id} />
+            <Link
+              href={`/user/${username}/taste-match`}
+              className="text-xs bg-[#111] border border-[rgba(255,255,255,0.1)] text-[#888] rounded-full px-3 py-1.5 hover:border-[#E8B84B] hover:text-[#E8B84B] transition-all"
+            >
+              Taste Match →
+            </Link>
           </div>
 
           <div className="flex flex-wrap gap-6 mt-4">

@@ -32,7 +32,7 @@ export default function RegisterPage() {
     }
 
     await signIn("credentials", { email, password, redirect: false });
-    router.push("/");
+    router.push("/onboarding");
   }
 
   return (

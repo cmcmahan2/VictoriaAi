@@ -18,6 +18,7 @@ model User {
   website       String?
   location      String?
   favoriteGenres String[]      @default([])
+  onboarded     Boolean        @default(false)
   createdAt     DateTime       @default(now())
   ratings       Rating[]
   reviews       Review[]
@@ -28,6 +29,7 @@ model User {
   reviewComments ReviewComment[]
   notifications Notification[] @relation("notifRecipient")
   sentNotifs    Notification[] @relation("notifSender")
+  watchlist     Watchlist[]
 }
 
 model Album {
@@ -43,6 +45,7 @@ model Album {
   ratings     Rating[]
   reviews     Review[]
   debates     DebatePost[]
+  watchlist   Watchlist[]
 }
 
 model Rating {
@@ -102,6 +105,16 @@ model ListEntry {
   list    List    @relation(fields: [listId], references: [id])
 }
 
+model Watchlist {
+  id        String   @id @default(cuid())
+  userId    String
+  albumId   String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  album     Album    @relation(fields: [albumId], references: [id])
+  @@unique([userId, albumId])
+}
+
 model Follow {
   followerId  String
   followingId String
@@ -130,7 +143,7 @@ model Notification {
   id          String   @id @default(cuid())
   recipientId String
   senderId    String?
-  type        String   // "like" | "follow" | "comment" | "review" | "mention"
+  type        String
   message     String
   link        String?
   read        Boolean  @default(false)

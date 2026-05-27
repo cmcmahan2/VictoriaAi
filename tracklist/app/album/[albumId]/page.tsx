@@ -10,6 +10,8 @@ import { ReviewCard, ReviewCardSkeleton } from "@/components/ui/ReviewCard";
 import { RatingHistogram } from "@/components/album/RatingHistogram";
 import { AlbumRatingSection } from "@/components/album/AlbumRatingSection";
 import { DebateBoard } from "@/components/album/DebateBoard";
+import { WatchlistButton } from "@/components/album/WatchlistButton";
+import { ReviewComments } from "@/components/album/ReviewComments";
 import { Suspense } from "react";
 
 async function getOrCacheAlbum(albumId: string) {
@@ -42,18 +44,20 @@ async function AlbumReviews({ albumId }: { albumId: string }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {reviews.map((r: (typeof reviews)[number]) => (
-        <ReviewCard
-          key={r.id}
-          id={r.id}
-          body={r.body}
-          rating={r.rating}
-          likes={r.likes}
-          createdAt={r.createdAt.toISOString()}
-          user={r.user}
-          albumId={albumId}
-        />
+        <div key={r.id} className="space-y-3">
+          <ReviewCard
+            id={r.id}
+            body={r.body}
+            rating={r.rating}
+            likes={r.likes}
+            createdAt={r.createdAt.toISOString()}
+            user={r.user}
+            albumId={albumId}
+          />
+          <ReviewComments reviewId={r.id} />
+        </div>
       ))}
     </div>
   );
@@ -243,7 +247,10 @@ export default async function AlbumPage({ params }: { params: Promise<{ albumId:
             )}
           </div>
 
-          <AlbumRatingSection albumId={album.id} />
+          <div className="flex flex-wrap gap-3">
+            <AlbumRatingSection albumId={album.id} />
+            <WatchlistButton albumId={album.id} />
+          </div>
 
           {/* Spotify link */}
           <a
