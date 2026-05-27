@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en-CA">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BCBUISWEBBUILDERTOOL — BC Business Web Presence Pipeline</title>
+  <meta name="description" content="Automated web presence discovery, site generation, and AI opportunity audits for British Columbia small businesses." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green:   #1a7a4a;
+      --green-l: #22a262;
+      --green-xl:#e8f5ee;
+      --blue:    #1a3a5c;
+      --blue-l:  #2a5f9e;
+      --blue-xl: #e8f0f8;
+      --slate:   #f4f6f9;
+      --text:    #1c2b3a;
+      --muted:   #5a6a7a;
+      --border:  #dde3ea;
+      --white:   #ffffff;
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', sans-serif;
+      color: var(--text);
+      background: var(--white);
+      line-height: 1.6;
+      font-size: 16px;
+    }
+
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      padding: 0 1.5rem;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 60px;
+    }
+    .nav-brand { font-weight: 800; font-size: 0.95rem; letter-spacing: 0.04em; color: var(--blue); text-decoration: none; }
+    .nav-brand span { color: var(--green); }
+    .nav-links { display: flex; gap: 2rem; list-style: none; }
+    .nav-links a { text-decoration: none; color: var(--muted); font-size: 0.9rem; font-weight: 500; }
+    .nav-links a:hover { color: var(--blue); }
+    .nav-cta { background: var(--green); color: var(--white); border: none; border-radius: 6px; padding: 0.5rem 1.1rem; font-size: 0.9rem; font-weight: 600; cursor: pointer; text-decoration: none; }
+    .nav-cta:hover { background: var(--green-l); }
+
+    .hero { background: linear-gradient(135deg, var(--blue) 0%, #0f2540 100%); color: var(--white); padding: 5rem 1.5rem 4rem; text-align: center; }
+    .hero-badge { display: inline-block; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); border-radius: 100px; padding: 0.3rem 0.9rem; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 1.5rem; color: #a8d5b8; }
+    .hero h1 { font-size: clamp(2rem, 5vw, 3.4rem); font-weight: 800; line-height: 1.15; max-width: 780px; margin: 0 auto 1.25rem; }
+    .hero h1 em { font-style: normal; color: #5dd49a; }
+    .hero p { font-size: 1.15rem; color: #b8cfe8; max-width: 580px; margin: 0 auto 2.5rem; }
+    .hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .btn-primary { background: var(--green-l); color: var(--white); padding: 0.8rem 1.8rem; border-radius: 8px; font-weight: 700; font-size: 1rem; text-decoration: none; border: none; cursor: pointer; }
+    .btn-primary:hover { background: #28bb72; }
+    .btn-ghost { background: transparent; color: var(--white); padding: 0.8rem 1.8rem; border-radius: 8px; font-weight: 600; font-size: 1rem; text-decoration: none; border: 2px solid rgba(255,255,255,0.3); }
+    .btn-ghost:hover { border-color: rgba(255,255,255,0.6); }
+
+    .stats { background: var(--white); border-bottom: 1px solid var(--border); padding: 1.5rem; display: flex; justify-content: center; flex-wrap: wrap; gap: 0; }
+    .stat { text-align: center; padding: 0.5rem 2.5rem; border-right: 1px solid var(--border); }
+    .stat:last-child { border-right: none; }
+    .stat-number { font-size: 1.8rem; font-weight: 800; color: var(--blue); }
+    .stat-label { font-size: 0.8rem; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    section { padding: 5rem 1.5rem; }
+    .container { max-width: 1100px; margin: 0 auto; }
+    .section-label { display: inline-block; background: var(--green-xl); color: var(--green); padding: 0.25rem 0.75rem; border-radius: 100px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 0.75rem; }
+    h2 { font-size: clamp(1.6rem, 3vw, 2.2rem); font-weight: 800; color: var(--blue); line-height: 1.2; margin-bottom: 0.75rem; }
+    .section-intro { font-size: 1.05rem; color: var(--muted); max-width: 560px; margin-bottom: 3rem; }
+
+    #pipeline { background: var(--slate); }
+    .phases { display: flex; flex-direction: column; gap: 1.5rem; }
+    .phase-card { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 1.75rem 2rem; display: grid; grid-template-columns: 56px 1fr; gap: 1.25rem; align-items: start; }
+    .phase-number { width: 48px; height: 48px; background: var(--blue); color: var(--white); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: 800; flex-shrink: 0; }
+    .phase-card h3 { font-size: 1.1rem; font-weight: 700; color: var(--blue); margin-bottom: 0.4rem; }
+    .phase-card p { font-size: 0.93rem; color: var(--muted); margin-bottom: 0.75rem; }
+    .phase-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .tag { background: var(--blue-xl); color: var(--blue-l); padding: 0.2rem 0.6rem; border-radius: 100px; font-size: 0.75rem; font-weight: 600; }
+    .tag.green { background: var(--green-xl); color: var(--green); }
+
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-top: 2.5rem; }
+    .feature-card { background: var(--slate); border-radius: 12px; padding: 1.5rem; }
+    .feature-icon { font-size: 1.75rem; margin-bottom: 0.75rem; display: block; }
+    .feature-card h3 { font-size: 1rem; font-weight: 700; color: var(--blue); margin-bottom: 0.4rem; }
+    .feature-card p { font-size: 0.9rem; color: var(--muted); }
+
+    #audit { background: var(--blue); color: var(--white); }
+    #audit .section-label { background: rgba(255,255,255,0.12); color: #a8d5b8; }
+    #audit h2 { color: var(--white); }
+    #audit .section-intro { color: #b8cfe8; }
+    .audit-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 2rem; }
+    .audit-card { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 1.25rem; }
+    .audit-card h3 { font-size: 0.95rem; font-weight: 700; color: #5dd49a; margin-bottom: 0.4rem; }
+    .audit-card p { font-size: 0.85rem; color: #b8cfe8; }
+
+    .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 2rem; margin-top: 2.5rem; }
+    .step { text-align: center; }
+    .step-num { width: 44px; height: 44px; border-radius: 50%; background: var(--green-xl); color: var(--green); font-weight: 800; font-size: 1rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.75rem; }
+    .step h3 { font-size: 0.95rem; font-weight: 700; color: var(--blue); margin-bottom: 0.4rem; }
+    .step p { font-size: 0.88rem; color: var(--muted); }
+
+    .cli-block { background: #0d1b2a; border-radius: 12px; padding: 1.5rem 1.75rem; font-family: 'Courier New', monospace; font-size: 0.9rem; line-height: 1.8; overflow-x: auto; margin-top: 2rem; }
+    .cli-comment { color: #5a7a5a; }
+    .cli-cmd { color: #5dd49a; }
+    .cli-arg { color: #7ec8e3; }
+    .cli-output { color: #a8b8c8; }
+
+    #cta { background: var(--green); color: var(--white); text-align: center; }
+    #cta h2 { color: var(--white); }
+    #cta p { color: rgba(255,255,255,0.8); max-width: 520px; margin: 0.75rem auto 2rem; font-size: 1.05rem; }
+    .cta-form { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; max-width: 480px; margin: 0 auto; }
+    .cta-form input { flex: 1; min-width: 200px; padding: 0.8rem 1rem; border-radius: 8px; border: 2px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.15); color: var(--white); font-size: 1rem; }
+    .cta-form input::placeholder { color: rgba(255,255,255,0.5); }
+    .cta-form input:focus { outline: none; border-color: rgba(255,255,255,0.6); }
+    .cta-form button { background: var(--white); color: var(--green); padding: 0.8rem 1.5rem; border-radius: 8px; font-weight: 700; font-size: 1rem; border: none; cursor: pointer; white-space: nowrap; }
+
+    footer { background: var(--blue); color: #7a9abf; padding: 2rem 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; font-size: 0.85rem; }
+    footer strong { color: var(--white); }
+    footer a { color: #7a9abf; text-decoration: none; }
+    footer a:hover { color: var(--white); }
+
+    @media (max-width: 640px) {
+      .nav-links { display: none; }
+      .stat { padding: 0.5rem 1.25rem; }
+      .phase-card { grid-template-columns: 1fr; }
+      footer { flex-direction: column; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="#">BC<span>BUI</span>WEBBUILDERTOOL</a>
+  <ul class="nav-links">
+    <li><a href="#pipeline">Pipeline</a></li>
+    <li><a href="#features">Features</a></li>
+    <li><a href="#audit">AI Audit</a></li>
+    <li><a href="#howto">How It Works</a></li>
+  </ul>
+  <a class="nav-cta" href="#cta">Request Demo</a>
+</nav>
+
+<header class="hero">
+  <div class="container">
+    <div class="hero-badge">British Columbia · Small Business Tool</div>
+    <h1>From zero web presence to <em>live site</em> in one command</h1>
+    <p>BCBUISWEBBUILDERTOOL discovers BC businesses that need a website, builds one, audits their AI opportunities, and deploys it — automatically.</p>
+    <div class="hero-actions">
+      <a class="btn-primary" href="#pipeline">See the Pipeline</a>
+      <a class="btn-ghost" href="#howto">How It Works</a>
+    </div>
+  </div>
+</header>
+
+<div class="stats">
+  <div class="stat"><div class="stat-number">5</div><div class="stat-label">Automated Phases</div></div>
+  <div class="stat"><div class="stat-number">50+</div><div class="stat-label">Leads per Search</div></div>
+  <div class="stat"><div class="stat-number">&lt;5 min</div><div class="stat-label">Site to Live Deploy</div></div>
+  <div class="stat"><div class="stat-number">PDF</div><div class="stat-label">AI Audit Delivered</div></div>
+</div>
+
+<section id="pipeline">
+  <div class="container">
+    <div class="section-label">The Pipeline</div>
+    <h2>Five phases. One command.</h2>
+    <p class="section-intro">Run the full pipeline end-to-end, or drop in at any phase with existing data.</p>
+    <div class="phases">
+      <div class="phase-card"><div class="phase-number">1</div><div><h3>Business Discovery</h3><p>Finds BC businesses with weak or no web presence using Google Maps Places API with Playwright scraping fallback. Each lead is scored 1–10 on web presence weakness and saved to <code>leads.json</code>.</p><div class="phase-tags"><span class="tag">Google Places API</span><span class="tag">Playwright</span><span class="tag">Yelp · YellowPages · BBB</span><span class="tag">BC Registry</span><span class="tag green">leads.json</span></div></div></div>
+      <div class="phase-card"><div class="phase-number">2</div><div><h3>Business Intelligence Scraping</h3><p>Builds a complete profile: existing website screenshots &amp; colour palette, Google Business photos and reviews, social media presence, review platform aggregation, and competitor benchmarking.</p><div class="phase-tags"><span class="tag">Website Screenshots</span><span class="tag">GMB Photos &amp; Reviews</span><span class="tag">Facebook · Instagram · LinkedIn</span><span class="tag">Competitor Analysis</span><span class="tag green">profile.json</span></div></div></div>
+      <div class="phase-card"><div class="phase-number">3</div><div><h3>Website Generation</h3><p>Builds a production-ready site using the right stack for the business type. Static HTML for tradespeople, Next.js + Tailwind for professional services. Includes 5 required pages, SEO baseline, and local schema markup.</p><div class="phase-tags"><span class="tag">Static HTML/CSS/JS</span><span class="tag">Next.js + Tailwind</span><span class="tag">JSON-LD Schema</span><span class="tag">Mobile-First</span><span class="tag">GA4 · Sitemap · OG Tags</span><span class="tag green">5 pages built</span></div></div></div>
+      <div class="phase-card"><div class="phase-number">4</div><div><h3>AI Opportunity Audit PDF</h3><p>Produces a professional 10-page PDF proposal for the business owner covering 5 AI &amp; automation dimensions, with a 30/60/90 day implementation roadmap. Written for a non-technical audience.</p><div class="phase-tags"><span class="tag">Automations</span><span class="tag">Customer Service</span><span class="tag">Marketing</span><span class="tag">Operations</span><span class="tag">Revenue</span><span class="tag green">PDF delivered</span></div></div></div>
+      <div class="phase-card"><div class="phase-number">5</div><div><h3>Auto-Deployment</h3><p>Pushes the finished site live to a unique Netlify subdomain so the client can see a working preview before any commitment. The live URL is injected into the PDF cover page automatically.</p><div class="phase-tags"><span class="tag">Netlify</span><span class="tag">Auto URL capture</span><span class="tag">deployment.json</span><span class="tag green">Site live</span></div></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="container">
+    <div class="section-label">Built For BC</div>
+    <h2>Every detail tuned for British Columbia businesses</h2>
+    <p class="section-intro">From Canadian spelling to GST/PST references — this tool speaks BC.</p>
+    <div class="features-grid">
+      <div class="feature-card"><span class="feature-icon">🏔️</span><h3>BC-Specific Discovery</h3><p>Searches target BC cities and regions. Checks the BC Registry for active business status and Facebook Pages for businesses with no website.</p></div>
+      <div class="feature-card"><span class="feature-icon">📱</span><h3>Mobile-First Output</h3><p>Over 70% of local search happens on mobile. Every generated site is built mobile-first with sub-2s load targets and no unnecessary JavaScript.</p></div>
+      <div class="feature-card"><span class="feature-icon">🔍</span><h3>Local SEO Baked In</h3><p>Every site ships with local business JSON-LD schema, city-specific copy, sitemap.xml, Open Graph tags, and a Google Analytics 4 placeholder.</p></div>
+      <div class="feature-card"><span class="feature-icon">🤖</span><h3>AI-Powered Copy</h3><p>Content is generated from real scraped data — real services, real reviews, real phone numbers. Missing fields get clear TODO placeholders, never invented details.</p></div>
+      <div class="feature-card"><span class="feature-icon">⚡</span><h3>Right Stack Per Business</h3><p>Plumber? Static HTML. Dental clinic? Next.js + Tailwind. Retailer? Next.js + Snipcart. The tool picks the right tool for the job automatically.</p></div>
+      <div class="feature-card"><span class="feature-icon">📄</span><h3>PDF Proposal Included</h3><p>Every run produces a branded AI opportunity report — ready to hand to the business owner with the live preview URL on the cover page.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="audit">
+  <div class="container">
+    <div class="section-label">AI Opportunity Audit</div>
+    <h2>Five dimensions. Clear ROI. Written for owners, not engineers.</h2>
+    <p class="section-intro">The PDF report evaluates every business across five areas and maps a 30/60/90 day implementation roadmap.</p>
+    <div class="audit-grid">
+      <div class="audit-card"><h3>Automations</h3><p>Booking, invoicing, follow-ups, and instant quote calculators. High-value if phone present but no online booking.</p></div>
+      <div class="audit-card"><h3>Customer Service</h3><p>FAQ chatbot (Claude API), after-hours AI coverage, missed call handling with voicemail-to-email summaries.</p></div>
+      <div class="audit-card"><h3>Marketing</h3><p>Email sequences, review generation via SMS, AI content calendar, Google Ads gap analysis, local SEO fixes.</p></div>
+      <div class="audit-card"><h3>Operations</h3><p>Job scheduling optimisation, inventory reorder alerts, AI-assisted document generation and cost tracking.</p></div>
+      <div class="audit-card"><h3>Revenue</h3><p>Upsell automation, adjacent service opportunities, referral tracking, and transparent pricing page strategy.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="howto">
+  <div class="container">
+    <div class="section-label">How It Works</div>
+    <h2>One command. Five phases. Site live.</h2>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><h3>Provide a city + category</h3><p>Tell the tool what type of business and which BC city to target.</p></div>
+      <div class="step"><div class="step-num">2</div><h3>Discovery runs automatically</h3><p>The tool finds leads, scores their web presence weakness, and ranks them.</p></div>
+      <div class="step"><div class="step-num">3</div><h3>Profile is built</h3><p>Every public data source is scraped: website, GMB, social, reviews, competitors.</p></div>
+      <div class="step"><div class="step-num">4</div><h3>Site + PDF generated</h3><p>A production website and AI opportunity report are built from the real data.</p></div>
+      <div class="step"><div class="step-num">5</div><h3>Live in minutes</h3><p>The site deploys to Netlify. The PDF cover shows the live preview URL.</p></div>
+    </div>
+    <div class="cli-block">
+      <span class="cli-comment"># Full pipeline — discover, build, audit, deploy</span><br>
+      <span class="cli-cmd">python src/cli.py run</span><span class="cli-arg"> --type plumber --city Victoria</span><br><br>
+      <span class="cli-comment"># Single known business</span><br>
+      <span class="cli-cmd">python src/cli.py run</span><span class="cli-arg"> --name "Okanagan Electric" --address "789 Main St, Kelowna BC"</span><br><br>
+      <span class="cli-output">====================================================</span><br>
+      <span class="cli-output">  BCBUISWEBBUILDERTOOL — JOB COMPLETE</span><br>
+      <span class="cli-output">====================================================</span><br>
+      <span class="cli-output">Business:   Cedar Valley Plumbing, Victoria BC</span><br>
+      <span class="cli-output">Stack:      Static HTML/CSS/JS · Pages: 5 · SEO ✓ · Mobile ✓</span><br>
+      <span class="cli-output">LIVE:  https://cedar-valley-plumbing-bcbuiswebbuildertool.netlify.app</span><br>
+      <span class="cli-output">====================================================</span>
+    </div>
+  </div>
+</section>
+
+<section id="cta">
+  <div class="container">
+    <div class="section-label" style="background:rgba(255,255,255,0.2);color:#fff;">Get Early Access</div>
+    <h2>Ready to run your first pipeline?</h2>
+    <p>Drop your email and we'll send setup instructions + a walkthrough of the first live build.</p>
+    <form class="cta-form" onsubmit="handleSubmit(event)">
+      <input type="email" placeholder="your@email.com" required id="email-input" />
+      <button type="submit">Request Demo</button>
+    </form>
+    <p id="form-success" style="display:none;margin-top:1rem;color:rgba(255,255,255,0.9);font-weight:600;">Thanks — we'll be in touch shortly.</p>
+  </div>
+</section>
+
+<footer>
+  <div><strong>BCBUISWEBBUILDERTOOL</strong> &nbsp;·&nbsp; Built for British Columbia</div>
+  <div>
+    <a href="https://github.com/cmcmahan2/victoriaai">GitHub</a>
+    &nbsp;·&nbsp;
+    <a href="#pipeline">Pipeline Docs</a>
+    &nbsp;·&nbsp;
+    <a href="#cta">Contact</a>
+  </div>
+</footer>
+
+<script>
+  function handleSubmit(e) {
+    e.preventDefault();
+    document.getElementById('email-input').value = '';
+    document.getElementById('form-success').style.display = 'block';
+  }
+</script>
+
+</body>
+</html>
