@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { searchAlbums, getNewReleases, spotifyAlbumToDbAlbum } from "@/lib/spotify";
+import { spotifyAlbumToDbAlbum, type SpotifyAlbum } from "@/lib/spotify";
+import { itunesSearchAlbums, itunesTopAlbums } from "@/lib/itunes";
 
 // Curated list of classic + current albums to seed the DB
 const SEED_QUERIES = [
@@ -65,28 +66,27 @@ const SEED_QUERIES = [
 export async function POST() {
   const results = { added: 0, skipped: 0, errors: 0 };
 
-  // Also grab fresh new releases
-  let newReleases: Awaited<ReturnType<typeof getNewReleases>> = [];
+  // Grab current top albums from Apple Music (no auth required)
+  let topAlbums: SpotifyAlbum[] = [];
   try {
-    newReleases = await getNewReleases(20);
+    topAlbums = await itunesTopAlbums(25);
   } catch { /* ignore */ }
 
-  const allAlbums = [...newReleases];
+  const allAlbums: SpotifyAlbum[] = [...topAlbums];
 
-  // Search and collect from curated list (process in batches to avoid rate limits)
+  // Search and collect from curated list via iTunes (no auth, batched)
   const BATCH_SIZE = 5;
-  for (let i = 0; i < Math.min(SEED_QUERIES.length, 40); i += BATCH_SIZE) {
+  for (let i = 0; i < SEED_QUERIES.length; i += BATCH_SIZE) {
     const batch = SEED_QUERIES.slice(i, i + BATCH_SIZE);
     const batchResults = await Promise.allSettled(
-      batch.map((q) => searchAlbums(q).then((r) => r[0]).catch(() => null))
+      batch.map((q) => itunesSearchAlbums(q, 1).then((r) => r[0]).catch(() => null))
     );
     for (const r of batchResults) {
       if (r.status === "fulfilled" && r.value) {
         allAlbums.push(r.value);
       }
     }
-    // Small delay between batches to respect rate limits
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
   // Deduplicate by id

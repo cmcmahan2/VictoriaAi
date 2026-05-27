@@ -1,14 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchAlbums } from "@/lib/spotify";
+import { itunesSearchAlbums } from "@/lib/itunes";
 
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get("q");
   if (!q) return NextResponse.json({ error: "Missing query" }, { status: 400 });
 
+  // Prefer Spotify when configured; otherwise fall back to iTunes (no auth).
   try {
     const results = await searchAlbums(q);
+    if (results.length > 0) return NextResponse.json(results);
+  } catch { /* fall through to iTunes */ }
+
+  try {
+    const results = await itunesSearchAlbums(q, 20);
     return NextResponse.json(results);
   } catch {
-    return NextResponse.json({ error: "Search failed" }, { status: 500 });
+    return NextResponse.json([], { status: 200 });
   }
 }

@@ -5,6 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { prisma } from "@/lib/prisma"
 import { getNewReleases } from "@/lib/spotify"
+import { itunesTopAlbums } from "@/lib/itunes"
 import { AlbumCard, AlbumCardSkeleton } from "@/components/ui/AlbumCard"
 import { ReviewCard, ReviewCardSkeleton } from "@/components/ui/ReviewCard"
 import { UserAvatar } from "@/components/ui/UserAvatar"
@@ -199,12 +200,17 @@ async function FeaturedAlbum() {
     where: { ratingCount: { gt: 0 }, coverUrl: { not: null } },
     orderBy: [{ ratingCount: "desc" }],
   }).catch(() => null)
+    ?? await prisma.album.findFirst({
+      where: { coverUrl: { not: null } },
+    }).catch(() => null)
 
   if (!album?.coverUrl) {
-    // Show a Spotify new release as the hero
-    let featured: Awaited<ReturnType<typeof getNewReleases>>[0] | null = null
+    // DB empty — show a current top album from Apple Music as the hero
+    let featured: Awaited<ReturnType<typeof itunesTopAlbums>>[0] | null = null
     try {
-      const releases = await getNewReleases(20)
+      const releases = (await getNewReleases(20).catch(() => [])).length
+        ? await getNewReleases(20)
+        : await itunesTopAlbums(20)
       featured = releases.find((r) => r.images[0]?.url) ?? null
     } catch { /* ignore */ }
 
@@ -299,17 +305,27 @@ async function FeaturedAlbum() {
 }
 
 async function TrendingAlbums() {
-  const albums = await prisma.album.findMany({
+  let albums = await prisma.album.findMany({
     where: { ratingCount: { gt: 0 } },
     orderBy: [{ ratingCount: "desc" }, { avgRating: "desc" }],
     take: 6,
   }).catch(() => [])
 
+  // No rated albums yet — show any seeded albums that have cover art
   if (albums.length === 0) {
-    // Fall back to Spotify new releases with auto-caching
-    let spotifyAlbums: Awaited<ReturnType<typeof getNewReleases>> = []
+    albums = await prisma.album.findMany({
+      where: { coverUrl: { not: null } },
+      take: 6,
+    }).catch(() => [])
+  }
+
+  if (albums.length === 0) {
+    // DB fully empty — fall back to Apple Music top albums
+    let spotifyAlbums: Awaited<ReturnType<typeof itunesTopAlbums>> = []
     try {
-      spotifyAlbums = await getNewReleases(6)
+      spotifyAlbums = (await getNewReleases(6).catch(() => [])).length
+        ? await getNewReleases(6)
+        : await itunesTopAlbums(6)
     } catch {
       return null
     }

@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getAlbum, getArtistAlbums, spotifyAlbumToDbAlbum, type SpotifyAlbum } from "@/lib/spotify";
+import { itunesLookupAlbum } from "@/lib/itunes";
 import { GenreTag } from "@/components/ui/GenreTag";
 import { ReviewCard, ReviewCardSkeleton } from "@/components/ui/ReviewCard";
 import { RatingHistogram } from "@/components/album/RatingHistogram";
@@ -15,12 +16,20 @@ import { ReviewComments } from "@/components/album/ReviewComments";
 import { Suspense } from "react";
 
 async function getOrCacheAlbum(albumId: string) {
-  const cached = await prisma.album.findUnique({ where: { id: albumId } });
+  const cached = await prisma.album.findUnique({ where: { id: albumId } }).catch(() => null);
   if (cached) return cached;
 
+  // Spotify IDs are 22-char base62; iTunes IDs are numeric. Try the matching source.
+  let fetched: SpotifyAlbum | null = null;
   try {
-    const spotifyAlbum = await getAlbum(albumId);
-    const data = spotifyAlbumToDbAlbum(spotifyAlbum);
+    fetched = /^\d+$/.test(albumId) ? await itunesLookupAlbum(albumId) : await getAlbum(albumId);
+  } catch {
+    fetched = null;
+  }
+  if (!fetched?.id) return null;
+
+  try {
+    const data = spotifyAlbumToDbAlbum(fetched);
     return await prisma.album.upsert({
       where: { id: albumId },
       update: {},
