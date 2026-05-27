@@ -170,7 +170,7 @@ async function PopularLists() {
 async function PopularReviewers() {
   const topUsers = await prisma.user.findMany({
     where: { reviews: { some: {} } },
-    orderBy: { reviews: { _count: "desc" } },
+    orderBy: { createdAt: "desc" },
     take: 8,
     include: { _count: { select: { reviews: true, ratings: true } } },
   })
