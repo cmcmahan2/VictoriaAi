@@ -84,15 +84,37 @@ export default async function UserProfilePage({ params }: PageProps) {
           <div className="flex items-start gap-4 flex-wrap">
             <div className="flex-1">
               <h1
-                className="text-3xl font-bold text-[#F5F2EB] mb-1"
+                className="text-3xl font-bold text-[#F5F2EB] mb-0.5"
                 style={{ fontFamily: "var(--font-playfair), serif" }}
               >
-                {user.username}
+                {(user as typeof user & { displayName?: string | null }).displayName ?? user.username}
               </h1>
-              {user.bio && (
-                <p className="text-[#888] text-sm mb-3 max-w-xl">{user.bio}</p>
+              {(user as typeof user & { displayName?: string | null }).displayName && (
+                <p className="text-[#555] text-sm mb-1">@{user.username}</p>
               )}
-              <p className="text-[#555] text-xs">Member since {memberSince}</p>
+              {user.bio && (
+                <p className="text-[#888] text-sm mb-2 max-w-xl">{user.bio}</p>
+              )}
+              <div className="flex flex-wrap items-center gap-3 text-xs text-[#555]">
+                <span>Member since {memberSince}</span>
+                {(user as typeof user & { location?: string | null }).location && (
+                  <span>📍 {(user as typeof user & { location?: string | null }).location}</span>
+                )}
+                {(user as typeof user & { website?: string | null }).website && (
+                  <a href={(user as typeof user & { website?: string | null }).website!} target="_blank" rel="noopener noreferrer" className="text-[#E8B84B] hover:underline">
+                    🔗 Website
+                  </a>
+                )}
+              </div>
+              {((user as typeof user & { favoriteGenres?: string[] }).favoriteGenres ?? []).length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {((user as typeof user & { favoriteGenres?: string[] }).favoriteGenres ?? []).slice(0, 6).map((g) => (
+                    <Link key={g} href={`/genre/${encodeURIComponent(g.toLowerCase())}`} className="text-[10px] bg-[#1a1a1a] text-[#888] rounded-full px-2.5 py-0.5 hover:text-[#E8B84B] transition-colors">
+                      {g}
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
             <FollowButton targetUserId={user.id} />
           </div>

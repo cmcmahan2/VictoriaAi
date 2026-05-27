@@ -8,20 +8,26 @@ datasource db {
 }
 
 model User {
-  id          String   @id @default(cuid())
-  username    String   @unique
-  email       String   @unique
-  password    String?
-  avatarUrl   String?
-  bio         String?
-  createdAt   DateTime @default(now())
-  ratings     Rating[]
-  reviews     Review[]
-  lists       List[]
-  following   Follow[] @relation("follower")
-  followers   Follow[] @relation("following")
-  debatePosts DebatePost[]
+  id            String         @id @default(cuid())
+  username      String         @unique
+  email         String         @unique
+  password      String?
+  avatarUrl     String?
+  bio           String?
+  displayName   String?
+  website       String?
+  location      String?
+  favoriteGenres String[]      @default([])
+  createdAt     DateTime       @default(now())
+  ratings       Rating[]
+  reviews       Review[]
+  lists         List[]
+  following     Follow[]       @relation("follower")
+  followers     Follow[]       @relation("following")
+  debatePosts   DebatePost[]
   reviewComments ReviewComment[]
+  notifications Notification[] @relation("notifRecipient")
+  sentNotifs    Notification[] @relation("notifSender")
 }
 
 model Album {
@@ -118,4 +124,17 @@ model DebatePost {
   user      User         @relation(fields: [userId], references: [id])
   replies   DebatePost[] @relation("replies")
   parent    DebatePost?  @relation("replies", fields: [parentId], references: [id])
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  recipientId String
+  senderId    String?
+  type        String   // "like" | "follow" | "comment" | "review" | "mention"
+  message     String
+  link        String?
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  recipient   User     @relation("notifRecipient", fields: [recipientId], references: [id])
+  sender      User?    @relation("notifSender", fields: [senderId], references: [id])
 }
