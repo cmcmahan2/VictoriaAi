@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { spotifyAlbumToDbAlbum, type SpotifyAlbum } from "@/lib/spotify";
-import { itunesSearchAlbums, itunesTopAlbums } from "@/lib/itunes";
+import { itunesSearchAlbums, itunesTopAlbums, itunesTopAlbumsByGenre, ITUNES_GENRES } from "@/lib/itunes";
+
+export const maxDuration = 60;
 
 // Curated list of classic + current albums to seed the DB
 const SEED_QUERIES = [
@@ -63,30 +65,33 @@ const SEED_QUERIES = [
   "If Youre Reading This Its Too Late Drake",
 ];
 
-export async function POST() {
-  const results = { added: 0, skipped: 0, errors: 0 };
+async function runSeed() {
+  const results = { added: 0, errors: 0 };
+  const allAlbums: SpotifyAlbum[] = [];
 
-  // Grab current top albums from Apple Music (no auth required)
-  let topAlbums: SpotifyAlbum[] = [];
+  // 1. Current top albums (Apple Music most-played)
   try {
-    topAlbums = await itunesTopAlbums(25);
+    allAlbums.push(...(await itunesTopAlbums(50)));
   } catch { /* ignore */ }
 
-  const allAlbums: SpotifyAlbum[] = [...topAlbums];
+  // 2. Wide, genre-diverse catalog from Apple's per-genre charts (no auth)
+  const genreResults = await Promise.allSettled(
+    Object.values(ITUNES_GENRES).map((id) => itunesTopAlbumsByGenre(id, 50))
+  );
+  for (const r of genreResults) {
+    if (r.status === "fulfilled") allAlbums.push(...r.value);
+  }
 
-  // Search and collect from curated list via iTunes (no auth, batched)
-  const BATCH_SIZE = 5;
+  // 3. Curated classics via iTunes search (batched)
+  const BATCH_SIZE = 8;
   for (let i = 0; i < SEED_QUERIES.length; i += BATCH_SIZE) {
     const batch = SEED_QUERIES.slice(i, i + BATCH_SIZE);
     const batchResults = await Promise.allSettled(
       batch.map((q) => itunesSearchAlbums(q, 1).then((r) => r[0]).catch(() => null))
     );
     for (const r of batchResults) {
-      if (r.status === "fulfilled" && r.value) {
-        allAlbums.push(r.value);
-      }
+      if (r.status === "fulfilled" && r.value) allAlbums.push(r.value);
     }
-    await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
   // Deduplicate by id
@@ -97,25 +102,39 @@ export async function POST() {
     return true;
   });
 
-  // Upsert all into DB
-  for (const album of unique) {
-    try {
-      const data = spotifyAlbumToDbAlbum(album);
-      await prisma.album.upsert({
-        where: { id: data.id },
-        update: { coverUrl: data.coverUrl, genres: data.genres },
-        create: data,
-      });
-      results.added++;
-    } catch {
-      results.errors++;
-    }
+  // Upsert into DB in parallel chunks
+  const CHUNK = 25;
+  for (let i = 0; i < unique.length; i += CHUNK) {
+    const chunk = unique.slice(i, i + CHUNK);
+    const settled = await Promise.allSettled(
+      chunk.map((album) => {
+        const data = spotifyAlbumToDbAlbum(album);
+        return prisma.album.upsert({
+          where: { id: data.id },
+          update: { coverUrl: data.coverUrl, genres: data.genres },
+          create: data,
+        });
+      })
+    );
+    for (const s of settled) s.status === "fulfilled" ? results.added++ : results.errors++;
   }
 
-  return NextResponse.json({ ...results, total: unique.length });
+  return { ...results, total: unique.length };
 }
 
-export async function GET() {
-  const count = await prisma.album.count();
-  return NextResponse.json({ albumsInDb: count });
+export async function POST() {
+  return NextResponse.json(await runSeed());
+}
+
+// GET runs the seed too, so it can be triggered from a browser. Skips if the
+// catalog is already populated unless ?force=1 is passed.
+export async function GET(req: Request) {
+  const force = new URL(req.url).searchParams.get("force") === "1";
+  const count = await prisma.album.count().catch(() => 0);
+  if (count > 50 && !force) {
+    return NextResponse.json({ albumsInDb: count, seeded: false, note: "Already populated. Add ?force=1 to re-run." });
+  }
+  const result = await runSeed();
+  const newCount = await prisma.album.count().catch(() => 0);
+  return NextResponse.json({ ...result, albumsInDb: newCount, seeded: true });
 }

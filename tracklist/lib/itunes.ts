@@ -59,6 +59,64 @@ export async function itunesLookupAlbum(id: string): Promise<SpotifyAlbum | null
   return collection ? searchResultToAlbum(collection) : null;
 }
 
+// Apple's legacy per-genre "top albums" RSS chart. Genre IDs:
+// 14 Pop, 18 Hip-Hop/Rap, 21 Rock, 20 Alternative, 15 R&B/Soul,
+// 7 Electronic, 17 Dance, 6 Country, 11 Jazz, 10 Singer/Songwriter,
+// 12 Latin, 24 Reggae, 5 Classical, 19 World, 1153 K-Pop.
+export const ITUNES_GENRES: Record<string, number> = {
+  pop: 14,
+  "hip-hop/rap": 18,
+  rock: 21,
+  alternative: 20,
+  "r&b/soul": 15,
+  electronic: 7,
+  dance: 17,
+  country: 6,
+  jazz: 11,
+  "singer/songwriter": 10,
+  latin: 12,
+  reggae: 24,
+};
+
+interface LegacyEntry {
+  "im:name"?: { label?: string };
+  "im:image"?: Array<{ label?: string }>;
+  "im:artist"?: { label?: string };
+  "im:releaseDate"?: { label?: string };
+  id?: { attributes?: { "im:id"?: string } };
+  category?: { attributes?: { label?: string } };
+}
+
+export async function itunesTopAlbumsByGenre(genreId: number, limit = 50): Promise<SpotifyAlbum[]> {
+  const res = await fetch(
+    `https://itunes.apple.com/us/rss/topalbums/limit=${limit}/genre=${genreId}/json`,
+    { next: { revalidate: 86400 } }
+  );
+  if (!res.ok) return [];
+  const data = (await res.json()) as { feed?: { entry?: LegacyEntry | LegacyEntry[] } };
+  const raw = data.feed?.entry;
+  const entries = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  return entries
+    .map((e): SpotifyAlbum | null => {
+      const id = e.id?.attributes?.["im:id"];
+      const name = e["im:name"]?.label;
+      if (!id || !name) return null;
+      const images = e["im:image"] ?? [];
+      const cover = bigArtwork(images[images.length - 1]?.label);
+      const genre = e.category?.attributes?.label;
+      return {
+        id,
+        name,
+        artists: [{ id: "", name: e["im:artist"]?.label ?? "Unknown Artist" }],
+        release_date: e["im:releaseDate"]?.label ?? "",
+        images: cover ? [{ url: cover, width: 600, height: 600 }] : [],
+        genres: genre ? [genre.toLowerCase()] : [],
+        total_tracks: 0,
+      };
+    })
+    .filter((a): a is SpotifyAlbum => a !== null);
+}
+
 interface RssResult {
   id?: string;
   name?: string;
