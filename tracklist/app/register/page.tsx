@@ -18,21 +18,39 @@ export default function RegisterPage() {
     setError("");
     setLoading(true);
 
-    const res = await fetch("/api/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, email, password }),
-    });
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 20000);
+      const res = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, email, password }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
 
-    if (!res.ok) {
-      const data = await res.json();
-      setError(data.error ?? "Registration failed.");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? "Registration failed. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      const result = await signIn("credentials", { email, password, redirect: false });
+      if (result?.error) {
+        setError("Account created, but sign-in failed. Try signing in.");
+        setLoading(false);
+        return;
+      }
+      router.push("/onboarding");
+    } catch (err) {
+      setError(
+        err instanceof DOMException && err.name === "AbortError"
+          ? "The server took too long to respond. The database may be temporarily unavailable — please try again shortly."
+          : "Something went wrong. Please try again."
+      );
       setLoading(false);
-      return;
     }
-
-    await signIn("credentials", { email, password, redirect: false });
-    router.push("/onboarding");
   }
 
   return (

@@ -16,12 +16,17 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const result = await signIn("credentials", { email, password, redirect: false });
-    setLoading(false);
-    if (result?.error) {
-      setError("Invalid email or password.");
-    } else {
-      router.push("/");
+    try {
+      const result = await signIn("credentials", { email, password, redirect: false });
+      setLoading(false);
+      if (result?.error) {
+        setError("Invalid email or password.");
+      } else {
+        router.push("/");
+      }
+    } catch {
+      setLoading(false);
+      setError("Something went wrong. The database may be temporarily unavailable — please try again shortly.");
     }
   }
 
