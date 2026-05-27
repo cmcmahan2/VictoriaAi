@@ -19,7 +19,7 @@ async function JustRated() {
       album: { select: { id: true, coverUrl: true, title: true } },
       user: { select: { username: true } },
     },
-  })
+  }).catch(() => [])
 
   if (ratings.length === 0) return null
 
@@ -61,7 +61,7 @@ async function PopularReviewsThisWeek() {
       user: { select: { id: true, username: true, avatarUrl: true } },
       album: { select: { id: true, title: true, coverUrl: true, artistName: true, releaseYear: true } },
     },
-  })
+  }).catch(() => [])
 
   if (reviews.length === 0) {
     const fallback = await prisma.review.findMany({
@@ -71,7 +71,7 @@ async function PopularReviewsThisWeek() {
         user: { select: { id: true, username: true, avatarUrl: true } },
         album: { select: { id: true, title: true, coverUrl: true, artistName: true, releaseYear: true } },
       },
-    })
+    }).catch(() => [])
     if (fallback.length === 0) return <p className="text-[#888] text-sm">No reviews yet.</p>
     return <ReviewList reviews={fallback} />
   }
@@ -134,7 +134,7 @@ async function PopularLists() {
       _count: { select: { entries: true } },
       entries: { orderBy: { rank: "asc" }, take: 4 },
     },
-  })
+  }).catch(() => [])
 
   if (lists.length === 0) return null
 
@@ -142,7 +142,7 @@ async function PopularLists() {
   const albums = await prisma.album.findMany({
     where: { id: { in: albumIds } },
     select: { id: true, coverUrl: true },
-  })
+  }).catch(() => [])
   const albumMap = new Map(albums.map((a) => [a.id, a]))
 
   return (
@@ -175,7 +175,7 @@ async function PopularReviewers() {
     orderBy: { createdAt: "desc" },
     take: 8,
     include: { _count: { select: { reviews: true, ratings: true } } },
-  })
+  }).catch(() => [])
 
   if (topUsers.length === 0) return null
 
@@ -198,7 +198,7 @@ async function FeaturedAlbum() {
   const album = await prisma.album.findFirst({
     where: { ratingCount: { gt: 0 }, coverUrl: { not: null } },
     orderBy: [{ ratingCount: "desc" }],
-  })
+  }).catch(() => null)
 
   if (!album?.coverUrl) {
     // Show a Spotify new release as the hero
@@ -303,7 +303,7 @@ async function TrendingAlbums() {
     where: { ratingCount: { gt: 0 } },
     orderBy: [{ ratingCount: "desc" }, { avgRating: "desc" }],
     take: 6,
-  })
+  }).catch(() => [])
 
   if (albums.length === 0) {
     // Fall back to Spotify new releases with auto-caching
@@ -364,13 +364,12 @@ const BROWSE_GENRES = [
 ]
 
 async function AutoSeedIfEmpty() {
-  const count = await prisma.album.count()
+  const count = await prisma.album.count().catch(() => -1)
   if (count === 0) {
     // Fire-and-forget seed to populate DB on first visit
     try {
-      const baseUrl = process.env.NEXTAUTH_URL ?? process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : "http://localhost:3000"
+      const baseUrl = process.env.NEXTAUTH_URL
+        ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000")
       fetch(`${baseUrl}/api/seed`, { method: "POST" }).catch(() => {})
     } catch { /* ignore */ }
   }
