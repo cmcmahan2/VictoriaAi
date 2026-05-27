@@ -31,7 +31,7 @@ export default function RootLayout({
       <body className="bg-[#0D0D0D] text-[#F5F2EB] min-h-screen flex flex-col antialiased">
         <Providers>
           <Navbar />
-          <main className="flex-1">{children}</main>
+          <main className="flex-1 pb-20 md:pb-0">{children}</main>
         </Providers>
       </body>
     </html>

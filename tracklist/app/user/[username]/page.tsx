@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma"
 import { UserAvatar } from "@/components/ui/UserAvatar"
 import { ReviewCard } from "@/components/ui/ReviewCard"
 import { StarRating } from "@/components/ui/StarRating"
+import { FollowButton } from "@/components/social/FollowButton"
 
 interface PageProps {
   params: Promise<{ username: string }>
@@ -24,6 +25,7 @@ export default async function UserProfilePage({ params }: PageProps) {
           reviews: true,
           following: true,
           followers: true,
+          lists: true,
         },
       },
     },
@@ -31,7 +33,7 @@ export default async function UserProfilePage({ params }: PageProps) {
 
   if (!user) notFound()
 
-  const [recentRatings, recentReviews] = await Promise.all([
+  const [recentRatings, recentReviews, recentLists] = await Promise.all([
     prisma.rating.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
@@ -49,7 +51,23 @@ export default async function UserProfilePage({ params }: PageProps) {
         user: { select: { id: true, username: true, avatarUrl: true } },
       },
     }),
+    prisma.list.findMany({
+      where: { userId: user.id, isPublic: true },
+      orderBy: { createdAt: "desc" },
+      take: 3,
+      include: {
+        _count: { select: { entries: true } },
+        entries: { orderBy: { rank: "asc" }, take: 4 },
+      },
+    }),
   ])
+
+  const listAlbumIds = recentLists.flatMap((l) => l.entries.map((e) => e.albumId))
+  const listAlbums = await prisma.album.findMany({
+    where: { id: { in: listAlbumIds } },
+    select: { id: true, coverUrl: true, title: true },
+  })
+  const albumMap = new Map(listAlbums.map((a) => [a.id, a]))
 
   const memberSince = new Date(user.createdAt).toLocaleDateString("en-US", {
     year: "numeric",
@@ -63,26 +81,35 @@ export default async function UserProfilePage({ params }: PageProps) {
         <UserAvatar username={user.username} avatarUrl={user.avatarUrl} size={96} />
 
         <div className="flex-1 min-w-0">
-          <h1
-            className="text-3xl font-bold text-[#F5F2EB] mb-1"
-            style={{ fontFamily: "var(--font-playfair), serif" }}
-          >
-            {user.username}
-          </h1>
-          {user.bio && (
-            <p className="text-[#888] text-sm mb-3 max-w-xl">{user.bio}</p>
-          )}
-          <p className="text-[#555] text-xs">Member since {memberSince}</p>
+          <div className="flex items-start gap-4 flex-wrap">
+            <div className="flex-1">
+              <h1
+                className="text-3xl font-bold text-[#F5F2EB] mb-1"
+                style={{ fontFamily: "var(--font-playfair), serif" }}
+              >
+                {user.username}
+              </h1>
+              {user.bio && (
+                <p className="text-[#888] text-sm mb-3 max-w-xl">{user.bio}</p>
+              )}
+              <p className="text-[#555] text-xs">Member since {memberSince}</p>
+            </div>
+            <FollowButton targetUserId={user.id} />
+          </div>
 
           <div className="flex flex-wrap gap-6 mt-4">
-            <div className="text-center">
+            <Link href={`/user/${username}/diary`} className="text-center hover:opacity-80 transition-opacity">
               <p className="text-[#F5F2EB] font-bold text-lg">{user._count.ratings}</p>
               <p className="text-[#888] text-xs">Ratings</p>
-            </div>
+            </Link>
             <div className="text-center">
               <p className="text-[#F5F2EB] font-bold text-lg">{user._count.reviews}</p>
               <p className="text-[#888] text-xs">Reviews</p>
             </div>
+            <Link href={`/user/${username}/lists`} className="text-center hover:opacity-80 transition-opacity">
+              <p className="text-[#F5F2EB] font-bold text-lg">{user._count.lists}</p>
+              <p className="text-[#888] text-xs">Lists</p>
+            </Link>
             <div className="text-center">
               <p className="text-[#F5F2EB] font-bold text-lg">{user._count.following}</p>
               <p className="text-[#888] text-xs">Following</p>
@@ -91,6 +118,19 @@ export default async function UserProfilePage({ params }: PageProps) {
               <p className="text-[#F5F2EB] font-bold text-lg">{user._count.followers}</p>
               <p className="text-[#888] text-xs">Followers</p>
             </div>
+          </div>
+
+          {/* Sub-nav */}
+          <div className="flex gap-4 mt-5 border-b border-[rgba(255,255,255,0.06)] pb-1">
+            <Link href={`/user/${username}`} className="text-[#E8B84B] text-sm font-medium pb-1 border-b-2 border-[#E8B84B]">
+              Profile
+            </Link>
+            <Link href={`/user/${username}/diary`} className="text-[#888] text-sm hover:text-[#F5F2EB] pb-1 border-b-2 border-transparent hover:border-[rgba(255,255,255,0.2)] transition-colors">
+              Diary
+            </Link>
+            <Link href={`/user/${username}/lists`} className="text-[#888] text-sm hover:text-[#F5F2EB] pb-1 border-b-2 border-transparent hover:border-[rgba(255,255,255,0.2)] transition-colors">
+              Lists
+            </Link>
           </div>
         </div>
       </div>
@@ -124,18 +164,61 @@ export default async function UserProfilePage({ params }: PageProps) {
               </div>
             </section>
           )}
+
+          {/* Recent Lists */}
+          {recentLists.length > 0 && (
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-[#F5F2EB]" style={{ fontFamily: "var(--font-playfair), serif" }}>
+                  Lists
+                </h2>
+                <Link href={`/user/${username}/lists`} className="text-[#888] text-sm hover:text-[#E8B84B] transition-colors">
+                  See all →
+                </Link>
+              </div>
+              <div className="space-y-3">
+                {recentLists.map((list) => (
+                  <Link
+                    key={list.id}
+                    href={`/lists/${list.id}`}
+                    className="flex items-center gap-3 bg-[#111] border border-[rgba(255,255,255,0.08)] rounded-xl p-3 hover:border-[rgba(255,255,255,0.2)] transition-colors group"
+                  >
+                    <div className="flex gap-1 shrink-0">
+                      {list.entries.slice(0, 3).map((entry) => {
+                        const album = albumMap.get(entry.albumId)
+                        return album?.coverUrl ? (
+                          <Image key={entry.id} src={album.coverUrl} alt="" width={40} height={40} className="w-10 h-10 rounded object-cover" />
+                        ) : (
+                          <div key={entry.id} className="w-10 h-10 bg-[#1a1a1a] rounded" />
+                        )
+                      })}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[#F5F2EB] text-sm font-medium group-hover:text-[#E8B84B] transition-colors truncate">{list.title}</p>
+                      <p className="text-[#555] text-xs">{list._count.entries} albums</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
 
         {/* Recent Ratings Grid */}
         <div>
           {recentRatings.length > 0 && (
             <section>
-              <h2
-                className="text-xl font-semibold text-[#F5F2EB] mb-4"
-                style={{ fontFamily: "var(--font-playfair), serif" }}
-              >
-                Recent Ratings
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2
+                  className="text-xl font-semibold text-[#F5F2EB]"
+                  style={{ fontFamily: "var(--font-playfair), serif" }}
+                >
+                  Recent Ratings
+                </h2>
+                <Link href={`/user/${username}/diary`} className="text-[#888] text-sm hover:text-[#E8B84B] transition-colors">
+                  All →
+                </Link>
+              </div>
               <div className="grid grid-cols-4 gap-2">
                 {recentRatings.map((rating) => (
                   <Link

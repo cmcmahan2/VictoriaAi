@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { UserAvatar } from "./UserAvatar";
 import { StarRating } from "./StarRating";
 
@@ -18,35 +20,60 @@ interface ReviewCardProps {
 }
 
 export function ReviewCard({
+  id,
   body,
   rating,
-  likes,
+  likes: initialLikes,
   createdAt,
   user,
+  albumId,
   albumTitle,
   showAlbum = false,
 }: ReviewCardProps) {
+  const { data: session } = useSession();
+  const [likes, setLikes] = useState(initialLikes);
+  const [liked, setLiked] = useState(false);
+
   const date = new Date(createdAt).toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
   });
 
+  async function handleLike() {
+    if (!session || liked) return;
+    setLiked(true);
+    setLikes((n) => n + 1);
+    try {
+      await fetch(`/api/reviews/${id}/like`, { method: "POST" });
+    } catch {
+      setLiked(false);
+      setLikes((n) => n - 1);
+    }
+  }
+
   return (
-    <div className="border border-[rgba(255,255,255,0.08)] rounded-lg p-4 bg-[#111] space-y-3">
+    <div className="border border-[rgba(255,255,255,0.08)] rounded-xl p-4 bg-[#111] space-y-3 hover:border-[rgba(255,255,255,0.14)] transition-colors">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
-          <UserAvatar username={user.username} avatarUrl={user.avatarUrl} size={32} />
+          <Link href={`/user/${user.username}`}>
+            <UserAvatar username={user.username} avatarUrl={user.avatarUrl} size={32} />
+          </Link>
           <div>
             <Link href={`/user/${user.username}`} className="text-[#F5F2EB] text-sm font-medium hover:text-[#E8B84B] transition-colors">
               {user.username}
             </Link>
-            {showAlbum && albumTitle && (
-              <p className="text-[#888] text-xs">on {albumTitle}</p>
+            {showAlbum && albumTitle && albumId && (
+              <p className="text-[#888] text-xs">
+                on{" "}
+                <Link href={`/album/${albumId}`} className="hover:text-[#E8B84B] transition-colors">
+                  {albumTitle}
+                </Link>
+              </p>
             )}
           </div>
         </div>
-        <span className="text-[#888] text-xs shrink-0">{date}</span>
+        <span className="text-[#555] text-xs shrink-0">{date}</span>
       </div>
 
       {rating != null && <StarRating value={rating} readonly size="sm" />}
@@ -54,8 +81,14 @@ export function ReviewCard({
       <p className="text-[#F5F2EB] text-sm leading-[1.8] max-w-[680px]">{body}</p>
 
       <div className="flex items-center gap-4 text-[#888] text-xs">
-        <button className="hover:text-[#E8B84B] transition-colors flex items-center gap-1">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <button
+          onClick={handleLike}
+          disabled={!session || liked}
+          className={`flex items-center gap-1 transition-colors ${
+            liked ? "text-[#E8B84B]" : "hover:text-[#E8B84B]"
+          } disabled:cursor-default`}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill={liked ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
           </svg>
           {likes}
@@ -67,7 +100,7 @@ export function ReviewCard({
 
 export function ReviewCardSkeleton() {
   return (
-    <div className="border border-[rgba(255,255,255,0.08)] rounded-lg p-4 bg-[#111] space-y-3 animate-pulse">
+    <div className="border border-[rgba(255,255,255,0.08)] rounded-xl p-4 bg-[#111] space-y-3 animate-pulse">
       <div className="flex items-center gap-2">
         <div className="w-8 h-8 rounded-full bg-[#1a1a1a]" />
         <div className="h-4 bg-[#1a1a1a] rounded w-24" />

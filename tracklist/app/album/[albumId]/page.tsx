@@ -8,6 +8,7 @@ import { GenreTag } from "@/components/ui/GenreTag";
 import { ReviewCard, ReviewCardSkeleton } from "@/components/ui/ReviewCard";
 import { RatingHistogram } from "@/components/album/RatingHistogram";
 import { AlbumRatingSection } from "@/components/album/AlbumRatingSection";
+import { DebateBoard } from "@/components/album/DebateBoard";
 import { Suspense } from "react";
 
 async function getOrCacheAlbum(albumId: string) {
@@ -118,7 +119,7 @@ export default async function AlbumPage({ params }: { params: Promise<{ albumId:
             <h1 className="text-3xl md:text-4xl font-bold text-[#F5F2EB]" style={{ fontFamily: "Playfair Display, serif" }}>
               {album.title}
             </h1>
-            <p className="text-xl text-[#888] mt-1">{album.artistName}</p>
+            <a href={`/artist/${album.artistId}`} className="text-xl text-[#888] mt-1 hover:text-[#E8B84B] transition-colors inline-block">{album.artistName}</a>
           </div>
 
           {album.genres.length > 0 && (
@@ -160,6 +161,12 @@ export default async function AlbumPage({ params }: { params: Promise<{ albumId:
             <Suspense fallback={<div className="space-y-1 animate-pulse">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-4 bg-[#1a1a1a] rounded" />)}</div>}>
               <AlbumRatingStats albumId={album.id} />
             </Suspense>
+          </section>
+
+          {/* Debate Board */}
+          <section>
+            <h3 className="text-sm font-semibold text-[#888] uppercase tracking-widest mb-4">Debate</h3>
+            <DebateBoard albumId={album.id} />
           </section>
 
           {/* Tracklist */}
