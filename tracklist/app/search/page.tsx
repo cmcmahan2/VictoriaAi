@@ -249,7 +249,50 @@ function SearchPage() {
         </div>
       </form>
 
-      {query && <SearchResults query={query} addToList={addToList} />}
+      {query
+        ? <SearchResults query={query} addToList={addToList} />
+        : <DiscoverSection />
+      }
+    </div>
+  );
+}
+
+function DiscoverSection() {
+  const { data, isLoading } = useQuery<SpotifyAlbumResult[]>({
+    queryKey: ["discover"],
+    queryFn: () => fetch("/api/new-releases").then((r) => r.json()),
+    staleTime: 1000 * 60 * 60,
+  });
+
+  return (
+    <div>
+      <p className="text-[#888] text-xs uppercase tracking-widest mb-5">New Releases on Spotify</p>
+      {isLoading ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          {Array.from({ length: 10 }).map((_, i) => <AlbumCardSkeleton key={i} />)}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          {(data ?? []).map((album) => (
+            <Link key={album.id} href={`/album/${album.id}`} className="group">
+              <div className="border border-[rgba(255,255,255,0.08)] rounded-lg overflow-hidden bg-[#111] hover:border-[rgba(255,255,255,0.2)] transition-colors">
+                <div className="relative aspect-square">
+                  {album.images[0]?.url ? (
+                    <Image src={album.images[0].url} alt={album.name} fill sizes="(max-width: 640px) 50vw, 20vw" className="object-cover group-hover:scale-105 transition-transform duration-300" />
+                  ) : (
+                    <div className="w-full h-full bg-[#1a1a1a] flex items-center justify-center text-[#444] text-4xl">♪</div>
+                  )}
+                  <div className="absolute top-2 left-2 bg-[#E8B84B] text-black text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide">New</div>
+                </div>
+                <div className="p-3">
+                  <p className="text-[#F5F2EB] font-medium text-sm truncate">{album.name}</p>
+                  <p className="text-[#888] text-xs mt-0.5 truncate">{album.artists.map((a: { name: string }) => a.name).join(", ")} · {album.release_date?.slice(0, 4)}</p>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

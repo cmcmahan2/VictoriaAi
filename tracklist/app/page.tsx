@@ -4,6 +4,7 @@ import { Suspense } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { prisma } from "@/lib/prisma"
+import { getNewReleases } from "@/lib/spotify"
 import { AlbumCard, AlbumCardSkeleton } from "@/components/ui/AlbumCard"
 import { ReviewCard, ReviewCardSkeleton } from "@/components/ui/ReviewCard"
 import { UserAvatar } from "@/components/ui/UserAvatar"
@@ -200,6 +201,46 @@ async function FeaturedAlbum() {
   })
 
   if (!album?.coverUrl) {
+    // Show a Spotify new release as the hero
+    let featured: Awaited<ReturnType<typeof getNewReleases>>[0] | null = null
+    try {
+      const releases = await getNewReleases(20)
+      featured = releases.find((r) => r.images[0]?.url) ?? null
+    } catch { /* ignore */ }
+
+    if (featured?.images[0]?.url) {
+      return (
+        <section className="relative mb-10 rounded-2xl overflow-hidden min-h-[360px] flex items-end">
+          <Image
+            src={featured.images[0].url}
+            alt={featured.name}
+            fill
+            className="object-cover scale-110 blur-sm brightness-40"
+            sizes="100vw"
+            priority
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0D0D0D] via-[rgba(13,13,13,0.6)] to-transparent" />
+          <div className="relative z-10 p-8 flex gap-6 items-end w-full">
+            <Link href={`/album/${featured.id}`} className="shrink-0 hover:scale-105 transition-transform">
+              <Image src={featured.images[0].url} alt={featured.name} width={120} height={120} className="rounded-lg shadow-2xl" />
+            </Link>
+            <div className="flex-1 min-w-0">
+              <p className="text-[#E8B84B] text-xs uppercase tracking-widest mb-1 font-semibold">New Release</p>
+              <Link href={`/album/${featured.id}`}>
+                <h2 className="text-3xl font-bold text-[#F5F2EB] hover:text-[#E8B84B] transition-colors mb-1" style={{ fontFamily: "Playfair Display, serif" }}>
+                  {featured.name}
+                </h2>
+              </Link>
+              <p className="text-[#888] mb-3">{featured.artists[0]?.name} · {featured.release_date?.slice(0, 4)}</p>
+              <Link href="/register" className="bg-[#E8B84B] text-black font-semibold px-6 py-2.5 rounded-full hover:bg-[#d4a43a] transition-colors text-sm">
+                Be the first to rate it →
+              </Link>
+            </div>
+          </div>
+        </section>
+      )
+    }
+
     return (
       <section className="relative mb-10 rounded-2xl overflow-hidden bg-gradient-to-br from-[#1a1a1a] to-[#0D0D0D] min-h-[300px] flex items-end p-8">
         <div>
@@ -265,12 +306,30 @@ async function TrendingAlbums() {
   })
 
   if (albums.length === 0) {
+    // Fall back to Spotify new releases with auto-caching
+    let spotifyAlbums: Awaited<ReturnType<typeof getNewReleases>> = []
+    try {
+      spotifyAlbums = await getNewReleases(6)
+    } catch {
+      return null
+    }
+    if (!spotifyAlbums.length) return null
+
     return (
-      <div className="text-center py-12 text-[#888]">
-        <p>No albums rated yet.</p>
-        <Link href="/search" className="text-[#E8B84B] hover:underline mt-2 inline-block">
-          Search for albums to get started
-        </Link>
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+        {spotifyAlbums.map((a) => (
+          <Link key={a.id} href={`/album/${a.id}`} className="group">
+            <div className="aspect-square rounded-lg overflow-hidden border border-[rgba(255,255,255,0.08)] group-hover:border-[rgba(255,255,255,0.25)] transition-all mb-2 relative">
+              {a.images[0]?.url ? (
+                <Image src={a.images[0].url} alt={a.name} fill sizes="180px" className="object-cover group-hover:scale-105 transition-transform duration-300" />
+              ) : (
+                <div className="w-full h-full bg-[#1a1a1a] flex items-center justify-center text-[#444] text-2xl">♪</div>
+              )}
+            </div>
+            <p className="text-[#F5F2EB] text-xs font-medium truncate group-hover:text-[#E8B84B] transition-colors">{a.name}</p>
+            <p className="text-[#555] text-[10px] truncate">{a.artists[0]?.name}</p>
+          </Link>
+        ))}
       </div>
     )
   }
@@ -293,9 +352,39 @@ async function TrendingAlbums() {
   )
 }
 
+const BROWSE_GENRES = [
+  { label: "Hip-Hop", slug: "hip-hop", emoji: "🎤" },
+  { label: "R&B", slug: "r&b", emoji: "🎵" },
+  { label: "Pop", slug: "pop", emoji: "✨" },
+  { label: "Rock", slug: "alternative rock", emoji: "🎸" },
+  { label: "Jazz", slug: "jazz rap", emoji: "🎷" },
+  { label: "Electronic", slug: "electropop", emoji: "⚡" },
+  { label: "Indie", slug: "indie pop", emoji: "🌿" },
+  { label: "Soul", slug: "soul", emoji: "💿" },
+]
+
+async function AutoSeedIfEmpty() {
+  const count = await prisma.album.count()
+  if (count === 0) {
+    // Fire-and-forget seed to populate DB on first visit
+    try {
+      const baseUrl = process.env.NEXTAUTH_URL ?? process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : "http://localhost:3000"
+      fetch(`${baseUrl}/api/seed`, { method: "POST" }).catch(() => {})
+    } catch { /* ignore */ }
+  }
+  return null
+}
+
 export default function HomePage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
+      {/* Auto-seed on first visit */}
+      <Suspense fallback={null}>
+        <AutoSeedIfEmpty />
+      </Suspense>
+
       {/* Featured Hero */}
       <Suspense fallback={<div className="min-h-[360px] bg-[#111] rounded-2xl animate-pulse mb-10" />}>
         <FeaturedAlbum />
@@ -330,6 +419,23 @@ export default function HomePage() {
             <p className="text-[#888] text-xs leading-relaxed">{item.text}</p>
           </div>
         ))}
+      </section>
+
+      {/* Browse by Genre */}
+      <section className="mb-10">
+        <p className="text-[#888] text-xs uppercase tracking-widest mb-4">Browse by Genre</p>
+        <div className="flex flex-wrap gap-2">
+          {BROWSE_GENRES.map((g) => (
+            <Link
+              key={g.slug}
+              href={`/genre/${encodeURIComponent(g.slug)}`}
+              className="flex items-center gap-1.5 bg-[#111] border border-[rgba(255,255,255,0.08)] hover:border-[#E8B84B] hover:text-[#E8B84B] text-[#888] rounded-full px-4 py-1.5 text-sm transition-all"
+            >
+              <span>{g.emoji}</span>
+              <span>{g.label}</span>
+            </Link>
+          ))}
+        </div>
       </section>
 
       {/* Trending Albums */}
