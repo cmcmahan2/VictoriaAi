@@ -13,6 +13,7 @@ import { AlbumRatingSection } from "@/components/album/AlbumRatingSection";
 import { DebateBoard } from "@/components/album/DebateBoard";
 import { WatchlistButton } from "@/components/album/WatchlistButton";
 import { ReviewComments } from "@/components/album/ReviewComments";
+import { AlbumBlurb } from "@/components/album/AlbumBlurb";
 import { Suspense } from "react";
 
 async function getOrCacheAlbum(albumId: string) {
@@ -230,6 +231,8 @@ export default async function AlbumPage({ params }: { params: Promise<{ albumId:
               ))}
             </div>
           )}
+
+          <AlbumBlurb albumId={album.id} initialDescription={album.description} />
 
           <div className="flex items-center gap-6 flex-wrap">
             {album.avgRating != null && (
