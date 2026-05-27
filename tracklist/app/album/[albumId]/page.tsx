@@ -30,15 +30,17 @@ async function getOrCacheAlbum(albumId: string) {
   }
   if (!fetched?.id) return null;
 
+  // We have live album data. Try to cache it, but if the DB write fails, still
+  // return the fetched data so the page renders instead of 404-ing.
+  const data = spotifyAlbumToDbAlbum(fetched);
   try {
-    const data = spotifyAlbumToDbAlbum(fetched);
     return await prisma.album.upsert({
       where: { id: albumId },
       update: {},
       create: data,
     });
   } catch {
-    return null;
+    return { ...data, avgRating: null, ratingCount: 0 };
   }
 }
 
