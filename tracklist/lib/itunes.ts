@@ -1,4 +1,6 @@
 import type { SpotifyAlbum } from "./spotify";
+import { spotifyAlbumToDbAlbum } from "./spotify";
+import { prisma } from "./prisma";
 
 // Auth-free album data via the public iTunes Search API and Apple Music RSS feed.
 // Returns objects shaped like SpotifyAlbum so existing consumers work unchanged.
@@ -64,6 +66,23 @@ interface RssResult {
   artworkUrl100?: string;
   releaseDate?: string;
   genres?: Array<{ name?: string }>;
+}
+
+// Persist fetched albums so /album/[id] resolves them from the DB and the
+// catalog fills over time. Apple's RSS feed IDs don't resolve via the iTunes
+// lookup API, so caching on display is what makes those albums clickable.
+export async function cacheAlbums(albums: SpotifyAlbum[]): Promise<void> {
+  await Promise.allSettled(
+    albums.map((a) => {
+      const data = spotifyAlbumToDbAlbum(a);
+      if (!data.id) return Promise.resolve();
+      return prisma.album.upsert({
+        where: { id: data.id },
+        update: { coverUrl: data.coverUrl, genres: data.genres },
+        create: data,
+      });
+    })
+  );
 }
 
 export async function itunesTopAlbums(limit = 20): Promise<SpotifyAlbum[]> {

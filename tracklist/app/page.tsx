@@ -5,7 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { prisma } from "@/lib/prisma"
 import { getNewReleases } from "@/lib/spotify"
-import { itunesTopAlbums } from "@/lib/itunes"
+import { itunesTopAlbums, cacheAlbums } from "@/lib/itunes"
 import { AlbumCard, AlbumCardSkeleton } from "@/components/ui/AlbumCard"
 import { ReviewCard, ReviewCardSkeleton } from "@/components/ui/ReviewCard"
 import { UserAvatar } from "@/components/ui/UserAvatar"
@@ -211,6 +211,7 @@ async function FeaturedAlbum() {
       const releases = (await getNewReleases(20).catch(() => [])).length
         ? await getNewReleases(20)
         : await itunesTopAlbums(20)
+      await cacheAlbums(releases).catch(() => {})
       featured = releases.find((r) => r.images[0]?.url) ?? null
     } catch { /* ignore */ }
 
@@ -326,6 +327,7 @@ async function TrendingAlbums() {
       spotifyAlbums = (await getNewReleases(6).catch(() => [])).length
         ? await getNewReleases(6)
         : await itunesTopAlbums(6)
+      await cacheAlbums(spotifyAlbums).catch(() => {})
     } catch {
       return null
     }
