@@ -149,15 +149,18 @@ export default async function UserProfilePage({ params }: PageProps) {
           </div>
 
           {/* Sub-nav */}
-          <div className="flex gap-4 mt-5 border-b border-[rgba(255,255,255,0.06)] pb-1">
-            <Link href={`/user/${username}`} className="text-[#E8B84B] text-sm font-medium pb-1 border-b-2 border-[#E8B84B]">
+          <div className="flex gap-4 mt-5 border-b border-[rgba(255,255,255,0.06)] pb-1 overflow-x-auto scrollbar-none">
+            <Link href={`/user/${username}`} className="text-[#E8B84B] text-sm font-medium pb-1 border-b-2 border-[#E8B84B] shrink-0">
               Profile
             </Link>
-            <Link href={`/user/${username}/diary`} className="text-[#888] text-sm hover:text-[#F5F2EB] pb-1 border-b-2 border-transparent hover:border-[rgba(255,255,255,0.2)] transition-colors">
+            <Link href={`/user/${username}/diary`} className="text-[#888] text-sm hover:text-[#F5F2EB] pb-1 border-b-2 border-transparent hover:border-[rgba(255,255,255,0.2)] transition-colors shrink-0">
               Diary
             </Link>
-            <Link href={`/user/${username}/lists`} className="text-[#888] text-sm hover:text-[#F5F2EB] pb-1 border-b-2 border-transparent hover:border-[rgba(255,255,255,0.2)] transition-colors">
+            <Link href={`/user/${username}/lists`} className="text-[#888] text-sm hover:text-[#F5F2EB] pb-1 border-b-2 border-transparent hover:border-[rgba(255,255,255,0.2)] transition-colors shrink-0">
               Lists
+            </Link>
+            <Link href={`/user/${username}/stats`} className="text-[#888] text-sm hover:text-[#F5F2EB] pb-1 border-b-2 border-transparent hover:border-[rgba(255,255,255,0.2)] transition-colors shrink-0">
+              Stats
             </Link>
           </div>
         </div>

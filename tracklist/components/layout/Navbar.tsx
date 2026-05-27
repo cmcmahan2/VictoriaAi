@@ -32,6 +32,7 @@ export function Navbar() {
     { href: "/hot-takes", label: "Hot Takes" },
     ...(session ? [
       { href: "/feed", label: "Feed" },
+      { href: "/friends", label: "Friends" },
       { href: "/recommendations", label: "For You" },
     ] : []),
   ];
@@ -147,6 +148,14 @@ export function Navbar() {
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
                       Watchlist
+                    </Link>
+                    <Link
+                      href="/friends"
+                      className="flex items-center gap-2.5 px-4 py-2 text-sm text-[#F5F2EB] hover:bg-[#1a1a1a] transition-colors"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                      Friends
                     </Link>
                     <Link
                       href="/recommendations"
