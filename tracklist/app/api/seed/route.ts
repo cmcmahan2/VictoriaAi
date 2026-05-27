@@ -102,21 +102,27 @@ async function runSeed() {
     return true;
   });
 
-  // Upsert into DB in parallel chunks
-  const CHUNK = 25;
-  for (let i = 0; i < unique.length; i += CHUNK) {
-    const chunk = unique.slice(i, i + CHUNK);
-    const settled = await Promise.allSettled(
-      chunk.map((album) => {
-        const data = spotifyAlbumToDbAlbum(album);
-        return prisma.album.upsert({
-          where: { id: data.id },
-          update: { coverUrl: data.coverUrl, genres: data.genres },
-          create: data,
-        });
-      })
-    );
-    for (const s of settled) s.status === "fulfilled" ? results.added++ : results.errors++;
+  // Upsert sequentially — one connection at a time — so the seed never
+  // contends for the connection pool. If the first several writes all fail,
+  // the database is unreachable; bail early instead of churning 600+ errors.
+  let consecutiveErrors = 0;
+  for (const album of unique) {
+    const data = spotifyAlbumToDbAlbum(album);
+    try {
+      await prisma.album.upsert({
+        where: { id: data.id },
+        update: { coverUrl: data.coverUrl, genres: data.genres },
+        create: data,
+      });
+      results.added++;
+      consecutiveErrors = 0;
+    } catch {
+      results.errors++;
+      consecutiveErrors++;
+      if (consecutiveErrors >= 10) {
+        return { ...results, total: unique.length, aborted: "database unreachable" };
+      }
+    }
   }
 
   return { ...results, total: unique.length };
