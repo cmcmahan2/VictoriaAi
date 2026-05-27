@@ -5,6 +5,8 @@ function createPrismaClient() {
   const adapter = new PrismaPg({
     connectionString: process.env.DATABASE_URL,
     connectionTimeoutMillis: 10000,
+    // Cap connections per serverless instance so we don't exhaust Supabase's pool.
+    max: 5,
   });
   return new PrismaClient({ adapter, log: ["error"] });
 }

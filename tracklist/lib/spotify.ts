@@ -103,12 +103,15 @@ export async function searchArtists(query: string): Promise<SpotifyArtist[]> {
 }
 
 export function spotifyAlbumToDbAlbum(album: SpotifyAlbum) {
+  // release_date may be ISO ("2024-01-31") or human ("December 13, 2024"),
+  // so find any 4-digit year rather than slicing, to avoid NaN.
+  const yearMatch = album.release_date?.match(/\d{4}/);
   return {
     id: album.id,
     title: album.name,
     artistName: album.artists[0]?.name ?? "Unknown Artist",
     artistId: album.artists[0]?.id ?? "",
-    releaseYear: parseInt(album.release_date?.slice(0, 4) ?? "0", 10),
+    releaseYear: yearMatch ? parseInt(yearMatch[0], 10) : 0,
     coverUrl: album.images[0]?.url ?? null,
     genres: album.genres ?? [],
   };

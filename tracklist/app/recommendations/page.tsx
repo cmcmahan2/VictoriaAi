@@ -7,7 +7,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getNewReleases } from "@/lib/spotify";
-import { itunesTopAlbums, cacheAlbums } from "@/lib/itunes";
+import { itunesTopAlbums } from "@/lib/itunes";
 
 export default async function RecommendationsPage() {
   const session = await getServerSession(authOptions);
@@ -78,7 +78,6 @@ export default async function RecommendationsPage() {
       spotifyRecs = (await getNewReleases(24).catch(() => [])).length
         ? await getNewReleases(24)
         : await itunesTopAlbums(24);
-      await cacheAlbums(spotifyRecs).catch(() => {});
     } catch { /* ignore */ }
   }
 
