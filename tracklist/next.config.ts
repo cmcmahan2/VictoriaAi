@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "mosaic.scdn.co" },
       { protocol: "https", hostname: "*.spotifycdn.com" },
       { protocol: "https", hostname: "coverartarchive.org" },
+      { protocol: "https", hostname: "*.mzstatic.com" },
     ],
   },
 };
