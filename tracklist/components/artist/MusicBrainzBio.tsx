@@ -6,6 +6,14 @@ import {
 } from "@/lib/musicbrainz";
 
 export async function MusicBrainzBio({ artistName }: { artistName: string }) {
+  try {
+    return await renderBio(artistName);
+  } catch {
+    return null;
+  }
+}
+
+async function renderBio(artistName: string) {
   const mbid = await searchMBArtist(artistName);
   if (!mbid) return null;
 

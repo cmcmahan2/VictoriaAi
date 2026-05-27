@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {
   searchMBReleaseGroup,
   getMBReleaseGroup,
@@ -35,6 +34,14 @@ export async function MusicBrainzInfo({
   artist: string;
   title: string;
 }) {
+  try {
+    return await renderMusicBrainzInfo(artist, title);
+  } catch {
+    return null;
+  }
+}
+
+async function renderMusicBrainzInfo(artist: string, title: string) {
   const mbid = await searchMBReleaseGroup(artist, title);
   if (!mbid) return null;
 
