@@ -35,6 +35,37 @@ except ImportError:
     FPDF_AVAILABLE = False
 
 
+# fpdf2's core fonts (Helvetica) only support latin-1. AI-generated copy often
+# contains em-dashes and smart quotes, so normalise text before it is written.
+_PDF_CHAR_MAP = {
+    "—": "-", "–": "-", "‑": "-", "−": "-",
+    "‘": "'", "’": "'", "‚": "'", "′": "'",
+    "“": '"', "”": '"', "„": '"', "″": '"',
+    "…": "...", "•": "-", "·": "-", "→": "->",
+    " ": " ", "​": "", "﻿": "",
+}
+
+
+def _pdf_safe(s):
+    if not isinstance(s, str):
+        return s
+    for bad, good in _PDF_CHAR_MAP.items():
+        s = s.replace(bad, good)
+    # Drop any remaining non-latin-1 characters (e.g. emoji) safely
+    return s.encode("latin-1", "ignore").decode("latin-1")
+
+
+def _pdf_safe_args(args, kwargs):
+    """Sanitise the text argument of FPDF cell/multi_cell calls."""
+    args = list(args)
+    if len(args) >= 3:
+        args[2] = _pdf_safe(args[2])
+    for key in ("text", "txt"):
+        if key in kwargs:
+            kwargs[key] = _pdf_safe(kwargs[key])
+    return tuple(args), kwargs
+
+
 def run_audit(profile_dir: str, output_dir: str = "./output") -> Path:
     """
     Entry point for Phase 4. Reads the business profile and generates the
@@ -578,6 +609,14 @@ if FPDF_AVAILABLE:
 
         def _c(self, color):
             self.set_text_color(*color)
+
+        def cell(self, *args, **kwargs):
+            args, kwargs = _pdf_safe_args(args, kwargs)
+            return super().cell(*args, **kwargs)
+
+        def multi_cell(self, *args, **kwargs):
+            args, kwargs = _pdf_safe_args(args, kwargs)
+            return super().multi_cell(*args, **kwargs)
 
         def build_report(self):
             self._cover()
