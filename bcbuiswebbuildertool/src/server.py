@@ -274,6 +274,60 @@ async def preview_site(slug: str, file_path: str = "index.html"):
     return FileResponse(str(target))
 
 
+# ── Public client portal (no auth — shareable with prospects) ────────────────
+
+def _portal_business_name(slug: str) -> str:
+    profile = RESEARCH_DIR / slug / "profile.json"
+    if profile.exists():
+        try:
+            return json.loads(profile.read_text(encoding="utf-8", errors="replace")).get("name", slug)
+        except Exception:
+            pass
+    return slug.replace("-", " ").title()
+
+
+@app.get("/portal/{slug}", response_class=HTMLResponse)
+async def serve_portal(slug: str):
+    portal = WEB_DIR / "portal.html"
+    if not portal.exists():
+        raise HTTPException(status_code=404, detail="Portal page not found")
+    return HTMLResponse(portal.read_text(encoding="utf-8"))
+
+
+@app.get("/api/portal/{slug}")
+async def portal_info(slug: str):
+    site_dir   = OUTPUT_DIR / slug
+    pdf_path   = site_dir / "ai_opportunity_report.pdf"
+    deploy_path = site_dir / "deployment.json"
+    live_url   = None
+    if deploy_path.exists():
+        try:
+            live_url = json.loads(deploy_path.read_text()).get("live_url")
+        except Exception:
+            pass
+    return {
+        "slug":          slug,
+        "name":          _portal_business_name(slug),
+        "has_site":      (site_dir / "index.html").exists(),
+        "has_pdf":       pdf_path.exists(),
+        "live_url":      live_url,
+        "preview_url":   f"/preview/{slug}/index.html",
+        "pdf_url":       f"/portal/{slug}/pdf",
+        "agency_name":   os.getenv("AGENCY_NAME", "Victoria AI"),
+        "booking_url":   os.getenv("PORTAL_BOOKING_URL", ""),
+        "contact_email": os.getenv("PORTAL_CONTACT_EMAIL", ""),
+    }
+
+
+@app.get("/portal/{slug}/pdf")
+async def portal_pdf(slug: str):
+    path = OUTPUT_DIR / slug / "ai_opportunity_report.pdf"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="PDF not found")
+    return FileResponse(str(path), media_type="application/pdf",
+                        filename=f"{slug}-opportunity-report.pdf")
+
+
 if __name__ == "__main__":
     OUTPUT_DIR.mkdir(exist_ok=True)
     RESEARCH_DIR.mkdir(exist_ok=True)

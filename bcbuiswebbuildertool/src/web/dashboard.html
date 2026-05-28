@@ -324,8 +324,15 @@
     const bar=document.getElementById('results-bar');
     const liveUrl=result&&result.deployment&&result.deployment.live_url;
     const builtSite=result&&result.site_dir;
-    bar.innerHTML=`${builtSite?`<div class="result-card ready"><span>Website</span><button onclick="openPreview('${slug}')">Preview</button></div>`:''}<div class="result-card ready"><span>PDF Report</span><button onclick="downloadPdf('${slug}')">Download</button></div>${liveUrl?`<div class="result-card ready"><span>Live Site</span><a href="${liveUrl}" target="_blank">${liveUrl}</a></div>`:''}<div class="result-card"><span style="color:var(--muted)">Files saved to output/${slug}/</span></div>`;
+    bar.innerHTML=`${builtSite?`<div class="result-card ready"><span>Website</span><button onclick="openPreview('${slug}')">Preview</button></div>`:''}<div class="result-card ready"><span>PDF Report</span><button onclick="downloadPdf('${slug}')">Download</button></div>${liveUrl?`<div class="result-card ready"><span>Live Site</span><a href="${liveUrl}" target="_blank">${liveUrl}</a></div>`:''}<div class="result-card ready"><span>Client Link</span><button onclick="copyPortal('${slug}',this)">Copy Share Link</button></div><div class="result-card"><span style="color:var(--muted)">Files saved to output/${slug}/</span></div>`;
     bar.style.display='flex';
+  }
+
+  function copyPortal(slug,btn){
+    const url=location.origin+'/portal/'+slug;
+    const done=()=>{ const t=btn.textContent; btn.textContent='Copied!'; setTimeout(()=>btn.textContent=t,1500); };
+    if(navigator.clipboard){ navigator.clipboard.writeText(url).then(done).catch(()=>{ window.prompt('Copy this client link:',url); done(); }); }
+    else { window.prompt('Copy this client link:',url); }
   }
 
   async function downloadPdf(slug) {
