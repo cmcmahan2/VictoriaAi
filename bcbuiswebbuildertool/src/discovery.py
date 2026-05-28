@@ -229,9 +229,13 @@ def _discover_via_yelp(city, business_type, max_results, api_key):
 
 def _discover_via_foursquare(city: str, business_type: str, radius_km: int, max_results: int, api_key: str) -> list[dict]:
     """
-    Tier 3: Foursquare Places API v3.
-    Free tier: 1000 calls/day. Sign up at foursquare.com/developer (Gmail OK).
+    Tier 3: Foursquare Places API (2025 endpoint).
+    Free tier: ~1000 calls/day. Sign up at foursquare.com/developer (Gmail OK).
     Add FOURSQUARE_API_KEY to .env
+
+    NOTE: The old api.foursquare.com/v3 endpoint was sunset in 2025 and now
+    returns 410 Gone. The current endpoint is places-api.foursquare.com with
+    Bearer auth and a dated X-Places-Api-Version header.
     """
     # Geocode city first using Nominatim
     geo_headers = {"User-Agent": "BCBuisWebBuilderTool/1.0 contact@victoriaai.ca"}
@@ -244,8 +248,12 @@ def _discover_via_foursquare(city: str, business_type: str, radius_km: int, max_
         raise RuntimeError(f"Could not geocode {city}")
     lat, lon = geo[0]["lat"], geo[0]["lon"]
 
-    url = "https://api.foursquare.com/v3/places/search"
-    headers = {"Authorization": api_key, "Accept": "application/json"}
+    url = "https://places-api.foursquare.com/places/search"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "X-Places-Api-Version": "2025-06-17",
+        "Accept": "application/json",
+    }
     businesses = []
     limit = min(50, max_results)
 
@@ -314,14 +322,33 @@ def _discover_via_openstreetmap(city: str, business_type: str, radius_km: int, m
 
     query = f"[out:json][timeout:30];\n(\n{tag_lines});\nout center tags;"
 
-    # Step 3: query Overpass
-    over_resp = requests.post(
+    # Step 3: query Overpass (try multiple mirrors; some reject requests
+    # without a User-Agent with 406 Not Acceptable)
+    over_headers = {
+        "User-Agent": "BCBuisWebBuilderTool/1.0 (contact@victoriaai.ca)",
+        "Accept": "application/json",
+    }
+    mirrors = [
         "https://overpass-api.de/api/interpreter",
-        data={"data": query},
-        timeout=35,
-    )
-    over_resp.raise_for_status()
-    elements = over_resp.json().get("elements", [])
+        "https://overpass.kumi.systems/api/interpreter",
+        "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    ]
+    elements = []
+    last_exc = None
+    for mirror in mirrors:
+        try:
+            over_resp = requests.post(
+                mirror, data={"data": query},
+                headers=over_headers, timeout=35,
+            )
+            over_resp.raise_for_status()
+            elements = over_resp.json().get("elements", [])
+            break
+        except Exception as exc:
+            last_exc = exc
+            continue
+    if not elements and last_exc:
+        raise last_exc
 
     businesses = []
     for el in elements[:max_results]:
