@@ -245,7 +245,9 @@
   }
 
   let activePipelineSlug='';
+  let activeLead={};
   function openPipeline(lead) {
+    activeLead=lead||{};
     document.getElementById('p-name').value=lead.name||'';
     document.getElementById('p-address').value=lead.address||'';
     document.getElementById('pipeline-title').textContent=lead.name||'Pipeline';
@@ -267,8 +269,18 @@
     setStatus('Pipeline running...', true);
     document.getElementById('terminal').innerHTML='';
     document.getElementById('results-bar').style.display='none';
+    const l = (activeLead && activeLead.name===name) ? activeLead : {};
+    const category = (l.category) || (l.categories && l.categories[0]) || document.getElementById('s-type')?.value?.trim() || '';
     try {
-      const res=await api(`/api/pipeline/${activePipelineSlug}`,{method:'POST',body:{name,address,phases}});
+      const res=await api(`/api/pipeline/${activePipelineSlug}`,{method:'POST',body:{
+        name, address, phases,
+        category,
+        city: l.city || '',
+        existing_website: l.existing_website || null,
+        phone: l.phone || '',
+        rating: (l.rating!=null ? l.rating : null),
+        review_count: l.review_count || 0,
+      }});
       const {job_id}=await res.json();
       addJobToSidebar(job_id,`Pipeline: ${name}`);
       streamJob(job_id,(finalStatus,result)=>{

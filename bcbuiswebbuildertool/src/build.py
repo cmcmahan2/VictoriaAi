@@ -207,6 +207,21 @@ def _template_content(business: dict, profile: dict) -> dict:
             {"name": "EV Charger Installation", "description": "Level 2 EV charger installation for your home or business.", "icon": "🚗"},
             {"name": "Emergency Service", "description": "24/7 emergency electrical service for urgent situations.", "icon": "🚨"},
         ],
+        "landscaper": [
+            {"name": "Lawn Care & Maintenance", "description": "Regular mowing, edging, and seasonal lawn care to keep your yard looking its best.", "icon": "🌱"},
+            {"name": "Garden Design", "description": "Custom garden and planting design tailored to your space and climate.", "icon": "🌷"},
+            {"name": "Hardscaping", "description": "Patios, walkways, retaining walls, and stonework built to last.", "icon": "🧱"},
+            {"name": "Tree & Shrub Care", "description": "Pruning, trimming, and planting to keep your greenery healthy.", "icon": "🌳"},
+            {"name": "Irrigation Systems", "description": "Efficient sprinkler and irrigation installation and repair.", "icon": "💧"},
+            {"name": "Seasonal Cleanup", "description": "Spring and fall cleanups to refresh and protect your property.", "icon": "🍂"},
+        ],
+        "garden": [
+            {"name": "Plants & Nursery Stock", "description": "A wide selection of healthy trees, shrubs, perennials, and annuals.", "icon": "🌿"},
+            {"name": "Soil & Mulch", "description": "Quality soils, composts, and mulches for every garden project.", "icon": "🪴"},
+            {"name": "Garden Supplies", "description": "Tools, pots, fertilizers, and everything you need to grow.", "icon": "🛠️"},
+            {"name": "Expert Advice", "description": "Friendly, knowledgeable staff to help you choose the right plants.", "icon": "💬"},
+            {"name": "Delivery", "description": "Convenient local delivery for bulk and large orders.", "icon": "🚚"},
+        ],
         "default": [
             {"name": "Consultation", "description": "Free professional consultation to assess your needs.", "icon": "💬"},
             {"name": "Quality Service", "description": "Expert service delivered on time and on budget.", "icon": "⭐"},
@@ -217,22 +232,32 @@ def _template_content(business: dict, profile: dict) -> dict:
     }
 
     cat_key = category.lower()
-    services = service_map.get(cat_key, service_map["default"])
+    services = service_map["default"]
+    for key in service_map:
+        if key != "default" and key in cat_key:
+            services = service_map[key]
+            break
+
+    # Avoid awkward doubling like "Trusted Services Services in ..."
+    cat_title = category.title()
+    headline = (f"Trusted {cat_title} in {city}"
+                if "service" in cat_key
+                else f"Trusted {cat_title} Services in {city}")
 
     return {
-        "headline": f"Trusted {category.title()} Services in {city}",
-        "tagline": f"Professional, reliable {category} services serving {city} and surrounding areas.",
-        "about_paragraph": f"{name} has been proudly serving the {city} community with top-quality {category} services. Our licensed and insured team delivers honest, dependable work at fair prices. We treat every home and business like our own.",
+        "headline": headline,
+        "tagline": f"Professional, reliable {category} serving {city} and the surrounding area.",
+        "about_paragraph": f"{name} proudly serves the {city} community with top-quality {category}. Our experienced team delivers honest, dependable work at fair prices. We treat every customer like a neighbour.",
         "services": services,
         "cta_text": "Get a Free Quote",
         "trust_line": f"Proudly serving {city}, BC and surrounding areas",
         "faq": [
             {"q": "Do you offer free estimates?", "a": "Yes, we provide free, no-obligation estimates for all projects."},
             {"q": "Are you licensed and insured?", "a": "Absolutely. We are fully licensed and insured for your peace of mind."},
-            {"q": "How quickly can you respond?", "a": "We offer same-day service for most jobs and 24/7 emergency response."},
+            {"q": "How quickly can you respond?", "a": "We offer prompt scheduling and fast response for urgent jobs."},
             {"q": "What areas do you serve?", "a": f"We serve {city} and the surrounding region. Contact us to confirm service in your area."},
         ],
-        "meta_description": f"{name} - Professional {category} services in {city}, BC. Licensed, insured, and trusted by local homeowners. Call for a free quote today.",
+        "meta_description": f"{name} - {category.title()} in {city}, BC. Trusted by locals. Call for a free quote today.",
     }
 
 
@@ -387,7 +412,7 @@ nav {
   background: var(--white);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 1.75rem 1.5rem;
+  overflow: hidden;
   box-shadow: var(--shadow);
   transition: transform 0.2s, box-shadow 0.2s;
 }
@@ -395,6 +420,14 @@ nav {
   transform: translateY(-4px);
   box-shadow: 0 8px 24px rgba(0,0,0,0.12);
 }
+.service-img {
+  width: 100%;
+  height: 170px;
+  object-fit: cover;
+  display: block;
+  background: var(--border);
+}
+.service-card-body { padding: 1.5rem; }
 .service-icon { font-size: 2rem; margin-bottom: 0.75rem; }
 .service-card h3 { color: var(--navy); }
 .service-card p  { color: var(--muted); font-size: 0.95rem; margin: 0; }
@@ -795,6 +828,59 @@ def _esc(s) -> str:
     return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
 
 
+# ── Filler images ───────────────────────────────────────────────────────────
+
+# Maps a business category to good stock-photo search keywords so the filler
+# images actually match the type of business.
+_IMG_KEYWORDS = {
+    "plumber":      "plumbing,pipes",
+    "electrician":  "electrician,wiring",
+    "landscaper":   "landscaping,garden",
+    "landscaping":  "landscaping,garden",
+    "garden":       "garden,plants,nursery",
+    "nursery":      "garden,plants,nursery",
+    "hvac":         "hvac,heating",
+    "roofer":       "roofing,roof",
+    "roofing":      "roofing,roof",
+    "painter":      "painting,interior",
+    "cleaning":     "cleaning,home",
+    "salon":        "hair,salon",
+    "barber":       "barber,haircut",
+    "spa":          "spa,massage",
+    "dentist":      "dental,clinic",
+    "restaurant":   "restaurant,food",
+    "cafe":         "cafe,coffee",
+    "bakery":       "bakery,bread",
+    "mechanic":     "auto,repair,garage",
+    "fitness":      "gym,fitness",
+    "construction": "construction,builder",
+    "contractor":   "construction,builder",
+}
+
+
+def _img_keywords(category: str) -> str:
+    cat = (category or "").lower()
+    for key, kw in _IMG_KEYWORDS.items():
+        if key in cat:
+            return kw
+    # Fall back to the category itself (single word) or a generic business image
+    word = re.sub(r"[^a-z]+", "", cat.split()[0]) if cat.strip() else ""
+    return f"{word},business" if word else "local,business"
+
+
+def _img(keywords: str, w: int, h: int, seed: str = "") -> str:
+    """
+    Return a keyword-matched filler image URL. Uses loremflickr.com, which
+    serves Creative-Commons photos matching the keywords with no API key.
+    A stable seed (e.g. service name) keeps the same image across rebuilds.
+    """
+    base = f"https://loremflickr.com/{w}/{h}/{keywords}"
+    if seed:
+        lock = abs(hash(seed)) % 9999
+        return f"{base}?lock={lock}"
+    return base
+
+
 # ── Pages ─────────────────────────────────────────────────────────────────────
 
 def _write_index(business: dict, profile: dict, content: dict, site_dir: Path) -> None:
@@ -814,11 +900,18 @@ def _write_index(business: dict, profile: dict, content: dict, site_dir: Path) -
     phone_btn = f'<a href="tel:{phone}" class="btn btn-outline btn-lg">📞 Call Now</a>' if phone else ""
     rating_str = f"⭐ {rating}/5 ({reviews} reviews)" if rating else ""
 
+    cats     = business.get("categories") or [business.get("category", "")]
+    keywords = _img_keywords(cats[0] if cats else "")
+    hero_img = _img(keywords, 1600, 700, seed=name)
+
     service_cards = "\n".join(
         f"""<div class="service-card">
-  <div class="service-icon">{_esc(s.get("icon","🔧"))}</div>
-  <h3>{_esc(s.get("name","Service"))}</h3>
-  <p>{_esc(s.get("description",""))}</p>
+  <img class="service-img" src="{_esc(_img(keywords, 400, 260, seed=s.get('name','')))}" alt="{_esc(s.get('name','Service'))}" loading="lazy" />
+  <div class="service-card-body">
+    <div class="service-icon">{_esc(s.get("icon","🔧"))}</div>
+    <h3>{_esc(s.get("name","Service"))}</h3>
+    <p>{_esc(s.get("description",""))}</p>
+  </div>
 </div>"""
         for s in services
     )
@@ -836,7 +929,7 @@ def _write_index(business: dict, profile: dict, content: dict, site_dir: Path) -
     html += f"""
 <main>
   <!-- Hero -->
-  <section class="hero">
+  <section class="hero" style="background-image:linear-gradient(135deg, rgba(15,30,48,0.86) 0%, rgba(26,58,92,0.86) 100%), url('{_esc(hero_img)}');background-size:cover;background-position:center;">
     <div class="container">
       <h1>{_esc(headline)}</h1>
       <p class="hero-sub">{_esc(tagline)}</p>

@@ -52,6 +52,12 @@ class PipelineRequest(BaseModel):
     name: str
     address: str
     phases: list[int] = [2, 3, 4, 5]
+    category: str = ""
+    city: str = ""
+    existing_website: str | None = None
+    phone: str = ""
+    rating: float | None = None
+    review_count: int = 0
 
 
 def require_auth(request: Request):
@@ -115,6 +121,16 @@ def _slug(name):
     return name.lower().replace(" ", "-").replace("/", "-")
 
 
+def _city_from_address(address: str) -> str:
+    """Extract the city from an address like '4493 Boundary Road, Vancouver, BC'."""
+    if not address:
+        return ""
+    parts = [p.strip() for p in address.split(",")]
+    # Drop a trailing province/postal token like 'BC' or 'BC V5K 1A1'
+    parts = [p for p in parts if p and p.upper() not in ("BC", "B.C.") and not p.upper().startswith("BC ")]
+    return parts[-1] if parts else ""
+
+
 @app.get("/", response_class=HTMLResponse)
 async def serve_login():
     return HTMLResponse((WEB_DIR / "login.html").read_text())
@@ -164,7 +180,18 @@ async def get_leads(request: Request):
 async def run_pipeline(slug: str, data: PipelineRequest, request: Request):
     require_auth(request)
     job_id   = _new_job(f"Pipeline: {data.name}")
-    business = {"name": data.name, "address": data.address, "slug": slug}
+    business = {
+        "name": data.name,
+        "address": data.address,
+        "slug": slug,
+        "category": data.category,
+        "business_type": data.category,
+        "city": data.city or _city_from_address(data.address),
+        "existing_website": data.existing_website,
+        "phone": data.phone,
+        "rating": data.rating,
+        "review_count": data.review_count,
+    }
     def _go():
         results     = {}
         profile_dir = str(RESEARCH_DIR / _slug(data.name))
