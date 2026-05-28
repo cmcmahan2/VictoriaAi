@@ -1,24 +1,24 @@
 """
-Phase 4 — AI Opportunity Audit
+Phase 4 - AI Opportunity Audit
 
 Analyse the business holistically and produce a professional PDF proposal
 identifying where AI and automation can reduce costs, increase revenue, or
-save time. Written for a non-technical audience — this document is handed
+save time. Written for a non-technical audience - this document is handed
 directly to the business owner.
 
 Five audit dimensions:
-  1. Automations       — booking, invoicing, follow-ups
-  2. Customer Service  — chatbots, after-hours, missed calls
-  3. Marketing         — ads, SEO, email, review generation
-  4. Operations        — scheduling, inventory, document automation
-  5. Revenue           — upsells, adjacent services, loyalty/referral
+  1. Automations       - booking, invoicing, follow-ups
+  2. Customer Service  - chatbots, after-hours, missed calls
+  3. Marketing         - ads, SEO, email, review generation
+  4. Operations        - scheduling, inventory, document automation
+  5. Revenue           - upsells, adjacent services, loyalty/referral
 
 PDF structure (max 10 pages):
   Cover Page
-  Page 1  — Executive Summary (3-5 sentences, hours saved, top 3 quick wins)
-  Pages 2-6 — One page per audit category
-  Page 7  — 30/60/90 day implementation roadmap
-  Back    — Next steps CTA + contact info placeholder
+  Page 1  - Executive Summary (3-5 sentences, hours saved, top 3 quick wins)
+  Pages 2-6 - One page per audit category
+  Page 7  -30/60/90 day implementation roadmap
+  Back    - Next steps CTA + contact info placeholder
 
 Saved to: ./output/{business_slug}/ai_opportunity_report.pdf
 """
@@ -72,7 +72,7 @@ def run_audit(profile_dir: str, output_dir: str = "./output") -> Path:
     AI Opportunity PDF report.
     """
     profile_path = Path(profile_dir) / "profile.json"
-    profile = json.loads(profile_path.read_text())
+    profile = json.loads(profile_path.read_text(encoding="utf-8", errors="replace"))
     business = profile["business"]
 
     slug = _slugify(business.get("name", "unknown-business"))
@@ -185,7 +185,7 @@ def _audit_automations(business: dict, profile: dict) -> dict:
     rc = _review_count(profile)
     if rc < 20:
         findings.append(
-            f"Only {rc} reviews found — no automated follow-up system detected."
+            f"Only {rc} reviews found - no automated follow-up system detected."
         )
         recs.append(
             "Set up an automated SMS or email request after each service. "
@@ -194,7 +194,7 @@ def _audit_automations(business: dict, profile: dict) -> dict:
         hours += 2.0
 
     if not findings:
-        findings.append("Basic automation signals present — opportunity lies in optimisation.")
+        findings.append("Basic automation signals present - opportunity lies in optimisation.")
         recs.append(
             "Connect your booking, invoicing, and follow-up tools into a single "
             "automated workflow to eliminate manual hand-offs."
@@ -252,7 +252,7 @@ def _audit_customer_service(business: dict, profile: dict) -> dict:
 
     if not findings:
         findings.append(
-            "Customer service infrastructure appears adequate — optimise for speed."
+            "Customer service infrastructure appears adequate - optimise for speed."
         )
         recs.append(
             "Add a proactive satisfaction check-in 3 days after service to build loyalty "
@@ -285,7 +285,7 @@ def _audit_marketing(business: dict, profile: dict) -> dict:
 
     if rc < 50:
         findings.append(
-            f"Only {rc} Google reviews — competitors with 100+ reviews earn far more clicks."
+            f"Only {rc} Google reviews - competitors with 100+ reviews earn far more clicks."
         )
         recs.append(
             "Automate review requests via SMS immediately after each completed job. "
@@ -295,7 +295,7 @@ def _audit_marketing(business: dict, profile: dict) -> dict:
 
     if social < 2:
         findings.append(
-            f"Weak social media presence — only {social} active platform(s) detected."
+            f"Weak social media presence - only {social} active platform(s) detected."
         )
         recs.append(
             "Use an AI content calendar to generate and schedule 3 posts per week across "
@@ -305,7 +305,7 @@ def _audit_marketing(business: dict, profile: dict) -> dict:
 
     if not has_email and has_site:
         findings.append(
-            "No email capture form detected — missing opportunity to own your audience."
+            "No email capture form detected - missing opportunity to own your audience."
         )
         recs.append(
             "Add a lead-capture form with a value offer such as a free estimate or seasonal "
@@ -314,7 +314,7 @@ def _audit_marketing(business: dict, profile: dict) -> dict:
         hours += 2.0
 
     if not findings:
-        findings.append("Basic marketing signals are present — optimise for conversion.")
+        findings.append("Basic marketing signals are present - optimise for conversion.")
         recs.append(
             f"Run Google Local Service Ads for high-intent searches. "
             f"'{category} in {city}' queries convert at 3-5x the rate of social media traffic."
@@ -368,7 +368,7 @@ def _audit_operations(business: dict, profile: dict) -> dict:
         )
         recs.append(
             "AI schedule optimisation fills cancellation gaps automatically by sending waitlist "
-            "offers via SMS — recover 5-10 missed appointments every month."
+            "offers via SMS - recover 5-10 missed appointments every month."
         )
         hours += 4.0
 
@@ -384,7 +384,7 @@ def _audit_operations(business: dict, profile: dict) -> dict:
 
     if not findings:
         findings.append(
-            "Standard operational processes — automation can still deliver meaningful time savings."
+            "Standard operational processes - automation can still deliver meaningful time savings."
         )
         recs.append(
             "Audit your most repetitive tasks: quotes, reports, scheduling, and communication. "
@@ -413,7 +413,7 @@ def _audit_revenue(business: dict, profile: dict) -> dict:
 
     if not has_pricing:
         findings.append(
-            "Pricing is not visible on the website — customers must call to get basic information."
+            "Pricing is not visible on the website - customers must call to get basic information."
         )
         recs.append(
             "Add transparent pricing or service packages to your website. "
@@ -487,7 +487,7 @@ def _generate_pdf(business: dict, findings: dict, site_dir: Path) -> Path:
     if not FPDF_AVAILABLE:
         txt_path = site_dir / "ai_opportunity_report.txt"
         _write_text_report(business, findings, executive, txt_path)
-        print("[audit] fpdf2 not installed — wrote text report. Run: pip install fpdf2")
+        print("[audit] fpdf2 not installed - wrote text report. Run: pip install fpdf2")
         return txt_path
 
     live_url = None
@@ -694,7 +694,7 @@ if FPDF_AVAILABLE:
             self._c(self.LBLUE)
             self.set_xy(20, h - 18)
             self.cell(w - 40, 5,
-                      "CONFIDENTIAL — Prepared exclusively for the business owner above",
+                      "CONFIDENTIAL - Prepared exclusively for the business owner above",
                       align="C")
             self._f("", 8)
             self.set_xy(20, h - 12)
@@ -812,7 +812,7 @@ if FPDF_AVAILABLE:
             phases = [
                 {
                     "label": "Days 1-30",
-                    "sub": "Quick Wins — Get Moving",
+                    "sub": "Quick Wins - Get Moving",
                     "color": self.GREEN,
                     "items": (
                         [f"Implement {d['title']} automation" for d in qw[:2]]
@@ -824,7 +824,7 @@ if FPDF_AVAILABLE:
                 },
                 {
                     "label": "Days 31-60",
-                    "sub": "Build Systems — Create Consistency",
+                    "sub": "Build Systems - Create Consistency",
                     "color": self.NAVY,
                     "items": [
                         "Deploy website chatbot or FAQ automation",
@@ -834,7 +834,7 @@ if FPDF_AVAILABLE:
                 },
                 {
                     "label": "Days 61-90",
-                    "sub": "Scale and Measure — Compound the Gains",
+                    "sub": "Scale and Measure - Compound the Gains",
                     "color": (80, 120, 170),
                     "items": [
                         "Review analytics: bookings, reviews, email signups",
