@@ -133,11 +133,11 @@ def _city_from_address(address: str) -> str:
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_login():
-    return HTMLResponse((WEB_DIR / "login.html").read_text())
+    return HTMLResponse((WEB_DIR / "login.html").read_text(encoding="utf-8"))
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def serve_dashboard():
-    return HTMLResponse((WEB_DIR / "dashboard.html").read_text())
+    return HTMLResponse((WEB_DIR / "dashboard.html").read_text(encoding="utf-8"))
 
 @app.post("/auth/login")
 async def login(data: LoginRequest):
