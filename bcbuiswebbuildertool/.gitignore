@@ -1,0 +1,47 @@
+# Environment
+.env
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.egg-info/
+dist/
+build/
+venv/
+.venv/
+env/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+
+# Node
+node_modules/
+npm-debug.log*
+.next/
+.cache/
+
+# Output & research (generated - commit selectively)
+output/
+research/
+
+# Logs
+*.log
+build_log.txt
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# Playwright
+playwright-report/
+test-results/

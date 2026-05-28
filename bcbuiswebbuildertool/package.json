@@ -1,0 +1,16 @@
+{
+  "name": "bcbuiswebbuildertool",
+  "version": "0.1.0",
+  "description": "Autonomous BC business web presence discovery, build, and deployment pipeline",
+  "private": true,
+  "scripts": {
+    "install:browsers": "playwright install chromium",
+    "deploy": "netlify deploy --prod"
+  },
+  "dependencies": {
+    "netlify-cli": "^17.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
