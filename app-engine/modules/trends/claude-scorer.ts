@@ -58,7 +58,9 @@ export async function scoreTrendsWithClaude(
   const response = await client.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 2048,
-    system: SYSTEM_PROMPT,
+    // Cache the system prompt — it's identical on every call and >1024 tokens,
+    // so ephemeral caching cuts input cost by ~90% on cache hits.
+    system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
     messages: [{ role: 'user', content: USER_PROMPT(signals) }],
   });
 
