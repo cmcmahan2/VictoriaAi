@@ -92,12 +92,12 @@ def discover_businesses(
             print(f"[discovery] Yelp API failed ({exc}) - trying next tier")
 
     if not businesses:
-        print(f"[discovery] Tier 3 - Yellow Pages Canada scrape: {business_type} in {city}, BC")
+        print(f"[discovery] Tier 3 - OpenStreetMap: {business_type} in {city}, BC")
         try:
-            businesses = _discover_via_yellowpages(city, business_type, max_results)
-            print(f"[discovery] Yellow Pages: {len(businesses)} real businesses found")
+            businesses = _discover_via_openstreetmap(city, business_type, radius_km, max_results)
+            print(f"[discovery] OpenStreetMap: {len(businesses)} real businesses found")
         except Exception as exc:
-            print(f"[discovery] Yellow Pages scrape failed ({exc}) - falling back to demo")
+            print(f"[discovery] OpenStreetMap failed ({exc}) - falling back to demo")
 
     if not businesses:
         if demo_mode or True:
@@ -218,104 +218,129 @@ def _discover_via_yelp(city, business_type, max_results, api_key):
     return businesses[:max_results]
 
 
-def _discover_via_yellowpages(city: str, business_type: str, max_results: int) -> list[dict]:
+def _discover_via_openstreetmap(city: str, business_type: str, radius_km: int, max_results: int) -> list[dict]:
     """
-    Tier 3: Scrape Yellow Pages Canada (yellowpages.ca) for real local businesses.
-    No API key required. Respects a 0.5s delay between page requests.
+    Tier 3: Real businesses from OpenStreetMap via Overpass API + Nominatim geocoding.
+    Completely free, no API key required, returns real registered businesses.
     """
-    from bs4 import BeautifulSoup
+    # Step 1: geocode the city to lat/lon
+    geo_headers = {"User-Agent": "BCBuisWebBuilderTool/1.0 contact@victoriaai.ca"}
+    geo_resp = requests.get(
+        "https://nominatim.openstreetmap.org/search",
+        params={"q": f"{city}, BC, Canada", "format": "json", "limit": 1},
+        headers=geo_headers,
+        timeout=10,
+    )
+    geo_resp.raise_for_status()
+    geo_data = geo_resp.json()
+    if not geo_data:
+        raise RuntimeError(f"Could not geocode {city}, BC")
+    lat = float(geo_data[0]["lat"])
+    lon = float(geo_data[0]["lon"])
 
-    city_slug = city.lower().replace(" ", "-")
-    type_slug = business_type.lower().replace(" ", "-")
-    base_url  = f"https://www.yellowpages.ca/search/si/1/{quote_plus(business_type)}/{quote_plus(city)}+BC"
+    # Step 2: map business_type to OSM tags
+    tag_pairs = _osm_tags_for(business_type)
+    radius_m  = radius_km * 1000
 
-    headers = dict(_HEADERS)
-    headers["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+    tag_lines = ""
+    for key, val in tag_pairs:
+        tag_lines += f'  node["{key}"="{val}"](around:{radius_m},{lat},{lon});\n'
+        tag_lines += f'  way["{key}"="{val}"](around:{radius_m},{lat},{lon});\n'
+
+    query = f"[out:json][timeout:30];\n(\n{tag_lines});\nout center tags;"
+
+    # Step 3: query Overpass
+    over_resp = requests.post(
+        "https://overpass-api.de/api/interpreter",
+        data={"data": query},
+        timeout=35,
+    )
+    over_resp.raise_for_status()
+    elements = over_resp.json().get("elements", [])
 
     businesses = []
-    page = 1
+    for el in elements[:max_results]:
+        tags   = el.get("tags", {})
+        name   = tags.get("name", "").strip()
+        if not name:
+            continue
 
-    while len(businesses) < max_results and page <= 5:
-        url = f"https://www.yellowpages.ca/search/si/{page}/{quote_plus(business_type)}/{quote_plus(city)}+BC"
-        try:
-            resp = requests.get(url, headers=headers, timeout=12)
-            if resp.status_code != 200:
-                break
-            soup = BeautifulSoup(resp.text, "html.parser")
-        except Exception as exc:
-            print(f"[discovery] YP page {page} failed: {exc}")
-            break
+        # Build address from OSM addr tags
+        house  = tags.get("addr:housenumber", "")
+        street = tags.get("addr:street", "")
+        city_t = tags.get("addr:city", city)
+        if house and street:
+            address = f"{house} {street}, {city_t}, BC"
+        elif street:
+            address = f"{street}, {city_t}, BC"
+        else:
+            address = f"{city_t}, BC"
 
-        # Each listing card
-        cards = soup.select("div.listing__content, div[class*='listing-']")
-        if not cards:
-            # Try alternate selector
-            cards = soup.select("article.yp-listing, div.jsListingCard")
-        if not cards:
-            break
+        phone   = tags.get("phone", tags.get("contact:phone", ""))
+        website = tags.get("website", tags.get("contact:website", None))
+        if website and not website.startswith("http"):
+            website = "https://" + website
 
-        for card in cards:
-            try:
-                name_el = (card.select_one("a.business-name, h2.listing-name, [class*='business-name']")
-                           or card.select_one("a[href*='/bp/']"))
-                if not name_el:
-                    continue
-                name = name_el.get_text(strip=True)
-                if not name:
-                    continue
-
-                addr_el = card.select_one("span.address, [class*='address'], [itemprop='streetAddress']")
-                address = addr_el.get_text(strip=True) if addr_el else f"{city}, BC"
-                if "BC" not in address and "British Columbia" not in address:
-                    address = f"{address}, {city}, BC"
-
-                phone_el = card.select_one("span.phone, [class*='phone'], [itemprop='telephone']")
-                phone = phone_el.get_text(strip=True) if phone_el else ""
-
-                website_el = card.select_one("a.website-link, a[href*='http'][class*='web'], [class*='website'] a")
-                website = None
-                if website_el:
-                    href = website_el.get("href", "")
-                    if href.startswith("http") and "yellowpages.ca" not in href:
-                        website = href
-
-                rating_el = card.select_one("[class*='rating'], [itemprop='ratingValue']")
-                rating = None
-                if rating_el:
-                    try:
-                        rating = float(rating_el.get_text(strip=True).split()[0])
-                    except Exception:
-                        pass
-
-                review_el = card.select_one("[class*='review-count'], [itemprop='reviewCount']")
-                review_count = 0
-                if review_el:
-                    nums = re.findall(r"\d+", review_el.get_text())
-                    review_count = int(nums[0]) if nums else 0
-
-                businesses.append({
-                    "name":             name,
-                    "address":          address,
-                    "phone":            phone,
-                    "existing_website": website,
-                    "rating":           rating,
-                    "review_count":     review_count,
-                    "photos_count":     0,
-                    "category":         business_type,
-                    "city":             city,
-                    "source":           "yellowpages",
-                })
-
-                if len(businesses) >= max_results:
-                    break
-
-            except Exception:
-                continue
-
-        page += 1
-        time.sleep(0.5)
+        businesses.append({
+            "name":             name,
+            "address":          address,
+            "phone":            phone,
+            "existing_website": website,
+            "rating":           None,
+            "review_count":     0,
+            "photos_count":     0,
+            "category":         business_type,
+            "city":             city,
+            "source":           "openstreetmap",
+        })
 
     return businesses
+
+
+def _osm_tags_for(business_type: str) -> list:
+    """Map a plain-English business type to OpenStreetMap tag key/value pairs."""
+    bt = business_type.lower()
+    mapping = [
+        (["plumb"],                         [("craft", "plumber")]),
+        (["electr"],                        [("craft", "electrician")]),
+        (["landscap", "garden", "lawn"],    [("craft", "gardener"), ("shop", "garden_centre")]),
+        (["hvac", "heating", "cooling"],    [("craft", "hvac")]),
+        (["roof"],                          [("craft", "roofer")]),
+        (["paint"],                         [("craft", "painter")]),
+        (["carpet", "floor"],               [("craft", "floorer")]),
+        (["window", "glass"],               [("craft", "glaziery")]),
+        (["restaurant", "dining"],          [("amenity", "restaurant")]),
+        (["cafe", "coffee"],                [("amenity", "cafe")]),
+        (["salon", "hair"],                 [("shop", "hairdresser")]),
+        (["barber"],                        [("shop", "barber")]),
+        (["nail"],                          [("shop", "nail_salon")]),
+        (["spa", "massage"],                [("leisure", "spa"), ("amenity", "massage")]),
+        (["dentist", "dental"],             [("amenity", "dentist")]),
+        (["physio"],                        [("amenity", "physiotherapist")]),
+        (["optician", "optical"],           [("shop", "optician")]),
+        (["mechanic", "auto repair", "car repair"], [("shop", "car_repair")]),
+        (["tire", "tyre"],                  [("shop", "tyres")]),
+        (["bakery", "baker"],               [("shop", "bakery")]),
+        (["butcher"],                       [("shop", "butcher")]),
+        (["grocery", "grocer"],             [("shop", "supermarket"), ("shop", "convenience")]),
+        (["pharmacy", "drug"],              [("amenity", "pharmacy")]),
+        (["gym", "fitness"],                [("leisure", "fitness_centre")]),
+        (["yoga"],                          [("leisure", "yoga")]),
+        (["clean", "laundry"],              [("shop", "dry_cleaning"), ("shop", "laundry")]),
+        (["accountant", "accounting"],      [("office", "accountant")]),
+        (["lawyer", "legal"],               [("office", "lawyer")]),
+        (["real estate", "realtor"],        [("office", "real_estate_agent")]),
+        (["insurance"],                     [("office", "insurance")]),
+        (["vet", "veterinar"],              [("amenity", "veterinary")]),
+        (["pet", "dog groom"],              [("shop", "pet"), ("shop", "pet_grooming")]),
+        (["photographer"],                  [("craft", "photographer")]),
+        (["tattoo"],                        [("shop", "tattoo")]),
+    ]
+    for keywords, tags in mapping:
+        if any(k in bt for k in keywords):
+            return tags
+    # Generic fallback — search by name keyword (less precise but broad)
+    return [("shop", business_type), ("craft", business_type), ("amenity", business_type)]
 
 
 def _demo_businesses(city, business_type):
