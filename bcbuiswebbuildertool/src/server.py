@@ -259,6 +259,20 @@ async def get_deployment(slug: str, request: Request):
     path = OUTPUT_DIR / slug / "deployment.json"
     return json.loads(path.read_text()) if path.exists() else {"live_url": None}
 
+@app.get("/preview/{slug}/{file_path:path}")
+async def preview_site(slug: str, file_path: str = "index.html"):
+    """Serve a generated site's files for in-dashboard preview (localhost only)."""
+    site_root = (OUTPUT_DIR / slug).resolve()
+    target = (site_root / (file_path or "index.html")).resolve()
+    if target.is_dir():
+        target = target / "index.html"
+    # Block path traversal outside the site directory
+    if not str(target).startswith(str(site_root)):
+        raise HTTPException(status_code=403)
+    if not target.exists():
+        raise HTTPException(status_code=404, detail="File not found - run Phase 3 first")
+    return FileResponse(str(target))
+
 
 if __name__ == "__main__":
     OUTPUT_DIR.mkdir(exist_ok=True)

@@ -89,6 +89,17 @@
     .result-card { background: var(--dark3); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1rem; display: flex; align-items: center; gap: 0.6rem; font-size: 0.82rem; }
     .result-card.ready { border-color: rgba(34,162,98,0.3); }
     .result-card a, .result-card button { color: var(--green); text-decoration: none; font-weight: 600; background: none; border: none; cursor: pointer; font-family: inherit; font-size: 0.82rem; padding: 0; }
+    .preview-overlay { display: none; position: fixed; inset: 0; z-index: 500; background: rgba(4,10,18,0.82); backdrop-filter: blur(4px); }
+    .preview-overlay.open { display: flex; flex-direction: column; }
+    .preview-toolbar { display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem 1rem; background: #0a1828; border-bottom: 1px solid var(--border); }
+    .preview-toolbar .pv-title { color: #fff; font-weight: 600; font-size: 0.9rem; margin-right: auto; }
+    .preview-toolbar button { background: var(--dark3); color: #8ab4cc; border: 1px solid var(--border); border-radius: 7px; padding: 0.45rem 0.9rem; font-family: inherit; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+    .preview-toolbar button.active { background: var(--green); color: #fff; border-color: var(--green); }
+    .preview-toolbar button.close-btn { color: #ff8080; }
+    .preview-stage { flex: 1; display: flex; align-items: center; justify-content: center; overflow: auto; padding: 1.25rem; }
+    .preview-frame-wrap { background: #fff; box-shadow: 0 20px 60px rgba(0,0,0,0.5); border-radius: 10px; overflow: hidden; transition: width 0.3s, height 0.3s; width: 100%; height: 100%; }
+    .preview-frame-wrap.mobile { width: 390px; height: 100%; max-height: 844px; border-radius: 26px; border: 8px solid #1a2735; }
+    .preview-frame-wrap iframe { width: 100%; height: 100%; border: 0; display: block; }
     .job-row { background: var(--dark3); border: 1px solid var(--border); border-radius: 8px; padding: 0.9rem 1rem; margin-bottom: 0.6rem; display: flex; align-items: center; gap: 1rem; }
     .job-status-badge { font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em; flex-shrink: 0; }
     .badge-done { background: var(--green-xl); color: var(--green); }
@@ -312,7 +323,8 @@
   function showResults(slug,result) {
     const bar=document.getElementById('results-bar');
     const liveUrl=result&&result.deployment&&result.deployment.live_url;
-    bar.innerHTML=`<div class="result-card ready"><span>PDF Report</span><button onclick="downloadPdf('${slug}')">Download</button></div>${liveUrl?`<div class="result-card ready"><span>Live Site</span><a href="${liveUrl}" target="_blank">${liveUrl}</a></div>`:''}<div class="result-card"><span style="color:var(--muted)">Files saved to output/${slug}/</span></div>`;
+    const builtSite=result&&result.site_dir;
+    bar.innerHTML=`${builtSite?`<div class="result-card ready"><span>Website</span><button onclick="openPreview('${slug}')">Preview</button></div>`:''}<div class="result-card ready"><span>PDF Report</span><button onclick="downloadPdf('${slug}')">Download</button></div>${liveUrl?`<div class="result-card ready"><span>Live Site</span><a href="${liveUrl}" target="_blank">${liveUrl}</a></div>`:''}<div class="result-card"><span style="color:var(--muted)">Files saved to output/${slug}/</span></div>`;
     bar.style.display='flex';
   }
 
@@ -362,6 +374,40 @@
   function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
   function slugify(s){return s.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');}
   setInterval(refreshSidebarJobs,3000);
+
+  // ── Site preview ──────────────────────────────────────────────
+  function openPreview(slug){
+    document.getElementById('pv-title').textContent='Preview: '+slug;
+    const frame=document.getElementById('pv-frame');
+    frame.src='/preview/'+slug+'/index.html?t='+Date.now();
+    setPreviewMode('desktop');
+    document.getElementById('preview-overlay').classList.add('open');
+  }
+  function closePreview(){
+    document.getElementById('preview-overlay').classList.remove('open');
+    document.getElementById('pv-frame').src='about:blank';
+  }
+  function setPreviewMode(mode){
+    const wrap=document.getElementById('pv-wrap');
+    wrap.classList.toggle('mobile',mode==='mobile');
+    document.getElementById('pv-desktop').classList.toggle('active',mode==='desktop');
+    document.getElementById('pv-mobile').classList.toggle('active',mode==='mobile');
+  }
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') closePreview(); });
 </script>
+
+<div class="preview-overlay" id="preview-overlay">
+  <div class="preview-toolbar">
+    <span class="pv-title" id="pv-title">Preview</span>
+    <button id="pv-desktop" class="active" onclick="setPreviewMode('desktop')">🖥 Desktop</button>
+    <button id="pv-mobile" onclick="setPreviewMode('mobile')">📱 Mobile</button>
+    <button class="close-btn" onclick="closePreview()">✕ Close</button>
+  </div>
+  <div class="preview-stage">
+    <div class="preview-frame-wrap" id="pv-wrap">
+      <iframe id="pv-frame" src="about:blank" title="Site preview"></iframe>
+    </div>
+  </div>
+</div>
 </body>
 </html>
