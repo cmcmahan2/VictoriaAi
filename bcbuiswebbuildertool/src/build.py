@@ -238,16 +238,25 @@ def _template_content(business: dict, profile: dict) -> dict:
             services = service_map[key]
             break
 
+    # Normalise person-nouns to trade nouns so headlines read naturally:
+    # "landscaper" -> "Landscaping", "plumber" -> "Plumbing", etc.
+    trade_nouns = {
+        "landscaper": "Landscaping", "plumber": "Plumbing",
+        "electrician": "Electrical", "roofer": "Roofing",
+        "painter": "Painting", "mechanic": "Auto Repair",
+        "contractor": "Contracting", "barber": "Barber",
+    }
+    trade = next((v for k, v in trade_nouns.items() if k in cat_key), category.title())
     # Avoid awkward doubling like "Trusted Services Services in ..."
-    cat_title = category.title()
-    headline = (f"Trusted {cat_title} in {city}"
-                if "service" in cat_key
-                else f"Trusted {cat_title} Services in {city}")
+    headline = (f"Trusted {trade} in {city}"
+                if ("service" in cat_key or "service" in trade.lower())
+                else f"Trusted {trade} Services in {city}")
 
+    service_noun = trade.lower()
     return {
         "headline": headline,
-        "tagline": f"Professional, reliable {category} serving {city} and the surrounding area.",
-        "about_paragraph": f"{name} proudly serves the {city} community with top-quality {category}. Our experienced team delivers honest, dependable work at fair prices. We treat every customer like a neighbour.",
+        "tagline": f"Professional, reliable {service_noun} serving {city} and the surrounding area.",
+        "about_paragraph": f"{name} proudly serves the {city} community with top-quality {service_noun}. Our experienced team delivers honest, dependable work at fair prices. We treat every customer like a neighbour.",
         "services": services,
         "cta_text": "Get a Free Quote",
         "trust_line": f"Proudly serving {city}, BC and surrounding areas",
@@ -832,29 +841,71 @@ def _esc(s) -> str:
 
 # Maps a business category to good stock-photo search keywords so the filler
 # images actually match the type of business.
+# A single strong tag per business category. loremflickr matches photos far
+# more reliably with one specific tag than with several OR'd together.
 _IMG_KEYWORDS = {
-    "plumber":      "plumbing,pipes",
-    "electrician":  "electrician,wiring",
-    "landscaper":   "landscaping,garden",
-    "landscaping":  "landscaping,garden",
-    "garden":       "garden,plants,nursery",
-    "nursery":      "garden,plants,nursery",
-    "hvac":         "hvac,heating",
-    "roofer":       "roofing,roof",
-    "roofing":      "roofing,roof",
-    "painter":      "painting,interior",
-    "cleaning":     "cleaning,home",
-    "salon":        "hair,salon",
-    "barber":       "barber,haircut",
-    "spa":          "spa,massage",
-    "dentist":      "dental,clinic",
-    "restaurant":   "restaurant,food",
-    "cafe":         "cafe,coffee",
-    "bakery":       "bakery,bread",
-    "mechanic":     "auto,repair,garage",
-    "fitness":      "gym,fitness",
-    "construction": "construction,builder",
-    "contractor":   "construction,builder",
+    "plumber":      "plumbing",
+    "plumbing":     "plumbing",
+    "electrician":  "electrician",
+    "electrical":   "electrician",
+    "landscaper":   "landscaping",
+    "landscaping":  "landscaping",
+    "garden":       "garden",
+    "nursery":      "plant-nursery",
+    "hvac":         "hvac",
+    "heating":      "hvac",
+    "roofer":       "roofing",
+    "roofing":      "roofing",
+    "painter":      "house-painting",
+    "painting":     "house-painting",
+    "cleaning":     "house-cleaning",
+    "salon":        "hair-salon",
+    "barber":       "barbershop",
+    "spa":          "day-spa",
+    "dentist":      "dentist",
+    "restaurant":   "restaurant",
+    "cafe":         "coffee-shop",
+    "bakery":       "bakery",
+    "mechanic":     "auto-repair",
+    "auto":         "auto-repair",
+    "fitness":      "gym",
+    "construction": "construction-site",
+    "contractor":   "construction-site",
+}
+
+# Maps words found in a SERVICE name to a specific photo tag, so each card gets
+# a relevant image instead of all cards sharing the business category.
+_SERVICE_IMG_KEYWORDS = {
+    "lawn":        "lawn-mowing",
+    "mowing":      "lawn-mowing",
+    "garden":      "flower-garden",
+    "planting":    "flower-garden",
+    "hardscap":    "stone-patio",
+    "patio":       "stone-patio",
+    "paving":      "stone-patio",
+    "tree":        "tree-pruning",
+    "shrub":       "garden-hedge",
+    "hedge":       "garden-hedge",
+    "irrigation":  "garden-sprinkler",
+    "sprinkler":   "garden-sprinkler",
+    "cleanup":     "raking-leaves",
+    "seasonal":    "raking-leaves",
+    "drain":       "plumbing",
+    "pipe":        "plumbing",
+    "leak":        "plumbing",
+    "wiring":      "electrician",
+    "lighting":    "light-fixture",
+    "panel":       "electrician",
+    "roof":        "roofing",
+    "gutter":      "roofing",
+    "paint":       "house-painting",
+    "haircut":     "haircut",
+    "color":       "hair-salon",
+    "massage":     "massage",
+    "facial":      "day-spa",
+    "repair":      "repair-tools",
+    "install":     "repair-tools",
+    "maintenance": "repair-tools",
 }
 
 
@@ -863,18 +914,27 @@ def _img_keywords(category: str) -> str:
     for key, kw in _IMG_KEYWORDS.items():
         if key in cat:
             return kw
-    # Fall back to the category itself (single word) or a generic business image
     word = re.sub(r"[^a-z]+", "", cat.split()[0]) if cat.strip() else ""
-    return f"{word},business" if word else "local,business"
+    return word or "local-business"
+
+
+def _service_img_keywords(service_name: str, fallback: str) -> str:
+    name = (service_name or "").lower()
+    for key, kw in _SERVICE_IMG_KEYWORDS.items():
+        if key in name:
+            return kw
+    return fallback
 
 
 def _img(keywords: str, w: int, h: int, seed: str = "") -> str:
     """
     Return a keyword-matched filler image URL. Uses loremflickr.com, which
-    serves Creative-Commons photos matching the keywords with no API key.
-    A stable seed (e.g. service name) keeps the same image across rebuilds.
+    serves Creative-Commons photos matching the tag with no API key. A stable
+    seed (e.g. service name) keeps the same image across rebuilds. The /all
+    path segment forces every comma-separated tag to match, cutting down on
+    unrelated results.
     """
-    base = f"https://loremflickr.com/{w}/{h}/{keywords}"
+    base = f"https://loremflickr.com/{w}/{h}/{keywords}/all"
     if seed:
         lock = abs(hash(seed)) % 9999
         return f"{base}?lock={lock}"
@@ -906,7 +966,7 @@ def _write_index(business: dict, profile: dict, content: dict, site_dir: Path) -
 
     service_cards = "\n".join(
         f"""<div class="service-card">
-  <img class="service-img" src="{_esc(_img(keywords, 400, 260, seed=s.get('name','')))}" alt="{_esc(s.get('name','Service'))}" loading="lazy" />
+  <img class="service-img" src="{_esc(_img(_service_img_keywords(s.get('name',''), keywords), 400, 260, seed=s.get('name','')))}" alt="{_esc(s.get('name','Service'))}" loading="lazy" />
   <div class="service-card-body">
     <div class="service-icon">{_esc(s.get("icon","🔧"))}</div>
     <h3>{_esc(s.get("name","Service"))}</h3>
