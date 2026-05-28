@@ -109,10 +109,11 @@ def discover_businesses(
             print(f"[discovery] OpenStreetMap failed ({exc}) - falling back to demo")
 
     if not businesses:
-        if demo_mode or True:
+        if demo_mode:
             print(f"[discovery] Demo mode - generating sample leads for {business_type} in {city}, BC")
             businesses = _demo_businesses(city, business_type)
         else:
+            print(f"[discovery] No results found for {business_type} in {city} - try a different city or business type")
             return []
 
     print(f"[discovery] Checking website health for {len(businesses)} businesses...")
