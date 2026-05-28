@@ -71,6 +71,7 @@ def discover_businesses(
     """
     google_key = os.getenv("GOOGLE_MAPS_API_KEY")
     yelp_key   = os.getenv("YELP_API_KEY")
+    fsq_key    = os.getenv("FOURSQUARE_API_KEY")
     demo_mode  = os.getenv("DEMO_MODE", "").lower() in ("1", "true", "yes")
 
     businesses: list[dict] = []
@@ -91,8 +92,16 @@ def discover_businesses(
         except Exception as exc:
             print(f"[discovery] Yelp API failed ({exc}) - trying next tier")
 
+    if not businesses and fsq_key:
+        print(f"[discovery] Tier 3 - Foursquare Places API: {business_type} in {city}, BC")
+        try:
+            businesses = _discover_via_foursquare(city, business_type, radius_km, max_results, fsq_key)
+            print(f"[discovery] Foursquare: {len(businesses)} results")
+        except Exception as exc:
+            print(f"[discovery] Foursquare failed ({exc}) - trying next tier")
+
     if not businesses:
-        print(f"[discovery] Tier 3 - OpenStreetMap: {business_type} in {city}, BC")
+        print(f"[discovery] Tier 4 - OpenStreetMap: {business_type} in {city}, BC")
         try:
             businesses = _discover_via_openstreetmap(city, business_type, radius_km, max_results)
             print(f"[discovery] OpenStreetMap: {len(businesses)} real businesses found")
@@ -214,6 +223,78 @@ def _discover_via_yelp(city, business_type, max_results, api_key):
         if offset >= data.get("total", 0) or len(businesses) >= max_results:
             break
         time.sleep(0.3)
+
+    return businesses[:max_results]
+
+
+def _discover_via_foursquare(city: str, business_type: str, radius_km: int, max_results: int, api_key: str) -> list[dict]:
+    """
+    Tier 3: Foursquare Places API v3.
+    Free tier: 1000 calls/day. Sign up at foursquare.com/developer (Gmail OK).
+    Add FOURSQUARE_API_KEY to .env
+    """
+    url = "https://api.foursquare.com/v3/places/search"
+    headers = {
+        "Authorization": api_key,
+        "Accept": "application/json",
+    }
+    businesses = []
+    offset = 0
+    limit = min(50, max_results)
+
+    while len(businesses) < max_results:
+        params = {
+            "query":  business_type,
+            "near":   f"{city}, BC, Canada",
+            "limit":  limit,
+            "fields": "name,location,tel,website,rating,stats,categories",
+        }
+        if offset:
+            params["cursor"] = offset
+
+        resp = requests.get(url, headers=headers, params=params, timeout=12)
+        resp.raise_for_status()
+        data = resp.json()
+        results = data.get("results", [])
+        if not results:
+            break
+
+        for r in results:
+            loc = r.get("location", {})
+            address_parts = [
+                loc.get("address", ""),
+                loc.get("locality", city),
+                loc.get("region", "BC"),
+            ]
+            address = ", ".join(p for p in address_parts if p)
+
+            phone   = r.get("tel", "")
+            website = r.get("website")
+            rating  = r.get("rating")
+            stats   = r.get("stats", {})
+            reviews = stats.get("total_ratings", 0) or 0
+
+            businesses.append({
+                "name":             r.get("name", ""),
+                "address":          address,
+                "phone":            phone,
+                "existing_website": website,
+                "rating":           rating,
+                "review_count":     reviews,
+                "photos_count":     0,
+                "category":         business_type,
+                "city":             city,
+                "source":           "foursquare",
+            })
+
+            if len(businesses) >= max_results:
+                break
+
+        cursor = data.get("context", {}).get("next_cursor")
+        if not cursor or len(businesses) >= max_results:
+            break
+        offset = cursor
+        time.sleep(0.2)
 
     return businesses[:max_results]
 
