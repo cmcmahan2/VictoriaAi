@@ -244,13 +244,10 @@ def _discover_via_foursquare(city: str, business_type: str, radius_km: int, max_
 
     while len(businesses) < max_results:
         params = {
-            "query":  business_type,
-            "near":   f"{city}, BC, Canada",
-            "limit":  limit,
-            "fields": "name,location,tel,website,rating,stats,categories",
+            "query": business_type,
+            "near":  f"{city}, BC, Canada",
+            "limit": limit,
         }
-        if offset:
-            params["cursor"] = offset
 
         resp = requests.get(url, headers=headers, params=params, timeout=12)
         resp.raise_for_status()
@@ -271,8 +268,7 @@ def _discover_via_foursquare(city: str, business_type: str, radius_km: int, max_
             phone   = r.get("tel", "")
             website = r.get("website")
             rating  = r.get("rating")
-            stats   = r.get("stats", {})
-            reviews = stats.get("total_ratings", 0) or 0
+            reviews = r.get("popularity", 0) or 0
 
             businesses.append({
                 "name":             r.get("name", ""),
