@@ -92,12 +92,18 @@ def discover_businesses(
             print(f"[discovery] Yelp API failed ({exc}) - trying next tier")
 
     if not businesses:
-        if demo_mode or (not google_key and not yelp_key):
+        print(f"[discovery] Tier 3 - Yellow Pages Canada scrape: {business_type} in {city}, BC")
+        try:
+            businesses = _discover_via_yellowpages(city, business_type, max_results)
+            print(f"[discovery] Yellow Pages: {len(businesses)} real businesses found")
+        except Exception as exc:
+            print(f"[discovery] Yellow Pages scrape failed ({exc}) - falling back to demo")
+
+    if not businesses:
+        if demo_mode or True:
             print(f"[discovery] Demo mode - generating sample leads for {business_type} in {city}, BC")
-            print("[discovery] (Set GOOGLE_MAPS_API_KEY or YELP_API_KEY in .env for real data)")
             businesses = _demo_businesses(city, business_type)
         else:
-            print("[discovery] No API keys configured and demo mode is off - no results")
             return []
 
     print(f"[discovery] Checking website health for {len(businesses)} businesses...")
@@ -210,6 +216,106 @@ def _discover_via_yelp(city, business_type, max_results, api_key):
         time.sleep(0.3)
 
     return businesses[:max_results]
+
+
+def _discover_via_yellowpages(city: str, business_type: str, max_results: int) -> list[dict]:
+    """
+    Tier 3: Scrape Yellow Pages Canada (yellowpages.ca) for real local businesses.
+    No API key required. Respects a 0.5s delay between page requests.
+    """
+    from bs4 import BeautifulSoup
+
+    city_slug = city.lower().replace(" ", "-")
+    type_slug = business_type.lower().replace(" ", "-")
+    base_url  = f"https://www.yellowpages.ca/search/si/1/{quote_plus(business_type)}/{quote_plus(city)}+BC"
+
+    headers = dict(_HEADERS)
+    headers["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+
+    businesses = []
+    page = 1
+
+    while len(businesses) < max_results and page <= 5:
+        url = f"https://www.yellowpages.ca/search/si/{page}/{quote_plus(business_type)}/{quote_plus(city)}+BC"
+        try:
+            resp = requests.get(url, headers=headers, timeout=12)
+            if resp.status_code != 200:
+                break
+            soup = BeautifulSoup(resp.text, "html.parser")
+        except Exception as exc:
+            print(f"[discovery] YP page {page} failed: {exc}")
+            break
+
+        # Each listing card
+        cards = soup.select("div.listing__content, div[class*='listing-']")
+        if not cards:
+            # Try alternate selector
+            cards = soup.select("article.yp-listing, div.jsListingCard")
+        if not cards:
+            break
+
+        for card in cards:
+            try:
+                name_el = (card.select_one("a.business-name, h2.listing-name, [class*='business-name']")
+                           or card.select_one("a[href*='/bp/']"))
+                if not name_el:
+                    continue
+                name = name_el.get_text(strip=True)
+                if not name:
+                    continue
+
+                addr_el = card.select_one("span.address, [class*='address'], [itemprop='streetAddress']")
+                address = addr_el.get_text(strip=True) if addr_el else f"{city}, BC"
+                if "BC" not in address and "British Columbia" not in address:
+                    address = f"{address}, {city}, BC"
+
+                phone_el = card.select_one("span.phone, [class*='phone'], [itemprop='telephone']")
+                phone = phone_el.get_text(strip=True) if phone_el else ""
+
+                website_el = card.select_one("a.website-link, a[href*='http'][class*='web'], [class*='website'] a")
+                website = None
+                if website_el:
+                    href = website_el.get("href", "")
+                    if href.startswith("http") and "yellowpages.ca" not in href:
+                        website = href
+
+                rating_el = card.select_one("[class*='rating'], [itemprop='ratingValue']")
+                rating = None
+                if rating_el:
+                    try:
+                        rating = float(rating_el.get_text(strip=True).split()[0])
+                    except Exception:
+                        pass
+
+                review_el = card.select_one("[class*='review-count'], [itemprop='reviewCount']")
+                review_count = 0
+                if review_el:
+                    nums = re.findall(r"\d+", review_el.get_text())
+                    review_count = int(nums[0]) if nums else 0
+
+                businesses.append({
+                    "name":             name,
+                    "address":          address,
+                    "phone":            phone,
+                    "existing_website": website,
+                    "rating":           rating,
+                    "review_count":     review_count,
+                    "photos_count":     0,
+                    "category":         business_type,
+                    "city":             city,
+                    "source":           "yellowpages",
+                })
+
+                if len(businesses) >= max_results:
+                    break
+
+            except Exception:
+                continue
+
+        page += 1
+        time.sleep(0.5)
+
+    return businesses
 
 
 def _demo_businesses(city, business_type):
