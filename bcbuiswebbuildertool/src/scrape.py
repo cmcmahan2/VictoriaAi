@@ -89,7 +89,7 @@ def build_profile(business: dict, output_dir: str = "./research") -> Path:
     profile["summary"] = _build_summary(profile)
 
     path = profile_dir / "profile.json"
-    path.write_text(json.dumps(profile, indent=2, ensure_ascii=False))
+    path.write_text(json.dumps(profile, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"[Phase 2] Profile complete: {path}")
     return profile_dir
 

@@ -56,7 +56,7 @@ def build_website(profile_dir: str, output_dir: str = "./output") -> Path:
     if not profile_path.exists():
         raise FileNotFoundError(f"No profile.json found in {profile_dir}. Run Phase 2 first.")
 
-    profile  = json.loads(profile_path.read_text(encoding="utf-8"))
+    profile  = json.loads(profile_path.read_text(encoding="utf-8", errors="replace"))
     business = profile.get("business", {})
 
     slug     = _slugify(business.get("name", "unknown-business"))

@@ -5,8 +5,9 @@ Find BC businesses that have weak, outdated, or no web presence and are strong
 candidates for a new website. Uses a tiered discovery strategy:
 
   Tier 1: Google Maps Places API     (requires GOOGLE_MAPS_API_KEY)
-  Tier 2: Yelp Fusion API            (requires YELP_API_KEY - free at yelp.com/developers)
-  Tier 3: Demo mode                  (DEMO_MODE=true - realistic fake data for UI testing)
+  Tier 2: OpenStreetMap Overpass API (free, no key needed, real businesses)
+  Tier 3: Foursquare Places API      (requires FOURSQUARE_API_KEY)
+  Tier 4: Demo mode                  (DEMO_MODE=true - realistic fake data for UI testing)
 
 Each discovered business is scored 1-10 on web presence weakness. Higher = better lead.
 Results are written to ./output/leads.json, ranked highest score first.
@@ -70,7 +71,6 @@ def discover_businesses(
     Tries each tier in order, scoring and ranking all results.
     """
     google_key = os.getenv("GOOGLE_MAPS_API_KEY")
-    yelp_key   = os.getenv("YELP_API_KEY")
     fsq_key    = os.getenv("FOURSQUARE_API_KEY")
     demo_mode  = os.getenv("DEMO_MODE", "").lower() in ("1", "true", "yes")
 
@@ -84,13 +84,13 @@ def discover_businesses(
         except Exception as exc:
             print(f"[discovery] Google Places failed ({exc}) - trying next tier")
 
-    if not businesses and yelp_key:
-        print(f"[discovery] Tier 2 - Yelp Fusion API: {business_type} in {city}, BC")
+    if not businesses:
+        print(f"[discovery] Tier 2 - OpenStreetMap: {business_type} in {city}, BC")
         try:
-            businesses = _discover_via_yelp(city, business_type, max_results, yelp_key)
-            print(f"[discovery] Yelp: {len(businesses)} results")
+            businesses = _discover_via_openstreetmap(city, business_type, radius_km, max_results)
+            print(f"[discovery] OpenStreetMap: {len(businesses)} real businesses found")
         except Exception as exc:
-            print(f"[discovery] Yelp API failed ({exc}) - trying next tier")
+            print(f"[discovery] OpenStreetMap failed ({exc}) - trying next tier")
 
     if not businesses and fsq_key:
         print(f"[discovery] Tier 3 - Foursquare Places API: {business_type} in {city}, BC")
@@ -98,15 +98,7 @@ def discover_businesses(
             businesses = _discover_via_foursquare(city, business_type, radius_km, max_results, fsq_key)
             print(f"[discovery] Foursquare: {len(businesses)} results")
         except Exception as exc:
-            print(f"[discovery] Foursquare failed ({exc}) - trying next tier")
-
-    if not businesses:
-        print(f"[discovery] Tier 4 - OpenStreetMap: {business_type} in {city}, BC")
-        try:
-            businesses = _discover_via_openstreetmap(city, business_type, radius_km, max_results)
-            print(f"[discovery] OpenStreetMap: {len(businesses)} real businesses found")
-        except Exception as exc:
-            print(f"[discovery] OpenStreetMap failed ({exc}) - falling back to demo")
+            print(f"[discovery] Foursquare failed ({exc}) - no more tiers")
 
     if not businesses:
         if demo_mode:
@@ -184,59 +176,12 @@ def _discover_via_places_api(city, business_type, radius_km, max_results, api_ke
     return businesses
 
 
-def _discover_via_yelp(city, business_type, max_results, api_key):
-    """
-    Tier 2: Yelp Fusion API. Free tier: 500 calls/day.
-    Get a free key at: https://www.yelp.com/developers/v3/manage_app
-    """
-    url      = "https://api.yelp.com/v3/businesses/search"
-    location = f"{city}, BC, Canada"
-    headers  = {"Authorization": f"Bearer {api_key}"}
-    businesses = []
-    offset = 0
-    limit  = min(50, max_results)
-
-    while len(businesses) < max_results:
-        params = {"term": business_type, "location": location, "limit": limit, "offset": offset, "sort_by": "rating"}
-        resp = requests.get(url, headers=headers, params=params, timeout=10)
-        resp.raise_for_status()
-        data = resp.json()
-        batch = data.get("businesses", [])
-        if not batch:
-            break
-        for b in batch:
-            loc = b.get("location", {})
-            address_parts = [loc.get("address1", ""), loc.get("city", ""), loc.get("state_code", "")]
-            businesses.append({
-                "name":             b.get("name", ""),
-                "address":          ", ".join(p for p in address_parts if p),
-                "phone":            b.get("display_phone", ""),
-                "existing_website": None,
-                "yelp_page":        b.get("url"),
-                "rating":           b.get("rating"),
-                "review_count":     b.get("review_count", 0),
-                "photos_count":     1 if b.get("image_url") else 0,
-                "category":         business_type,
-                "city":             city,
-                "source":           "yelp",
-            })
-        offset += len(batch)
-        if offset >= data.get("total", 0) or len(businesses) >= max_results:
-            break
-        time.sleep(0.3)
-
-    return businesses[:max_results]
-
 
 def _discover_via_foursquare(city: str, business_type: str, radius_km: int, max_results: int, api_key: str) -> list[dict]:
     """
-    Tier 3: Foursquare Places API (2025 endpoint).
-    Free tier: ~1000 calls/day. Sign up at foursquare.com/developer (Gmail OK).
+    Tier 3: Foursquare Places API v3.
+    Free tier: ~1000 calls/day. Key from developer.foursquare.com (starts with fsq3...).
     Add FOURSQUARE_API_KEY to .env
-
-    NOTE: The old api.foursquare.com/v3 endpoint was sunset in 2025 and now
-    returns 410 Gone. The current endpoint is places-api.foursquare.com with
-    Bearer auth and a dated X-Places-Api-Version header.
     """
     # Geocode city first using Nominatim
     geo_headers = {"User-Agent": "BCBuisWebBuilderTool/1.0 contact@victoriaai.ca"}
@@ -249,31 +194,61 @@ def _discover_via_foursquare(city: str, business_type: str, radius_km: int, max_
         raise RuntimeError(f"Could not geocode {city}")
     lat, lon = geo[0]["lat"], geo[0]["lon"]
 
-    url = "https://places-api.foursquare.com/places/search"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "X-Places-Api-Version": "2025-06-17",
-        "Accept": "application/json",
-    }
-    businesses = []
-    limit = min(50, max_results)
+    # Try Places API v3 first (standard free developer keys)
+    endpoints = [
+        {
+            "url": "https://api.foursquare.com/v3/places/search",
+            "headers": {
+                "Authorization": api_key,  # v3: no Bearer prefix
+                "Accept": "application/json",
+            },
+            "result_key": "results",
+        },
+        {
+            "url": "https://places-api.foursquare.com/places/search",
+            "headers": {
+                "Authorization": f"Bearer {api_key}",
+                "X-Places-Api-Version": "2025-06-17",
+                "Accept": "application/json",
+            },
+            "result_key": "results",
+        },
+    ]
 
+    limit = min(50, max_results)
     params = {
         "query":  business_type,
         "ll":     f"{lat},{lon}",
         "radius": radius_km * 1000,
         "limit":  limit,
     }
-    resp = requests.get(url, headers=headers, params=params, timeout=12)
-    print(f"[discovery] Foursquare status: {resp.status_code}")
-    resp.raise_for_status()
-    results = resp.json().get("results", [])
 
+    resp = None
+    results = []
+    for ep in endpoints:
+        try:
+            r = requests.get(ep["url"], headers=ep["headers"], params=params, timeout=12)
+            print(f"[discovery] Foursquare status: {r.status_code} ({ep['url'].split('/')[2]})")
+            if r.status_code == 200:
+                resp = r
+                results = r.json().get(ep["result_key"], [])
+                break
+            elif r.status_code in (401, 403, 410):
+                continue  # try next endpoint
+            else:
+                r.raise_for_status()
+        except requests.HTTPError:
+            continue
+
+    if not results:
+        raise RuntimeError("Foursquare: all endpoints failed (check your API key at developer.foursquare.com)")
+
+    businesses = []
     for r in results:
         loc = r.get("location", {})
         address = ", ".join(p for p in [
-            loc.get("address", ""),
-            loc.get("locality", city),
+            loc.get("address", loc.get("formatted_address", "")),
+            loc.get("locality", loc.get("city", city)),
             loc.get("region", "BC"),
         ] if p)
         businesses.append({
