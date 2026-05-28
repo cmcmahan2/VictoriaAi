@@ -233,64 +233,52 @@ def _discover_via_foursquare(city: str, business_type: str, radius_km: int, max_
     Free tier: 1000 calls/day. Sign up at foursquare.com/developer (Gmail OK).
     Add FOURSQUARE_API_KEY to .env
     """
+    # Geocode city first using Nominatim
+    geo_headers = {"User-Agent": "BCBuisWebBuilderTool/1.0 contact@victoriaai.ca"}
+    geo = requests.get(
+        "https://nominatim.openstreetmap.org/search",
+        params={"q": f"{city}, BC, Canada", "format": "json", "limit": 1},
+        headers=geo_headers, timeout=10,
+    ).json()
+    if not geo:
+        raise RuntimeError(f"Could not geocode {city}")
+    lat, lon = geo[0]["lat"], geo[0]["lon"]
+
     url = "https://api.foursquare.com/v3/places/search"
-    headers = {
-        "Authorization": api_key,
-        "Accept": "application/json",
-    }
+    headers = {"Authorization": api_key, "Accept": "application/json"}
     businesses = []
-    offset = 0
     limit = min(50, max_results)
 
-    while len(businesses) < max_results:
-        params = {
-            "query": business_type,
-            "near":  f"{city}, BC, Canada",
-            "limit": limit,
-        }
+    params = {
+        "query":  business_type,
+        "ll":     f"{lat},{lon}",
+        "radius": radius_km * 1000,
+        "limit":  limit,
+    }
+    resp = requests.get(url, headers=headers, params=params, timeout=12)
+    print(f"[discovery] Foursquare status: {resp.status_code}")
+    resp.raise_for_status()
+    results = resp.json().get("results", [])
 
-        resp = requests.get(url, headers=headers, params=params, timeout=12)
-        resp.raise_for_status()
-        data = resp.json()
-        results = data.get("results", [])
-        if not results:
-            break
-
-        for r in results:
-            loc = r.get("location", {})
-            address_parts = [
-                loc.get("address", ""),
-                loc.get("locality", city),
-                loc.get("region", "BC"),
-            ]
-            address = ", ".join(p for p in address_parts if p)
-
-            phone   = r.get("tel", "")
-            website = r.get("website")
-            rating  = r.get("rating")
-            reviews = r.get("popularity", 0) or 0
-
-            businesses.append({
-                "name":             r.get("name", ""),
-                "address":          address,
-                "phone":            phone,
-                "existing_website": website,
-                "rating":           rating,
-                "review_count":     reviews,
-                "photos_count":     0,
-                "category":         business_type,
-                "city":             city,
-                "source":           "foursquare",
-            })
-
-            if len(businesses) >= max_results:
-                break
-
-        cursor = data.get("context", {}).get("next_cursor")
-        if not cursor or len(businesses) >= max_results:
-            break
-        offset = cursor
-        time.sleep(0.2)
+    for r in results:
+        loc = r.get("location", {})
+        address = ", ".join(p for p in [
+            loc.get("address", ""),
+            loc.get("locality", city),
+            loc.get("region", "BC"),
+        ] if p)
+        businesses.append({
+            "name":             r.get("name", ""),
+            "address":          address or f"{city}, BC",
+            "phone":            r.get("tel", ""),
+            "existing_website": r.get("website"),
+            "rating":           r.get("rating"),
+            "review_count":     0,
+            "photos_count":     0,
+            "category":         business_type,
+            "city":             city,
+            "source":           "foursquare",
+        })
 
     return businesses[:max_results]
 
