@@ -6,26 +6,51 @@ export const metadata: Metadata = {
   description: 'AI-powered wholesale real estate deal scoring for US markets',
 };
 
+// Runs in <head> before the Next.js runtime registers its own error handlers,
+// so our capture-phase listeners fire first and can swallow noise thrown by
+// browser extensions (MetaMask, etc.) that would otherwise trip the dev overlay.
+const SUPPRESS_EXTENSION_ERRORS = `
+(function () {
+  function isExtensionNoise(s) {
+    if (!s) return false;
+    return (
+      s.indexOf('MetaMask') !== -1 ||
+      s.indexOf('chrome-extension') !== -1 ||
+      s.indexOf('moz-extension') !== -1 ||
+      s.indexOf('inpage.js') !== -1 ||
+      s.indexOf('Failed to connect to MetaMask') !== -1
+    );
+  }
+  window.addEventListener('error', function (e) {
+    var msg = (e && e.message) || '';
+    var src = (e && e.filename) || '';
+    if (isExtensionNoise(msg) || isExtensionNoise(src)) {
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      return false;
+    }
+  }, true);
+  window.addEventListener('unhandledrejection', function (e) {
+    var reason = e && e.reason;
+    var msg = reason ? (reason.message || String(reason)) : '';
+    var stack = reason && reason.stack ? reason.stack : '';
+    if (isExtensionNoise(msg) || isExtensionNoise(stack)) {
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      return false;
+    }
+  }, true);
+})();
+`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="dark">
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: SUPPRESS_EXTENSION_ERRORS }} />
+      </head>
       <body className="bg-[#0d1117] text-gray-100 min-h-screen antialiased">
         {children}
-        {/* Suppress browser extension errors (e.g. MetaMask) from surfacing as Next.js overlays */}
-        <script dangerouslySetInnerHTML={{ __html: `
-          window.addEventListener('error', function(e) {
-            if (e && e.message && (
-              e.message.includes('MetaMask') ||
-              e.message.includes('chrome-extension') ||
-              e.message.includes('moz-extension')
-            )) { e.stopImmediatePropagation(); e.preventDefault(); }
-          }, true);
-          window.addEventListener('unhandledrejection', function(e) {
-            if (e && e.reason && String(e.reason).includes('MetaMask')) {
-              e.preventDefault();
-            }
-          });
-        `}} />
       </body>
     </html>
   );
