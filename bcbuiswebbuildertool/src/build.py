@@ -66,27 +66,27 @@ THEMES: dict[str, dict] = {
         "hero_overlay": "linear-gradient(135deg, rgba(15,30,48,0.86) 0%, rgba(26,58,92,0.86) 100%)",
         "css": "",
     },
-    # Fresh / organic: purple-lavender palette (inspired by Blossom Vancouver),
-    # elegant serif headings, photo-forward hero, Before/After slider.
-    # Built for landscapers, gardeners, nurseries.
+    # Fresh / organic: natural greens, elegant serif headings, photo-forward
+    # hero, Before/After slider. Template structure inspired by Blossom
+    # Vancouver. Built for landscapers, gardeners, nurseries.
     "fresh": {
         "name": "fresh",
         "display_font": "'Fraunces', Georgia, serif",
         "radius": "22px",
         "palette": {
-            "--green": "#7c5cbf", "--green2": "#6346a8",
-            "--navy": "#2d1f52", "--dark": "#1a1130", "--dark2": "#211540",
-            "--light": "#f5f3ff", "--muted": "#6b5b8e",
-            "--text": "#1f1535", "--border": "#e3ddf5",
+            "--green": "#3a9d5d", "--green2": "#2c7d47",
+            "--navy": "#1f3d2a", "--dark": "#11271a", "--dark2": "#16331f",
+            "--light": "#f2f7ee", "--muted": "#5e7567",
+            "--text": "#1b2a20", "--border": "#dde7d8",
         },
-        # Soft overlay so the greenery/garden photography shows through.
-        "hero_overlay": "linear-gradient(180deg, rgba(26,17,48,0.42) 0%, rgba(26,17,48,0.74) 100%)",
+        # Lighter overlay so the greenery photography shows through.
+        "hero_overlay": "linear-gradient(180deg, rgba(17,39,26,0.38) 0%, rgba(17,39,26,0.72) 100%)",
         "css": (
             ".theme-fresh .hero::after{display:none}"
             ".theme-fresh .hero::before{background:"
-            "radial-gradient(520px 380px at 15% 20%, rgba(124,92,191,0.28), transparent 70%),"
-            "radial-gradient(520px 380px at 85% 30%, rgba(150,110,220,0.20), transparent 70%);}"
-            ".theme-fresh .page-hero::after{background:radial-gradient(420px 260px at 80% 0%, rgba(124,92,191,0.22), transparent 65%);}"
+            "radial-gradient(520px 380px at 15% 20%, rgba(58,157,93,0.28), transparent 70%),"
+            "radial-gradient(520px 380px at 85% 30%, rgba(120,175,90,0.20), transparent 70%);}"
+            ".theme-fresh .page-hero::after{background:radial-gradient(420px 260px at 80% 0%, rgba(58,157,93,0.22), transparent 65%);}"
             # Before/After slider component styles
             ".ba-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:2rem;margin-top:2.5rem}"
             ".ba-wrap{position:relative;overflow:hidden;border-radius:var(--radius);cursor:col-resize;touch-action:none;user-select:none;box-shadow:var(--shadow-lg)}"
