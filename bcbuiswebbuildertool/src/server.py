@@ -48,6 +48,13 @@ class DiscoverRequest(BaseModel):
     radius_km: int = 15
     max_results: int = 50
 
+class BrowserDiscoverRequest(BaseModel):
+    city: str
+    business_type: str
+    neighborhood: str = ""
+    max_results: int = 20
+    headless: bool = True
+
 class PipelineRequest(BaseModel):
     name: str
     address: str
@@ -169,6 +176,50 @@ async def start_discovery(data: DiscoverRequest, request: Request):
         return {"leads_count": len(leads), "leads": leads}
     _run(job_id, _go)
     return {"job_id": job_id}
+
+@app.post("/api/discover/browser")
+async def start_browser_discovery(data: BrowserDiscoverRequest, request: Request):
+    require_auth(request)
+    from browser_discovery import browser_discover_sync
+    from discovery import _score_business, save_leads
+    from export import save_leads_spreadsheet
+    label = data.neighborhood or data.city
+    job_id = _new_job(f"Browser Discover: {data.business_type} in {label}, BC")
+    def _go():
+        print(f"[Browser] Searching Google Maps: {data.business_type} near {label}, BC")
+        leads = browser_discover_sync(data.city, data.business_type, data.neighborhood, data.max_results, data.headless)
+        scored = [_score_business(b) for b in leads]
+        ranked = sorted(scored, key=lambda b: b["score"], reverse=True)
+        for i, b in enumerate(ranked, 1):
+            b["rank"] = i
+        save_leads(ranked, str(OUTPUT_DIR))
+        xlsx_path, csv_path = save_leads_spreadsheet(ranked, str(OUTPUT_DIR))
+        print(f"[Browser] Complete — {len(ranked)} leads. Spreadsheet saved.")
+        return {"leads_count": len(ranked), "leads": ranked, "xlsx_path": xlsx_path, "csv_path": csv_path}
+    _run(job_id, _go)
+    return {"job_id": job_id}
+
+@app.get("/api/discover/browser/download/{job_id}/xlsx")
+async def download_browser_xlsx(job_id: str, request: Request):
+    require_auth(request)
+    job = JOBS.get(job_id)
+    if not job or job["status"] != "done" or not job.get("result"):
+        raise HTTPException(status_code=404, detail="Job not found or not complete")
+    path = Path(job["result"]["xlsx_path"])
+    if not path.exists() or not str(path.resolve()).startswith(str(OUTPUT_DIR.resolve())):
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(str(path), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename=path.name)
+
+@app.get("/api/discover/browser/download/{job_id}/csv")
+async def download_browser_csv(job_id: str, request: Request):
+    require_auth(request)
+    job = JOBS.get(job_id)
+    if not job or job["status"] != "done" or not job.get("result"):
+        raise HTTPException(status_code=404, detail="Job not found or not complete")
+    path = Path(job["result"]["csv_path"])
+    if not path.exists() or not str(path.resolve()).startswith(str(OUTPUT_DIR.resolve())):
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(str(path), media_type="text/csv", filename=path.name)
 
 @app.get("/api/leads")
 async def get_leads(request: Request):

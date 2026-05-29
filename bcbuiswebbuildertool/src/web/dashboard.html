@@ -118,6 +118,7 @@
   <div class="brand">BC<span>BUI</span>WEBBUILDERTOOL</div>
   <div class="nav-tabs">
     <button class="tab-btn active" onclick="switchTab('discover')">Discover</button>
+    <button class="tab-btn" onclick="switchTab('browser')">Browser</button>
     <button class="tab-btn" onclick="switchTab('pipeline')">Pipeline</button>
     <button class="tab-btn" onclick="switchTab('jobs')">Jobs</button>
   </div>
@@ -149,6 +150,17 @@
       <button class="btn-search" id="search-btn" onclick="startDiscover()">Search</button>
     </div>
     <div class="sidebar-section">
+      <div class="sidebar-label">Browser Discovery (No API Key)</div>
+      <div class="field"><label>City</label><input type="text" id="b-city" placeholder="e.g. Vancouver" /></div>
+      <div class="field"><label>Neighborhood (optional)</label><input type="text" id="b-hood" placeholder="e.g. Kitsilano" /></div>
+      <div class="field">
+        <label>Business Type</label>
+        <input type="text" id="b-type" placeholder="e.g. plumber" list="type-suggestions" />
+      </div>
+      <div class="field"><label>Max Results</label><input type="number" id="b-max" value="20" min="1" max="50" /></div>
+      <button class="btn-search" id="browser-btn" onclick="startBrowserDiscover()">Run Browser Discovery</button>
+    </div>
+    <div class="sidebar-section">
       <div class="sidebar-label">Recent Jobs</div>
       <div id="jobs-sidebar"><div class="no-jobs">No jobs yet</div></div>
     </div>
@@ -160,6 +172,24 @@
       <div class="table-wrap" id="leads-wrap">
         <div class="empty-state"><p>Enter a city and business type in the sidebar,<br>then click Search to find leads.</p></div>
       </div>
+    </div>
+    <div class="tab-panel" id="tab-browser">
+      <div class="panel-title">Browser Discovery Results</div>
+      <p class="panel-sub">Live Google Maps scraping &mdash; no API key required. Results also saved to leads.json.</p>
+      <div class="terminal">
+        <div class="terminal-bar">
+          <div class="terminal-dot" style="background:#ff5f57"></div>
+          <div class="terminal-dot" style="background:#ffbd2e"></div>
+          <div class="terminal-dot" style="background:#28c840"></div>
+          <span id="browser-terminal-label">Browser discovery log</span>
+        </div>
+        <div class="terminal-body" id="browser-terminal"><span style="color:var(--muted)">Waiting for browser discovery to start...</span></div>
+      </div>
+      <div id="browser-downloads" style="display:none;" class="results-bar">
+        <div class="result-card ready"><span>Excel Spreadsheet</span><button onclick="downloadBrowserFile('xlsx')">Download .xlsx</button></div>
+        <div class="result-card ready"><span>CSV Export</span><button onclick="downloadBrowserFile('csv')">Download .csv</button></div>
+      </div>
+      <div class="table-wrap" id="browser-leads-wrap" style="margin-top:1.25rem;"></div>
     </div>
     <div class="tab-panel" id="tab-pipeline">
       <div class="panel-title" id="pipeline-title">Pipeline</div>
@@ -394,6 +424,83 @@
     document.getElementById('pv-mobile').classList.toggle('active',mode==='mobile');
   }
   document.addEventListener('keydown',e=>{ if(e.key==='Escape') closePreview(); });
+
+  // ── Browser Discovery ─────────────────────────────────────────
+  let activeBrowserJobId = '';
+  async function startBrowserDiscover() {
+    const city = document.getElementById('b-city').value.trim();
+    const type = document.getElementById('b-type').value.trim();
+    const hood = document.getElementById('b-hood').value.trim();
+    if (!city || !type) { toast('Enter a city and business type', 'error'); return; }
+    const btn = document.getElementById('browser-btn');
+    btn.disabled = true; btn.textContent = 'Running...';
+    document.getElementById('browser-downloads').style.display = 'none';
+    document.getElementById('browser-terminal').innerHTML = '';
+    document.getElementById('browser-leads-wrap').innerHTML = '';
+    switchTab('browser');
+    setStatus('Browser discovery running...', true);
+    try {
+      const res = await api('/api/discover/browser', { method:'POST', body:{
+        city, business_type:type, neighborhood:hood, max_results:+document.getElementById('b-max').value
+      }});
+      const { job_id } = await res.json();
+      activeBrowserJobId = job_id;
+      addJobToSidebar(job_id, `Browser: ${type} in ${hood||city}`);
+      const es = new EventSource(`/api/jobs/${job_id}/stream?token=${token}`);
+      const term = document.getElementById('browser-terminal');
+      es.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+        if (data.type === 'log') {
+          const entry = data.entry;
+          const cls = entry.msg.includes('Error')||entry.msg.includes('error') ? 'error'
+                    : entry.msg.includes('Complete')||entry.msg.includes('Done')||entry.msg.includes('saved') ? 'success' : '';
+          term.innerHTML += `<div><span class="log-ts">${esc(entry.ts)}</span><span class="log-msg ${cls}">${esc(entry.msg)}</span></div>`;
+          term.scrollTop = term.scrollHeight;
+        } else if (data.type === 'done') {
+          es.close(); refreshSidebarJobs();
+          btn.disabled = false; btn.textContent = 'Run Browser Discovery'; setStatus('Ready');
+          if (data.status === 'done' && data.result) {
+            document.getElementById('browser-downloads').style.display = 'flex';
+            renderBrowserLeads(data.result.leads || []);
+            toast(`Browser discovery complete — ${data.result.leads_count} leads`);
+          } else {
+            toast('Browser discovery failed: ' + (data.error || data.status), 'error');
+          }
+        }
+      };
+      es.onerror = () => { es.close(); refreshSidebarJobs(); btn.disabled=false; btn.textContent='Run Browser Discovery'; setStatus('Ready'); };
+    } catch(e) {
+      toast('Browser discovery failed: ' + e.message, 'error');
+      btn.disabled = false; btn.textContent = 'Run Browser Discovery'; setStatus('Ready');
+    }
+  }
+
+  function renderBrowserLeads(leads) {
+    const wrap = document.getElementById('browser-leads-wrap');
+    if (!leads || !leads.length) { wrap.innerHTML='<div class="empty-state"><p>No leads found. Try a different neighborhood or business type.</p></div>'; return; }
+    const rows = leads.map(l => {
+      const s=l.score||0; const cls=s>=7?'score-high':s>=4?'score-mid':'score-low';
+      const flags=(l.weakness_flags||[]).map(f=>`<span class="flag bad">${esc(f.replace(/_/g,' '))}</span>`).join('');
+      const mapLink = l.google_maps_url ? `<a href="${esc(l.google_maps_url)}" target="_blank" style="color:var(--green);font-size:0.75rem;">Maps</a>` : '';
+      return `<tr><td><span class="score-badge ${cls}">${s}</span></td><td style="font-weight:600;color:var(--white)">${esc(l.name||'')}</td><td style="color:var(--muted)">${esc(l.address||'')}</td><td>${flags||'<span class="flag">none</span>'}</td><td style="color:var(--muted)">${esc(l.phone||'')}</td><td>${mapLink}</td><td><button class="btn-run" onclick='openPipeline(${JSON.stringify(l)})'>Run Pipeline</button></td></tr>`;
+    }).join('');
+    wrap.innerHTML=`<table><thead><tr><th>Score</th><th>Name</th><th>Address</th><th>Weakness Flags</th><th>Phone</th><th>Maps</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
+  function downloadBrowserFile(format) {
+    if (!activeBrowserJobId) { toast('No browser discovery job active', 'error'); return; }
+    const url = `/api/discover/browser/download/${activeBrowserJobId}/${format}`;
+    api(url).then(r => {
+      if (!r.ok) { toast('File not ready yet', 'error'); return; }
+      return r.blob();
+    }).then(blob => {
+      if (!blob) return;
+      const u = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = u; a.download = `leads.${format}`; a.click();
+      setTimeout(() => URL.revokeObjectURL(u), 10000);
+    }).catch(e => toast('Download failed: ' + e.message, 'error'));
+  }
 </script>
 
 <div class="preview-overlay" id="preview-overlay">
