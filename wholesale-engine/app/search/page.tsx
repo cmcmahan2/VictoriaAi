@@ -5,12 +5,25 @@ import {
   Search, SlidersHorizontal, Building2, TrendingUp, DollarSign,
   AlertTriangle, ChevronDown, ChevronUp, X, Download, Bookmark,
   Map as MapIcon, List, Calculator, Bell, Users, CheckCircle, XCircle,
-  BookmarkCheck, Trash2,
+  BookmarkCheck, Trash2, ExternalLink, Sparkles, Wand2,
 } from 'lucide-react';
 import Link from 'next/link';
-import { cn, formatCurrency, scoreColor, scoreLabel } from '@/lib/utils';
+import { cn, formatCurrency, scoreColor, scoreLabel, listingUrl } from '@/lib/utils';
 import type { DealAnalysis } from '@/modules/deals/analysis';
-import type { SearchQuery, PropertyType } from '@/modules/properties/types';
+import type { SearchQuery, PropertyType, SearchFilters } from '@/modules/properties/types';
+
+type ParsedBuyBox = {
+  market: string | null;
+  zipCodes: string[] | null;
+  minPrice: number | null;
+  maxPrice: number | null;
+  minBedrooms: number | null;
+  propertyTypes: PropertyType[];
+  maxDaysOnMarket: number | null;
+  requireDistressSignals: boolean;
+  minScore: number | null;
+  summary: string;
+};
 
 type SearchResult = {
   analyses: DealAnalysis[];
@@ -41,6 +54,7 @@ type LocalFilters = {
   propertyTypes: PropertyType[];
   onlyDeals: boolean;
   minScore: string;
+  requireDistress: boolean;
 };
 
 type SavedSearch = {
@@ -53,7 +67,7 @@ type SavedSearch = {
 
 const DEFAULT_FILTERS: LocalFilters = {
   minPrice: '', maxPrice: '', minBedrooms: '', maxDom: '',
-  propertyTypes: [], onlyDeals: false, minScore: '',
+  propertyTypes: [], onlyDeals: false, minScore: '', requireDistress: false,
 };
 
 const PROPERTY_TYPES: PropertyType[] = ['SFR', 'MFR', 'Condo', 'Townhouse', 'Land'];
@@ -239,6 +253,10 @@ export default function SearchPage() {
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
   const [showSaved, setShowSaved] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [searchMode, setSearchMode] = useState<'quick' | 'buybox'>('quick');
+  const [buyBoxText, setBuyBoxText] = useState('');
+  const [parsing, setParsing] = useState(false);
+  const [interpreted, setInterpreted] = useState<{ summary: string; usedAi: boolean } | null>(null);
   const didAutoSearch = useRef(false);
 
   useEffect(() => { void loadSavedSearches(); }, []);
@@ -251,7 +269,7 @@ export default function SearchPage() {
     } catch { /* DB not configured */ }
   }
 
-  const runSearch = useCallback(async (market: string) => {
+  const runSearch = useCallback(async (market: string, serverFilters?: SearchFilters) => {
     if (!market.trim()) return;
     setLoading(true);
     setError(null);
@@ -262,6 +280,7 @@ export default function SearchPage() {
     const query: SearchQuery = isZips
       ? { zipCodes: market.split(',').map(z => z.trim()).filter(Boolean) }
       : { market: market.trim() };
+    if (serverFilters) query.filters = serverFilters;
 
     try {
       const res = await fetch('/api/properties', {
@@ -278,6 +297,59 @@ export default function SearchPage() {
       setLoading(false);
     }
   }, []);
+
+  // Buy box: parse a plain-English description into criteria, apply them as
+  // filters, then run the search for the detected market.
+  const runBuyBox = useCallback(async (text: string) => {
+    if (!text.trim()) return;
+    setParsing(true);
+    setError(null);
+    setInterpreted(null);
+    try {
+      const res = await fetch('/api/parse-query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      const data = (await res.json()) as { ok: boolean; parsed?: ParsedBuyBox; usedAi?: boolean; error?: string };
+      if (!data.ok || !data.parsed) throw new Error(data.error ?? 'Could not understand that — try rephrasing.');
+
+      const p = data.parsed;
+      const target = p.market ?? (p.zipCodes?.join(', ') ?? '');
+      if (!target) {
+        setError('I couldn\'t find a city or ZIP in that. Try including a market, e.g. "in Memphis, TN".');
+        return;
+      }
+
+      // Reflect parsed criteria in the filter sidebar
+      setFilters({
+        minPrice: p.minPrice != null ? String(p.minPrice) : '',
+        maxPrice: p.maxPrice != null ? String(p.maxPrice) : '',
+        minBedrooms: p.minBedrooms != null ? String(p.minBedrooms) : '',
+        maxDom: p.maxDaysOnMarket != null ? String(p.maxDaysOnMarket) : '',
+        propertyTypes: p.propertyTypes ?? [],
+        onlyDeals: false,
+        minScore: p.minScore != null ? String(p.minScore) : '',
+        requireDistress: p.requireDistressSignals,
+      });
+      setSearchInput(target);
+      setInterpreted({ summary: p.summary, usedAi: data.usedAi ?? false });
+
+      const serverFilters: SearchFilters = {
+        minPrice: p.minPrice ?? undefined,
+        maxPrice: p.maxPrice ?? undefined,
+        minBedrooms: p.minBedrooms ?? undefined,
+        propertyTypes: p.propertyTypes.length ? p.propertyTypes : undefined,
+        maxDaysOnMarket: p.maxDaysOnMarket ?? undefined,
+        requireDistressSignals: p.requireDistressSignals || undefined,
+      };
+      await runSearch(target, serverFilters);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not parse your description');
+    } finally {
+      setParsing(false);
+    }
+  }, [runSearch]);
 
   // Auto-search when arriving from Buyers "Match Deals" link (?markets=...)
   useEffect(() => {
@@ -354,13 +426,14 @@ export default function SearchPage() {
       if (filters.propertyTypes.length > 0 && !filters.propertyTypes.includes(p.propertyType)) return false;
       if (filters.onlyDeals && !a.isViableDeal) return false;
       if (filters.minScore && a.wholesaleScore < Number(filters.minScore)) return false;
+      if (filters.requireDistress && p.distressSignals.length === 0) return false;
       return true;
     }).sort((a, b) => b.wholesaleScore - a.wholesaleScore);
   }, [result, filters]);
 
   const hasActiveFilters = Object.entries(filters).some(([k, v]) => {
     if (k === 'propertyTypes') return (v as PropertyType[]).length > 0;
-    if (k === 'onlyDeals') return v === true;
+    if (k === 'onlyDeals' || k === 'requireDistress') return v === true;
     return v !== '';
   });
 
@@ -399,6 +472,50 @@ export default function SearchPage() {
       <main className={cn('max-w-7xl mx-auto px-4 py-8', showCalc && 'pr-84')}>
         {/* Search Bar */}
         <div className="mb-6">
+          {/* Mode toggle */}
+          <div className="flex items-center gap-1 mb-3">
+            <button type="button" onClick={() => setSearchMode('quick')}
+              className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors',
+                searchMode === 'quick' ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-gray-200 border border-gray-700')}>
+              <Search className="w-3 h-3" />Quick search
+            </button>
+            <button type="button" onClick={() => setSearchMode('buybox')}
+              className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors',
+                searchMode === 'buybox' ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-gray-200 border border-gray-700')}>
+              <Wand2 className="w-3 h-3" />Describe your deal
+            </button>
+          </div>
+
+          {searchMode === 'buybox' ? (
+            <div>
+              <div className="relative">
+                <Sparkles className="absolute left-3 top-3 w-4 h-4 text-green-400" />
+                <textarea
+                  value={buyBoxText}
+                  onChange={e => setBuyBoxText(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void runBuyBox(buyBoxText); } }}
+                  rows={2}
+                  placeholder="Describe what you're looking for — e.g. '3+ bed single family homes under $150k in Memphis with motivated sellers'"
+                  className="w-full pl-10 pr-4 py-3 bg-[#161b22] border border-gray-700 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 resize-none"
+                />
+              </div>
+              <div className="flex items-center justify-between mt-2">
+                <span className="text-xs text-gray-600">Tip: press ⌘/Ctrl + Enter to run</span>
+                <button type="button" onClick={() => void runBuyBox(buyBoxText)} disabled={parsing || !buyBoxText.trim()}
+                  className="flex items-center gap-1.5 px-5 py-2 bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:text-gray-500 rounded-lg text-sm font-semibold transition-colors">
+                  <Wand2 className="w-4 h-4" />{parsing ? 'Reading…' : 'Match my buy box'}
+                </button>
+              </div>
+              {interpreted && (
+                <div className="mt-3 p-3 bg-green-900/10 border border-green-700/30 rounded text-sm text-gray-300 flex items-start gap-2">
+                  <Sparkles className="w-4 h-4 text-green-400 shrink-0 mt-0.5" />
+                  <span>
+                    <span className="text-gray-500">{interpreted.usedAi ? 'AI understood' : 'Reading'}:</span> {interpreted.summary}
+                  </span>
+                </div>
+              )}
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
@@ -439,8 +556,9 @@ export default function SearchPage() {
               )}
             </div>
           </form>
+          )}
 
-          {!result && !loading && (
+          {searchMode === 'quick' && !result && !loading && (
             <div className="mt-3 flex flex-wrap gap-2">
               <span className="text-xs text-gray-500 py-1">Try:</span>
               {POPULAR_MARKETS.map(m => (
@@ -544,6 +662,12 @@ export default function SearchPage() {
                       onChange={e => setFilters(f => ({ ...f, onlyDeals: e.target.checked }))}
                       className="accent-green-500" />
                     <span className="text-sm text-gray-400">Viable only</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={filters.requireDistress}
+                      onChange={e => setFilters(f => ({ ...f, requireDistress: e.target.checked }))}
+                      className="accent-green-500" />
+                    <span className="text-sm text-gray-400">Distressed only</span>
                   </label>
                 </div>
               </div>
@@ -677,7 +801,17 @@ function PropertyCard({ analysis, expanded, onToggle }: { analysis: DealAnalysis
         expanded ? 'border-green-600/50' : 'border-gray-800 hover:border-gray-600')}>
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-gray-200 truncate">{p.address}</p>
+          <a
+            href={listingUrl(p)}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+            className="group inline-flex items-center gap-1 text-sm font-semibold text-gray-200 hover:text-green-400 transition-colors max-w-full"
+            title="View the listing"
+          >
+            <span className="truncate">{p.address}</span>
+            <ExternalLink className="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </a>
           <p className="text-xs text-gray-500">{p.city}, {p.state} {p.zip}</p>
         </div>
         <div className={cn('shrink-0 px-2.5 py-1 rounded border text-xs font-bold', scoreClass)}>
@@ -743,6 +877,15 @@ function PropertyCard({ analysis, expanded, onToggle }: { analysis: DealAnalysis
               <AlertTriangle className="w-3 h-3" />Verify ARV with local comps before making an offer.
             </p>
           )}
+          <a
+            href={listingUrl(p)}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+            className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-600/20 border border-green-600/40 text-green-400 hover:bg-green-600/30 rounded text-xs font-semibold transition-colors"
+          >
+            <ExternalLink className="w-3 h-3" />View Listing{p.source !== 'mock' ? ` on ${p.source}` : ''}
+          </a>
         </div>
       )}
 

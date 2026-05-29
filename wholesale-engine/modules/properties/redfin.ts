@@ -13,6 +13,7 @@ type RedfinHome = {
   sqFt?: RedfinValue<number>;
   yearBuilt?: RedfinValue<number>;
   dom?: RedfinValue<number>;
+  url?: string;
 };
 
 // Redfin has no official public API. This adapter uses their internal
@@ -71,6 +72,7 @@ export async function fetchRedfinProperties(
       priceReductions: 0,
       source: 'redfin' as const,
       distressSignals: [],
+      listingUrl: home.url ? `https://www.redfin.com${home.url}` : undefined,
     }));
   } catch {
     return [];

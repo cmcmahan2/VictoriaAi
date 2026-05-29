@@ -37,6 +37,8 @@ export type RawProperty = {
   foreclosureStatus?: string;
   taxAssessedValue?: number;
   hoaFee?: number;
+  /** Direct URL to the source listing, when the data provider supplies one */
+  listingUrl?: string;
 };
 
 export type SearchFilters = {

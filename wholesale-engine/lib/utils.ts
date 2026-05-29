@@ -28,3 +28,20 @@ export function scoreLabel(score: number): string {
   if (score >= 50) return 'Potential';
   return 'Weak';
 }
+
+/**
+ * Returns a clickable URL for a property listing. Uses the provider's direct
+ * URL when available, otherwise builds a Zillow address search that lands the
+ * user on (or next to) the real listing.
+ */
+export function listingUrl(p: {
+  listingUrl?: string;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+}): string {
+  if (p.listingUrl) return p.listingUrl;
+  const q = encodeURIComponent(`${p.address} ${p.city} ${p.state} ${p.zip}`.trim());
+  return `https://www.zillow.com/homes/${q}_rb/`;
+}
