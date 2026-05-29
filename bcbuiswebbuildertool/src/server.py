@@ -143,8 +143,14 @@ def _run(job_id, fn, *args, **kwargs):
     threading.Thread(target=_target, daemon=True).start()
 
 
-def _slug(name):
-    return name.lower().replace(" ", "-").replace("/", "-")
+def _slug(name: str) -> str:
+    """Canonical slug — must match build.py/_slugify and dashboard JS slugify()."""
+    import re
+    s = name.lower()
+    s = re.sub(r"[^\w\s-]", "", s)   # strip &, (, ), etc.
+    s = re.sub(r"[\s_]+", "-", s)
+    s = re.sub(r"-+", "-", s)
+    return s.strip("-")[:60]
 
 
 def _city_from_address(address: str) -> str:
@@ -221,14 +227,17 @@ async def run_pipeline(slug: str, data: PipelineRequest, request: Request):
     def _go():
         results     = {}
         profile_dir = str(RESEARCH_DIR / _slug(data.name))
+        site_dir    = str(OUTPUT_DIR   / _slug(data.name))
         if 2 in data.phases:
             from scrape import build_profile
             print(f"[Phase 2] Scraping profile for {data.name}...")
-            results["profile_dir"] = str(build_profile(business, str(RESEARCH_DIR)))
+            profile_dir = str(build_profile(business, str(RESEARCH_DIR)))
+            results["profile_dir"] = profile_dir
         if 3 in data.phases:
             from build import build_website
             print(f"[Phase 3] Building website for {data.name}...")
-            results["site_dir"] = str(build_website(profile_dir, str(OUTPUT_DIR)))
+            site_dir = str(build_website(profile_dir, str(OUTPUT_DIR)))
+            results["site_dir"] = site_dir
         if 4 in data.phases:
             from audit import run_audit
             print(f"[Phase 4] Generating audit PDF for {data.name}...")
@@ -236,7 +245,7 @@ async def run_pipeline(slug: str, data: PipelineRequest, request: Request):
         if 5 in data.phases:
             from deploy import deploy_site
             print(f"[Phase 5] Deploying {data.name}...")
-            results["deployment"] = deploy_site(str(OUTPUT_DIR / _slug(data.name)), business)
+            results["deployment"] = deploy_site(site_dir, business)
         # Persist client record
         deployment = results.get("deployment") or {}
         live_url   = deployment.get("live_url")

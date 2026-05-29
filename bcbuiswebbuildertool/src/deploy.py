@@ -284,5 +284,10 @@ Files:     {site_dir}/
 """)
 
 
-def _slugify(name):
-    return name.lower().replace(" ", "-").replace("/", "-")
+def _slugify(name: str) -> str:
+    import re
+    s = name.lower()
+    s = re.sub(r"[^\w\s-]", "", s)
+    s = re.sub(r"[\s_]+", "-", s)
+    s = re.sub(r"-+", "-", s)
+    return s.strip("-")[:60]
