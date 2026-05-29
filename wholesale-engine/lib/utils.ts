@@ -30,9 +30,12 @@ export function scoreLabel(score: number): string {
 }
 
 /**
- * Returns a clickable URL for a property listing. Uses the provider's direct
- * URL when available, otherwise builds a Zillow address search that lands the
- * user on (or next to) the real listing.
+ * Returns a clickable URL for a property listing.
+ * - Real providers that supply a direct URL: use it.
+ * - Real providers without a URL: build a Zillow search for the exact address.
+ * - Mock/demo properties have fake addresses Zillow can't resolve (it falls back
+ *   to a default city), so link to a Zillow search for the metro instead — the
+ *   user lands on real comparable listings in the right market.
  */
 export function listingUrl(p: {
   listingUrl?: string;
@@ -40,8 +43,13 @@ export function listingUrl(p: {
   city: string;
   state: string;
   zip: string;
+  source?: string;
 }): string {
   if (p.listingUrl) return p.listingUrl;
+  if (p.source === 'mock') {
+    const metro = encodeURIComponent(`${p.city} ${p.state}`.trim());
+    return `https://www.zillow.com/homes/${metro}_rb/`;
+  }
   const q = encodeURIComponent(`${p.address} ${p.city} ${p.state} ${p.zip}`.trim());
   return `https://www.zillow.com/homes/${q}_rb/`;
 }

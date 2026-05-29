@@ -926,7 +926,7 @@ function PropertyCard({ analysis, expanded, onToggle }: { analysis: DealAnalysis
             rel="noopener noreferrer"
             onClick={e => e.stopPropagation()}
             className="group inline-flex items-center gap-1 text-sm font-semibold text-gray-200 hover:text-green-400 transition-colors max-w-full"
-            title="View the listing"
+            title={p.source === 'mock' ? 'Demo property — opens real listings for this market on Zillow' : 'View the listing'}
           >
             <span className="truncate">{p.address}</span>
             <ExternalLink className="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -1003,7 +1003,8 @@ function PropertyCard({ analysis, expanded, onToggle }: { analysis: DealAnalysis
             onClick={e => e.stopPropagation()}
             className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-600/20 border border-green-600/40 text-green-400 hover:bg-green-600/30 rounded text-xs font-semibold transition-colors"
           >
-            <ExternalLink className="w-3 h-3" />View Listing{p.source !== 'mock' ? ` on ${p.source}` : ''}
+            <ExternalLink className="w-3 h-3" />
+            {p.source === 'mock' ? `Browse ${p.city} on Zillow` : `View Listing on ${p.source}`}
           </a>
         </div>
       )}

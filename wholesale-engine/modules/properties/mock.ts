@@ -36,11 +36,23 @@ function rng(seed: number, max: number): number {
   return Math.floor((x - Math.floor(x)) * max);
 }
 
-function generateAddress(idx: number): string {
-  const num = 100 + rng(idx * 7, 9900);
-  const street = STREET_NAMES[rng(idx * 3, STREET_NAMES.length)];
-  const type = STREET_TYPES[rng(idx * 11, STREET_TYPES.length)];
+function generateAddress(idx: number, marketSeed: number): string {
+  // Mix the market into the seed so the same row index produces a different
+  // street address in each city (otherwise "7986 Jackson Rd" shows up in every
+  // market's results).
+  const s = idx * 7 + marketSeed;
+  const num = 100 + rng(s * 7, 9900);
+  const street = STREET_NAMES[rng(s * 3, STREET_NAMES.length)];
+  const type = STREET_TYPES[rng(s * 11, STREET_TYPES.length)];
   return `${num} ${street} ${type}`;
+}
+
+// Stable per-market integer so each city's addresses diverge.
+function marketSeedFor(city: string, state: string): number {
+  const key = `${city}, ${state}`;
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0;
+  return Math.abs(h) % 100000;
 }
 
 function pickDistressSignals(idx: number, forceHigh: boolean): DistressSignal[] {
@@ -71,6 +83,7 @@ export function generateMockProperties(query: {
 
   const propertyTypes: PropertyType[] = ['SFR','SFR','SFR','MFR','Condo','Townhouse'];
   const properties: RawProperty[] = [];
+  const marketSeed = marketSeedFor(market.city, market.state);
 
   for (let i = 0; i < count; i++) {
     const seed = i + 1;
@@ -119,7 +132,7 @@ export function generateMockProperties(query: {
 
     properties.push({
       id: `mock-${market.state}-${zip}-${i}`,
-      address: generateAddress(seed),
+      address: generateAddress(seed, marketSeed),
       city: market.city,
       state: market.state,
       zip,
