@@ -34,9 +34,35 @@ app = FastAPI(title="BCBUISWEBBUILDERTOOL Admin", docs_url=None, redoc_url=None)
 OUTPUT_DIR  = Path("./output")
 RESEARCH_DIR = Path("./research")
 WEB_DIR     = Path(__file__).parent / "web"
+CLIENTS_FILE = OUTPUT_DIR / "clients.json"
 
 VALID_TOKENS: set[str] = set()
 JOBS: dict[str, dict]  = {}
+
+
+def _load_clients() -> list:
+    if CLIENTS_FILE.exists():
+        try:
+            return json.loads(CLIENTS_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return []
+
+
+def _save_clients(clients: list):
+    OUTPUT_DIR.mkdir(exist_ok=True)
+    CLIENTS_FILE.write_text(json.dumps(clients, indent=2), encoding="utf-8")
+
+
+def _upsert_client(record: dict):
+    clients = _load_clients()
+    slug = record["slug"]
+    existing = next((c for c in clients if c["slug"] == slug), None)
+    if existing:
+        existing.update({k: v for k, v in record.items() if v is not None})
+    else:
+        clients.append(record)
+    _save_clients(clients)
 
 
 class LoginRequest(BaseModel):
@@ -211,6 +237,21 @@ async def run_pipeline(slug: str, data: PipelineRequest, request: Request):
             from deploy import deploy_site
             print(f"[Phase 5] Deploying {data.name}...")
             results["deployment"] = deploy_site(str(OUTPUT_DIR / _slug(data.name)), business)
+        # Persist client record
+        live_url = (results.get("deployment") or {}).get("live_url")
+        _upsert_client({
+            "slug":         slug,
+            "name":         data.name,
+            "address":      data.address,
+            "phone":        data.phone,
+            "category":     data.category,
+            "status":       "prospect",
+            "created_at":   datetime.now().isoformat(),
+            "has_site":     bool(results.get("site_dir")),
+            "has_pdf":      bool(results.get("pdf_path")),
+            "live_url":     live_url,
+            "portal_url":   f"/portal/{slug}",
+        })
         return results
     _run(job_id, _go)
     return {"job_id": job_id}
@@ -272,6 +313,74 @@ async def preview_site(slug: str, file_path: str = "index.html"):
     if not target.exists():
         raise HTTPException(status_code=404, detail="File not found - run Phase 3 first")
     return FileResponse(str(target))
+
+
+# ── Client database ──────────────────────────────────────────────────────────
+
+@app.get("/api/clients")
+async def list_clients(request: Request):
+    require_auth(request)
+    return {"clients": _load_clients()}
+
+class ClientPatch(BaseModel):
+    status: str | None = None
+    notes: str | None = None
+    name: str | None = None
+    phone: str | None = None
+    address: str | None = None
+
+@app.patch("/api/clients/{slug}")
+async def update_client(slug: str, data: ClientPatch, request: Request):
+    require_auth(request)
+    clients = _load_clients()
+    client = next((c for c in clients if c["slug"] == slug), None)
+    if not client:
+        raise HTTPException(status_code=404)
+    for k, v in data.model_dump(exclude_none=True).items():
+        client[k] = v
+    _save_clients(clients)
+    return client
+
+@app.get("/api/clients/export.csv")
+async def export_clients_csv(request: Request, token: str = Query(default="")):
+    t = token or request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
+    if not t or t not in VALID_TOKENS:
+        raise HTTPException(status_code=401)
+    import csv, io
+    clients = _load_clients()
+    buf = io.StringIO()
+    fields = ["name", "slug", "address", "phone", "category", "status",
+              "live_url", "portal_url", "created_at"]
+    writer = csv.DictWriter(buf, fieldnames=fields, extrasaction="ignore")
+    writer.writeheader()
+    writer.writerows(clients)
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=clients.csv"},
+    )
+
+
+# ── Site editor ───────────────────────────────────────────────────────────────
+
+@app.get("/api/output/{slug}/site")
+async def get_site_html(slug: str, request: Request):
+    require_auth(request)
+    path = OUTPUT_DIR / slug / "index.html"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Site not built yet")
+    return {"html": path.read_text(encoding="utf-8", errors="replace")}
+
+@app.put("/api/output/{slug}/site")
+async def save_site_html(slug: str, request: Request):
+    require_auth(request)
+    body = await request.json()
+    html = body.get("html", "")
+    path = OUTPUT_DIR / slug / "index.html"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Site directory not found")
+    path.write_text(html, encoding="utf-8")
+    return {"ok": True}
 
 
 # ── Public client portal (no auth — shareable with prospects) ────────────────
