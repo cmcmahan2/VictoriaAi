@@ -20,9 +20,16 @@ type Buyer = {
 const PROPERTY_TYPES = ['SFR', 'MFR', 'Condo', 'Townhouse', 'Land'];
 
 const POPULAR_MARKETS = [
-  'Memphis, TN', 'Detroit, MI', 'Cleveland, OH', 'Baltimore, MD',
-  'Kansas City, MO', 'Indianapolis, IN', 'Birmingham, AL', 'St. Louis, MO',
+  'Memphis, TN', 'Detroit, MI', 'Houston, TX', 'Atlanta, GA',
+  'Dallas, TX', 'Tampa, FL', 'Cleveland, OH', 'Indianapolis, IN',
+  'Charlotte, NC', 'Columbus, OH', 'Jacksonville, FL', 'Birmingham, AL',
+  'Baltimore, MD', 'Kansas City, MO', 'Austin, TX', 'Phoenix, AZ', 'St. Louis, MO',
 ];
+
+function safeParseArray(json: string | null | undefined): string[] {
+  if (!json) return [];
+  try { return JSON.parse(json) as string[]; } catch { return []; }
+}
 
 export default function BuyersPage() {
   const [buyers, setBuyers] = useState<Buyer[]>([]);
@@ -220,8 +227,8 @@ export default function BuyersPage() {
         ) : (
           <div className="space-y-3">
             {buyers.map(b => {
-              const bMarkets = JSON.parse(b.markets) as string[];
-              const bTypes = JSON.parse(b.propertyTypes) as string[];
+              const bMarkets = safeParseArray(b.markets);
+              const bTypes = safeParseArray(b.propertyTypes);
               return (
                 <div key={b.id} className="bg-[#161b22] border border-gray-800 rounded-lg p-4">
                   <div className="flex items-start justify-between gap-4">

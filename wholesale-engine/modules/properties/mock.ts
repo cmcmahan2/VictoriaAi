@@ -1,14 +1,23 @@
 import type { RawProperty, DistressSignal, PropertyType } from './types';
 
 const MARKETS: Record<string, { city: string; state: string; zips: string[]; medianPrice: number }> = {
-  'Memphis, TN':    { city: 'Memphis',     state: 'TN', zips: ['38103','38104','38105','38106','38109'], medianPrice: 145000 },
-  'Detroit, MI':    { city: 'Detroit',     state: 'MI', zips: ['48201','48202','48206','48207','48210'], medianPrice: 90000  },
-  'Cleveland, OH':  { city: 'Cleveland',   state: 'OH', zips: ['44101','44102','44103','44104','44105'], medianPrice: 110000 },
-  'Baltimore, MD':  { city: 'Baltimore',   state: 'MD', zips: ['21201','21202','21205','21213','21215'], medianPrice: 155000 },
-  'Kansas City, MO':{ city: 'Kansas City', state: 'MO', zips: ['64101','64108','64110','64111','64120'], medianPrice: 175000 },
-  'Indianapolis, IN':{ city: 'Indianapolis',state: 'IN', zips: ['46201','46202','46203','46218','46219'], medianPrice: 195000 },
-  'Birmingham, AL': { city: 'Birmingham',  state: 'AL', zips: ['35201','35203','35204','35205','35212'], medianPrice: 125000 },
-  'St. Louis, MO':  { city: 'St. Louis',   state: 'MO', zips: ['63101','63103','63104','63107','63113'], medianPrice: 135000 },
+  'Memphis, TN':      { city: 'Memphis',      state: 'TN', zips: ['38103','38104','38105','38106','38109'], medianPrice: 145000 },
+  'Detroit, MI':      { city: 'Detroit',      state: 'MI', zips: ['48201','48202','48206','48207','48210'], medianPrice: 90000  },
+  'Cleveland, OH':    { city: 'Cleveland',    state: 'OH', zips: ['44101','44102','44103','44104','44105'], medianPrice: 110000 },
+  'Baltimore, MD':    { city: 'Baltimore',    state: 'MD', zips: ['21201','21202','21205','21213','21215'], medianPrice: 155000 },
+  'Kansas City, MO':  { city: 'Kansas City',  state: 'MO', zips: ['64101','64108','64110','64111','64120'], medianPrice: 175000 },
+  'Indianapolis, IN': { city: 'Indianapolis', state: 'IN', zips: ['46201','46202','46203','46218','46219'], medianPrice: 195000 },
+  'Birmingham, AL':   { city: 'Birmingham',   state: 'AL', zips: ['35201','35203','35204','35205','35212'], medianPrice: 125000 },
+  'St. Louis, MO':    { city: 'St. Louis',    state: 'MO', zips: ['63101','63103','63104','63107','63113'], medianPrice: 135000 },
+  'Austin, TX':       { city: 'Austin',       state: 'TX', zips: ['78701','78702','78703','78721','78741'], medianPrice: 420000 },
+  'Houston, TX':      { city: 'Houston',      state: 'TX', zips: ['77001','77002','77003','77004','77051'], medianPrice: 230000 },
+  'Dallas, TX':       { city: 'Dallas',       state: 'TX', zips: ['75201','75202','75203','75210','75215'], medianPrice: 285000 },
+  'Atlanta, GA':      { city: 'Atlanta',      state: 'GA', zips: ['30301','30303','30310','30311','30318'], medianPrice: 310000 },
+  'Phoenix, AZ':      { city: 'Phoenix',      state: 'AZ', zips: ['85001','85003','85007','85008','85040'], medianPrice: 350000 },
+  'Tampa, FL':        { city: 'Tampa',        state: 'FL', zips: ['33601','33602','33603','33605','33610'], medianPrice: 320000 },
+  'Charlotte, NC':    { city: 'Charlotte',    state: 'NC', zips: ['28201','28202','28203','28204','28208'], medianPrice: 295000 },
+  'Columbus, OH':     { city: 'Columbus',     state: 'OH', zips: ['43201','43202','43203','43204','43205'], medianPrice: 210000 },
+  'Jacksonville, FL': { city: 'Jacksonville', state: 'FL', zips: ['32201','32202','32204','32205','32209'], medianPrice: 255000 },
 };
 
 const STREET_NAMES = [

@@ -16,8 +16,10 @@ type Alert = {
 };
 
 const POPULAR_MARKETS = [
-  'Memphis, TN', 'Detroit, MI', 'Cleveland, OH', 'Baltimore, MD',
-  'Kansas City, MO', 'Indianapolis, IN', 'Birmingham, AL', 'St. Louis, MO',
+  'Memphis, TN', 'Detroit, MI', 'Houston, TX', 'Atlanta, GA',
+  'Dallas, TX', 'Tampa, FL', 'Cleveland, OH', 'Indianapolis, IN',
+  'Charlotte, NC', 'Columbus, OH', 'Jacksonville, FL', 'Birmingham, AL',
+  'Baltimore, MD', 'Kansas City, MO', 'Austin, TX', 'Phoenix, AZ', 'St. Louis, MO',
 ];
 
 export default function AlertsPage() {

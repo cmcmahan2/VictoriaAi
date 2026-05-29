@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   Search, SlidersHorizontal, Building2, TrendingUp, DollarSign,
   AlertTriangle, ChevronDown, ChevronUp, X, Download, Bookmark,
@@ -59,8 +59,9 @@ const DEFAULT_FILTERS: LocalFilters = {
 const PROPERTY_TYPES: PropertyType[] = ['SFR', 'MFR', 'Condo', 'Townhouse', 'Land'];
 
 const POPULAR_MARKETS = [
-  'Memphis, TN', 'Detroit, MI', 'Cleveland, OH', 'Baltimore, MD',
-  'Kansas City, MO', 'Indianapolis, IN', 'Birmingham, AL', 'St. Louis, MO',
+  'Memphis, TN', 'Detroit, MI', 'Houston, TX', 'Atlanta, GA',
+  'Dallas, TX', 'Tampa, FL', 'Cleveland, OH', 'Indianapolis, IN',
+  'Charlotte, NC', 'Columbus, OH', 'Jacksonville, FL', 'Birmingham, AL',
 ];
 
 // ── Deal Calculator ──────────────────────────────────────────────────────────
@@ -238,6 +239,7 @@ export default function SearchPage() {
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
   const [showSaved, setShowSaved] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const didAutoSearch = useRef(false);
 
   useEffect(() => { void loadSavedSearches(); }, []);
 
@@ -276,6 +278,19 @@ export default function SearchPage() {
       setLoading(false);
     }
   }, []);
+
+  // Auto-search when arriving from Buyers "Match Deals" link (?markets=...)
+  useEffect(() => {
+    if (didAutoSearch.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const market = params.get('markets');
+    if (market) {
+      didAutoSearch.current = true;
+      setSearchInput(market);
+      void runSearch(market);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // run once on mount — window.location is stable, runSearch from useCallback([]) is stable
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
