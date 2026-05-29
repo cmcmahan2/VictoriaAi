@@ -66,26 +66,39 @@ THEMES: dict[str, dict] = {
         "hero_overlay": "linear-gradient(135deg, rgba(15,30,48,0.86) 0%, rgba(26,58,92,0.86) 100%)",
         "css": "",
     },
-    # Fresh / organic: lush forest greens, elegant serif headings, photo-forward
-    # hero. Built for landscapers, gardeners, nurseries (Blossom direction).
+    # Fresh / organic: purple-lavender palette (inspired by Blossom Vancouver),
+    # elegant serif headings, photo-forward hero, Before/After slider.
+    # Built for landscapers, gardeners, nurseries.
     "fresh": {
         "name": "fresh",
         "display_font": "'Fraunces', Georgia, serif",
         "radius": "22px",
         "palette": {
-            "--green": "#3a9d5d", "--green2": "#2c7d47",
-            "--navy": "#1f3d2a", "--dark": "#11271a", "--dark2": "#16331f",
-            "--light": "#f2f7ee", "--muted": "#5e7567",
-            "--text": "#1b2a20", "--border": "#dde7d8",
+            "--green": "#7c5cbf", "--green2": "#6346a8",
+            "--navy": "#2d1f52", "--dark": "#1a1130", "--dark2": "#211540",
+            "--light": "#f5f3ff", "--muted": "#6b5b8e",
+            "--text": "#1f1535", "--border": "#e3ddf5",
         },
-        # Lighter overlay so the greenery photography shows through.
-        "hero_overlay": "linear-gradient(180deg, rgba(17,39,26,0.38) 0%, rgba(17,39,26,0.72) 100%)",
+        # Soft overlay so the greenery/garden photography shows through.
+        "hero_overlay": "linear-gradient(180deg, rgba(26,17,48,0.42) 0%, rgba(26,17,48,0.74) 100%)",
         "css": (
             ".theme-fresh .hero::after{display:none}"
             ".theme-fresh .hero::before{background:"
-            "radial-gradient(520px 380px at 15% 20%, rgba(58,157,93,0.28), transparent 70%),"
-            "radial-gradient(520px 380px at 85% 30%, rgba(120,175,90,0.20), transparent 70%);}"
-            ".theme-fresh .page-hero::after{background:radial-gradient(420px 260px at 80% 0%, rgba(58,157,93,0.22), transparent 65%);}"
+            "radial-gradient(520px 380px at 15% 20%, rgba(124,92,191,0.28), transparent 70%),"
+            "radial-gradient(520px 380px at 85% 30%, rgba(150,110,220,0.20), transparent 70%);}"
+            ".theme-fresh .page-hero::after{background:radial-gradient(420px 260px at 80% 0%, rgba(124,92,191,0.22), transparent 65%);}"
+            # Before/After slider component styles
+            ".ba-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:2rem;margin-top:2.5rem}"
+            ".ba-wrap{position:relative;overflow:hidden;border-radius:var(--radius);cursor:col-resize;touch-action:none;user-select:none;box-shadow:var(--shadow-lg)}"
+            ".ba-wrap>img{width:100%;height:340px;object-fit:cover;display:block}"
+            ".ba-after{position:absolute;top:0;left:0;bottom:0;overflow:hidden;width:50%}"
+            ".ba-after img{position:absolute;top:0;left:0;height:100%;max-width:none;object-fit:cover}"
+            ".ba-handle{position:absolute;top:0;bottom:0;left:50%;transform:translateX(-50%);width:4px;background:#fff;pointer-events:none}"
+            ".ba-btn{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:40px;height:40px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:1.1rem;box-shadow:0 2px 12px rgba(0,0,0,0.25)}"
+            ".ba-label{position:absolute;bottom:1rem;padding:0.3rem 0.75rem;border-radius:99px;font-size:0.78rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#fff;background:rgba(0,0,0,0.42);backdrop-filter:blur(4px)}"
+            ".ba-label-before{left:1rem}"
+            ".ba-label-after{right:1rem}"
+            "@media(max-width:560px){.ba-wrap>img{height:240px}}"
         ),
     },
     # Warm / appetising: terracotta + deep brown, serif headings. For food.
@@ -937,6 +950,30 @@ if (form) {
   });
 }
 
+// Before/After slider
+document.querySelectorAll('.ba-wrap').forEach(wrap => {
+  const after   = wrap.querySelector('.ba-after');
+  const afterImg = after ? after.querySelector('img') : null;
+  const handle  = wrap.querySelector('.ba-handle');
+  if (!after || !handle) return;
+  let dragging = false;
+  const syncImgWidth = () => { if (afterImg) afterImg.style.width = wrap.offsetWidth + 'px'; };
+  syncImgWidth();
+  window.addEventListener('resize', syncImgWidth);
+  const setPos = x => {
+    const r = wrap.getBoundingClientRect();
+    const pct = Math.min(Math.max((x - r.left) / r.width * 100, 5), 95);
+    after.style.width  = pct + '%';
+    handle.style.left  = pct + '%';
+  };
+  wrap.addEventListener('mousedown', e => { dragging = true; setPos(e.clientX); e.preventDefault(); });
+  document.addEventListener('mousemove', e => { if (dragging) setPos(e.clientX); });
+  document.addEventListener('mouseup', () => { dragging = false; });
+  wrap.addEventListener('touchstart', e => { dragging = true; setPos(e.touches[0].clientX); }, { passive: true });
+  document.addEventListener('touchmove', e => { if (dragging) setPos(e.touches[0].clientX); }, { passive: true });
+  document.addEventListener('touchend', () => { dragging = false; });
+});
+
 // Smooth scroll for anchor links
 document.querySelectorAll('a[href^="#"]').forEach(a => {
   a.addEventListener('click', e => {
@@ -1217,6 +1254,41 @@ def _write_index(business: dict, profile: dict, content: dict, site_dir: Path) -
     theme    = business.get("_theme") if isinstance(business.get("_theme"), dict) else THEMES["modern"]
     hero_overlay = theme.get("hero_overlay", THEMES["modern"]["hero_overlay"])
 
+    # Before/After slider section (landscaper "fresh" theme only)
+    ba_section = ""
+    if theme.get("name") == "fresh":
+        b1 = _img(keywords, 700, 460, seed=name + "-p1-before")
+        a1 = _img(keywords, 700, 460, seed=name + "-p1-after")
+        b2 = _img(keywords, 700, 460, seed=name + "-p2-before")
+        a2 = _img(keywords, 700, 460, seed=name + "-p2-after")
+        ba_section = f"""
+  <!-- Before/After Slider (landscaper) -->
+  <section class="section">
+    <div class="container">
+      <div class="section-head reveal">
+        <p class="eyebrow">Our Work</p>
+        <h2>Before &amp; After</h2>
+        <p>Drag the handle to see the transformation. Real projects, real results.</p>
+      </div>
+      <div class="ba-grid">
+        <div class="ba-wrap">
+          <img src="{_esc(b1)}" alt="Before landscaping project" loading="lazy" />
+          <div class="ba-after"><img src="{_esc(a1)}" alt="After landscaping project" loading="lazy" /></div>
+          <div class="ba-handle"><div class="ba-btn">&#8596;</div></div>
+          <span class="ba-label ba-label-before">Before</span>
+          <span class="ba-label ba-label-after">After</span>
+        </div>
+        <div class="ba-wrap">
+          <img src="{_esc(b2)}" alt="Before garden design" loading="lazy" />
+          <div class="ba-after"><img src="{_esc(a2)}" alt="After garden design" loading="lazy" /></div>
+          <div class="ba-handle"><div class="ba-btn">&#8596;</div></div>
+          <span class="ba-label ba-label-before">Before</span>
+          <span class="ba-label ba-label-after">After</span>
+        </div>
+      </div>
+    </div>
+  </section>"""
+
     service_cards = "\n".join(
         f"""<div class="service-card">
   <img class="service-img" src="{_esc(_img(_service_img_keywords(s.get('name',''), keywords), 400, 260, seed=s.get('name','')))}" alt="{_esc(s.get('name','Service'))}" loading="lazy" />
@@ -1274,6 +1346,8 @@ def _write_index(business: dict, profile: dict, content: dict, site_dir: Path) -
       </div>
     </div>
   </section>
+
+  {ba_section}
 
   <!-- Why Us -->
   <section class="section section-alt">
