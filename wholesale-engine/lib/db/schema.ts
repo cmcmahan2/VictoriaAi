@@ -47,3 +47,35 @@ export const markets = sqliteTable('markets', {
   investorActivity: text('investor_activity'),
   lastUpdated: integer('last_updated').notNull(),
 });
+
+export const savedSearches = sqliteTable('saved_searches', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  market: text('market').notNull(),
+  zipCodes: text('zip_codes'),
+  filters: text('filters').notNull().default('{}'),
+  createdAt: integer('created_at').notNull(),
+});
+
+export const buyers = sqliteTable('buyers', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  email: text('email'),
+  phone: text('phone'),
+  markets: text('markets').notNull().default('[]'),
+  maxPrice: real('max_price'),
+  propertyTypes: text('property_types').notNull().default('[]'),
+  notes: text('notes'),
+  createdAt: integer('created_at').notNull(),
+});
+
+export const alerts = sqliteTable('alerts', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  email: text('email').notNull(),
+  market: text('market').notNull(),
+  minScore: integer('min_score').notNull().default(75),
+  maxPrice: real('max_price'),
+  frequency: text('frequency').notNull().default('daily'),
+  active: integer('active', { mode: 'boolean' }).notNull().default(true),
+  createdAt: integer('created_at').notNull(),
+});

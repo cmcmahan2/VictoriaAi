@@ -1,7 +1,13 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
-import { Search, SlidersHorizontal, Building2, TrendingUp, DollarSign, AlertTriangle, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import {
+  Search, SlidersHorizontal, Building2, TrendingUp, DollarSign,
+  AlertTriangle, ChevronDown, ChevronUp, X, Download, Bookmark,
+  Map as MapIcon, List, Calculator, Bell, Users, CheckCircle, XCircle,
+  BookmarkCheck, Trash2,
+} from 'lucide-react';
+import Link from 'next/link';
 import { cn, formatCurrency, scoreColor, scoreLabel } from '@/lib/utils';
 import type { DealAnalysis } from '@/modules/deals/analysis';
 import type { SearchQuery, PropertyType } from '@/modules/properties/types';
@@ -37,14 +43,17 @@ type LocalFilters = {
   minScore: string;
 };
 
+type SavedSearch = {
+  id: number;
+  name: string;
+  market: string;
+  zipCodes: string | null;
+  filters: string;
+};
+
 const DEFAULT_FILTERS: LocalFilters = {
-  minPrice: '',
-  maxPrice: '',
-  minBedrooms: '',
-  maxDom: '',
-  propertyTypes: [],
-  onlyDeals: false,
-  minScore: '',
+  minPrice: '', maxPrice: '', minBedrooms: '', maxDom: '',
+  propertyTypes: [], onlyDeals: false, minScore: '',
 };
 
 const PROPERTY_TYPES: PropertyType[] = ['SFR', 'MFR', 'Condo', 'Townhouse', 'Land'];
@@ -54,20 +63,198 @@ const POPULAR_MARKETS = [
   'Kansas City, MO', 'Indianapolis, IN', 'Birmingham, AL', 'St. Louis, MO',
 ];
 
+// ── Deal Calculator ──────────────────────────────────────────────────────────
+function DealCalculator({ onClose }: { onClose: () => void }) {
+  const [c, setC] = useState({
+    purchasePrice: '', arv: '', repairCosts: '', closingCostPct: '3',
+    holdingCostMonth: '', holdingMonths: '3', assignmentFee: '10000',
+  });
+
+  const n = (v: string) => Number(v) || 0;
+
+  const arv = n(c.arv);
+  const purchase = n(c.purchasePrice);
+  const repair = n(c.repairCosts);
+  const closing = arv * (n(c.closingCostPct) / 100);
+  const holding = n(c.holdingCostMonth) * n(c.holdingMonths);
+  const assignFee = n(c.assignmentFee);
+
+  const flipProfit = arv - purchase - repair - closing - holding;
+  const wholesaleProfit = assignFee;
+  const mao70 = Math.max(0, arv * 0.70 - repair);
+  const mao65 = Math.max(0, arv * 0.65 - repair);
+  const mao75 = Math.max(0, arv * 0.75 - repair);
+  const coc = purchase > 0 ? (flipProfit / purchase) * 100 : 0;
+
+  const field = (label: string, key: keyof typeof c, placeholder: string, prefix = '$') => (
+    <div>
+      <label className="text-xs text-gray-500 mb-1 block">{label}</label>
+      <div className="relative">
+        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-600">{prefix}</span>
+        <input
+          type="number"
+          value={c[key]}
+          onChange={e => setC(prev => ({ ...prev, [key]: e.target.value }))}
+          placeholder={placeholder}
+          className="w-full bg-[#0d1117] border border-gray-700 rounded pl-5 pr-3 py-1.5 text-sm focus:outline-none focus:border-green-500"
+        />
+      </div>
+    </div>
+  );
+
+  const resultRow = (label: string, value: number, highlight?: boolean) => (
+    <div className="flex justify-between py-1.5 border-b border-gray-800/50 text-sm">
+      <span className="text-gray-400">{label}</span>
+      <span className={cn('font-semibold', highlight === true ? 'text-green-400' : highlight === false ? 'text-red-400' : 'text-gray-200')}>
+        {formatCurrency(value)}
+      </span>
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-y-0 right-0 w-80 bg-[#161b22] border-l border-gray-800 z-50 flex flex-col shadow-2xl">
+      <div className="flex items-center justify-between p-4 border-b border-gray-800">
+        <span className="font-semibold text-gray-200 flex items-center gap-2">
+          <Calculator className="w-4 h-4 text-green-400" /> Deal Calculator
+        </span>
+        <button onClick={onClose}><X className="w-4 h-4 text-gray-500" /></button>
+      </div>
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <p className="text-xs text-gray-500 mb-2">Inputs</p>
+        {field('Purchase Price', 'purchasePrice', '150000')}
+        {field('ARV (After Repair Value)', 'arv', '220000')}
+        {field('Repair Costs', 'repairCosts', '30000')}
+        {field('Closing Costs %', 'closingCostPct', '3', '%')}
+        {field('Holding Costs / Month', 'holdingCostMonth', '1200')}
+        {field('Holding Period (months)', 'holdingMonths', '3', '#')}
+        {field('Assignment Fee (wholesale)', 'assignmentFee', '10000')}
+
+        <div className="pt-3 border-t border-gray-800">
+          <p className="text-xs text-gray-500 mb-2">Results</p>
+          {resultRow('Flip Profit', flipProfit, flipProfit > 0)}
+          {resultRow('Wholesale Profit', wholesaleProfit, wholesaleProfit > 0)}
+          <div className="flex justify-between py-1.5 border-b border-gray-800/50 text-sm">
+            <span className="text-gray-400">Cash-on-Cash Return</span>
+            <span className={cn('font-semibold', coc > 0 ? 'text-green-400' : 'text-red-400')}>{coc.toFixed(1)}%</span>
+          </div>
+        </div>
+
+        <div className="pt-3 border-t border-gray-800">
+          <p className="text-xs text-gray-500 mb-2">Max Allowable Offer</p>
+          <div className="space-y-1">
+            {[['65% Rule', mao65], ['70% Rule (standard)', mao70], ['75% Rule', mao75]].map(([label, val]) => (
+              <div key={String(label)} className="flex justify-between text-sm py-1">
+                <span className="text-gray-500">{label}</span>
+                <span className="text-gray-200 font-medium">{formatCurrency(Number(val))}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Simple Map View ──────────────────────────────────────────────────────────
+function MapView({ analyses }: { analyses: DealAnalysis[] }) {
+  const zipGroups = useMemo(() => {
+    const m = new Map<string, DealAnalysis[]>();
+    for (const a of analyses) {
+      const k = a.property.zip;
+      if (!m.has(k)) m.set(k, []);
+      m.get(k)!.push(a);
+    }
+    return m;
+  }, [analyses]);
+
+  type ZipEntry = [string, DealAnalysis[]];
+
+  return (
+    <div className="bg-[#161b22] border border-gray-800 rounded-lg p-6">
+      <p className="text-xs text-yellow-500/70 mb-4 flex items-center gap-1">
+        <AlertTriangle className="w-3 h-3" />
+        Map placeholder — set <code className="bg-gray-800 px-1 rounded">NEXT_PUBLIC_MAPBOX_TOKEN</code> in .env for an interactive map
+      </p>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        {([...zipGroups.entries()] as ZipEntry[]).map(([zip, props]) => {
+          const best = [...props].sort((a: DealAnalysis, b: DealAnalysis) => b.wholesaleScore - a.wholesaleScore)[0];
+          const avgScore = Math.round(props.reduce((s: number, a: DealAnalysis) => s + a.wholesaleScore, 0) / props.length);
+          return (
+            <div key={zip} className={cn('rounded-lg border p-3', scoreColor(avgScore))}>
+              <p className="font-bold text-sm mb-1">{zip}</p>
+              <p className="text-xs opacity-75">{props.length} properties</p>
+              <p className="text-xs opacity-75">Avg score: {avgScore}</p>
+              {best && <p className="text-xs opacity-60 truncate mt-1">{best.property.address}</p>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── API Status Panel ─────────────────────────────────────────────────────────
+function ApiStatusPanel({ meta }: { meta: SearchResult['meta'] }) {
+  const sources = [
+    { name: 'Zillow', key: 'zillow' },
+    { name: 'ATTOM', key: 'attom' },
+    { name: 'RentCast', key: 'rentcast' },
+    { name: 'Redfin', key: 'redfin' },
+    { name: 'Mock', key: 'mock' },
+  ];
+
+  return (
+    <div className="flex items-center gap-3 flex-wrap">
+      {sources.filter(s => meta.sources[s.key] !== undefined).map(s => (
+        <span key={s.key} className={cn('flex items-center gap-1 text-xs px-2 py-0.5 rounded border',
+          s.key === 'mock' ? 'text-yellow-400 border-yellow-400/30 bg-yellow-400/10' : 'text-green-400 border-green-400/30 bg-green-400/10')}>
+          {s.key === 'mock'
+            ? <XCircle className="w-3 h-3" />
+            : <CheckCircle className="w-3 h-3" />}
+          {s.name} ({meta.sources[s.key]})
+        </span>
+      ))}
+      <span className={cn('flex items-center gap-1 text-xs px-2 py-0.5 rounded border',
+        meta.hasClaude ? 'text-green-400 border-green-400/30 bg-green-400/10' : 'text-yellow-400 border-yellow-400/30 bg-yellow-400/10')}>
+        {meta.hasClaude ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+        {meta.hasClaude ? 'AI Scored' : 'Demo Scores'}
+      </span>
+    </div>
+  );
+}
+
+// ── Main Page ────────────────────────────────────────────────────────────────
 export default function SearchPage() {
   const [searchInput, setSearchInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SearchResult | null>(null);
   const [filters, setFilters] = useState<LocalFilters>(DEFAULT_FILTERS);
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [showCalc, setShowCalc] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [saveName, setSaveName] = useState('');
+  const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
+  const [showSaved, setShowSaved] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  useEffect(() => { void loadSavedSearches(); }, []);
+
+  async function loadSavedSearches() {
+    try {
+      const res = await fetch('/api/saved-searches');
+      const data = (await res.json()) as { ok: boolean; searches: SavedSearch[] };
+      if (data.ok) setSavedSearches(data.searches);
+    } catch { /* DB not configured */ }
+  }
 
   const runSearch = useCallback(async (market: string) => {
     if (!market.trim()) return;
     setLoading(true);
     setError(null);
     setResult(null);
+    setShowSaved(false);
 
     const isZips = /^\d{5}/.test(market.trim());
     const query: SearchQuery = isZips
@@ -95,7 +282,52 @@ export default function SearchPage() {
     void runSearch(searchInput);
   };
 
-  // Client-side filtering — no new API call needed
+  async function saveSearch() {
+    if (!saveName.trim() || !result) return;
+    try {
+      await fetch('/api/saved-searches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: saveName, market: result.meta.market, filters }),
+      });
+      setSaveName('');
+      setShowSaveDialog(false);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2500);
+      void loadSavedSearches();
+    } catch { /* best effort */ }
+  }
+
+  async function deleteSaved(id: number) {
+    await fetch(`/api/saved-searches?id=${id}`, { method: 'DELETE' });
+    void loadSavedSearches();
+  }
+
+  function exportCsv() {
+    if (!filteredAnalyses.length) return;
+    const headers = [
+      'Address', 'City', 'State', 'Zip', 'List Price', 'ARV Estimate',
+      'MAO', 'Equity Spread', 'Profit @ List', 'Wholesale Score',
+      'Distress Signals', 'Days on Market', 'Bedrooms', 'Bathrooms',
+      'Sqft', 'Year Built', 'Source',
+    ];
+    const rows = filteredAnalyses.map(a => {
+      const p = a.property;
+      return [
+        `"${p.address}"`, `"${p.city}"`, p.state, p.zip,
+        p.price, a.arvEstimate, a.mao, a.equitySpread, a.projectedProfit,
+        a.wholesaleScore, `"${p.distressSignals.join('; ')}"`,
+        p.daysOnMarket, p.bedrooms, p.bathrooms, p.sqft, p.yearBuilt, p.source,
+      ].join(',');
+    });
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'wholesale-deals.csv'; a.click();
+    URL.revokeObjectURL(url);
+  }
+
   const filteredAnalyses = useMemo(() => {
     if (!result) return [];
     return result.analyses.filter(a => {
@@ -119,51 +351,86 @@ export default function SearchPage() {
 
   return (
     <div className="min-h-screen bg-[#0d1117] text-gray-100">
+      {/* Calculator slide-out */}
+      {showCalc && <DealCalculator onClose={() => setShowCalc(false)} />}
+
       {/* Header */}
       <header className="border-b border-gray-800 bg-[#161b22]">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Building2 className="w-6 h-6 text-green-400" />
-            <span className="font-bold text-lg tracking-tight">Wholesale Engine</span>
-            <span className="text-xs text-gray-500 border border-gray-700 rounded px-2 py-0.5">beta</span>
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-green-400" />
+              <span className="font-bold text-base tracking-tight">Wholesale Engine</span>
+              <span className="text-xs text-gray-500 border border-gray-700 rounded px-1.5 py-0.5">beta</span>
+            </div>
+            <nav className="flex gap-4 text-sm">
+              <Link href="/search" className="text-green-400 font-medium">Search</Link>
+              <Link href="/buyers" className="text-gray-500 hover:text-gray-300 flex items-center gap-1">
+                <Users className="w-3 h-3" />Buyers
+              </Link>
+              <Link href="/alerts" className="text-gray-500 hover:text-gray-300 flex items-center gap-1">
+                <Bell className="w-3 h-3" />Alerts
+              </Link>
+            </nav>
           </div>
-          <span className="text-xs text-gray-500">AI-powered wholesale deal finder</span>
+          <button onClick={() => setShowCalc(c => !c)}
+            className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded border text-sm transition-colors',
+              showCalc ? 'border-green-500 text-green-400 bg-green-500/10' : 'border-gray-700 text-gray-400 hover:border-gray-500')}>
+            <Calculator className="w-4 h-4" /> Calculator
+          </button>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
+      <main className={cn('max-w-7xl mx-auto px-4 py-8', showCalc && 'pr-84')}>
         {/* Search Bar */}
-        <div className="mb-8">
+        <div className="mb-6">
           <form onSubmit={handleSubmit} className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-              <input
-                type="text"
-                value={searchInput}
-                onChange={e => setSearchInput(e.target.value)}
+              <input type="text" value={searchInput} onChange={e => setSearchInput(e.target.value)}
                 placeholder="Memphis, TN — or — 38103, 38104, 38105"
-                className="w-full pl-10 pr-4 py-3 bg-[#161b22] border border-gray-700 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500"
-              />
+                className="w-full pl-10 pr-4 py-3 bg-[#161b22] border border-gray-700 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500" />
             </div>
-            <button
-              type="submit"
-              disabled={loading || !searchInput.trim()}
-              className="px-6 py-3 bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:text-gray-500 rounded-lg text-sm font-semibold transition-colors"
-            >
+            <button type="submit" disabled={loading || !searchInput.trim()}
+              className="px-6 py-3 bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:text-gray-500 rounded-lg text-sm font-semibold transition-colors">
               {loading ? 'Searching…' : 'Find Deals'}
             </button>
+            {/* Saved searches */}
+            <div className="relative">
+              <button type="button" onClick={() => setShowSaved(s => !s)}
+                className="h-full px-3 border border-gray-700 hover:border-gray-500 rounded-lg text-gray-400 hover:text-gray-200 transition-colors">
+                <Bookmark className="w-4 h-4" />
+              </button>
+              {showSaved && (
+                <div className="absolute right-0 top-full mt-1 w-64 bg-[#161b22] border border-gray-700 rounded-lg shadow-xl z-10">
+                  <div className="p-2 border-b border-gray-800 text-xs text-gray-500">Saved Searches</div>
+                  {savedSearches.length === 0 ? (
+                    <div className="p-3 text-xs text-gray-600">No saved searches yet</div>
+                  ) : (
+                    savedSearches.map(s => (
+                      <div key={s.id} className="flex items-center gap-2 p-2 hover:bg-gray-800/50 group">
+                        <button className="flex-1 text-left text-sm text-gray-300"
+                          onClick={() => { setSearchInput(s.market); void runSearch(s.market); setShowSaved(false); }}>
+                          {s.name}
+                          <span className="text-xs text-gray-600 ml-1">({s.market})</span>
+                        </button>
+                        <button onClick={() => void deleteSaved(s.id)} className="opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400">
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
           </form>
 
-          {/* Popular markets */}
           {!result && !loading && (
             <div className="mt-3 flex flex-wrap gap-2">
               <span className="text-xs text-gray-500 py-1">Try:</span>
               {POPULAR_MARKETS.map(m => (
-                <button
-                  key={m}
-                  onClick={() => { setSearchInput(m); void runSearch(m); }}
-                  className="text-xs px-3 py-1 bg-[#161b22] border border-gray-700 hover:border-gray-500 rounded-full text-gray-400 hover:text-gray-200 transition-colors"
-                >
+                <button key={m} onClick={() => { setSearchInput(m); void runSearch(m); }}
+                  className="text-xs px-3 py-1 bg-[#161b22] border border-gray-700 hover:border-gray-500 rounded-full text-gray-400 hover:text-gray-200 transition-colors">
                   {m}
                 </button>
               ))}
@@ -173,8 +440,13 @@ export default function SearchPage() {
 
         {error && (
           <div className="mb-6 p-4 bg-red-900/20 border border-red-700/50 rounded-lg text-red-400 text-sm flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            {error}
+            <AlertTriangle className="w-4 h-4 shrink-0" />{error}
+          </div>
+        )}
+
+        {saveSuccess && (
+          <div className="mb-4 p-3 bg-green-900/20 border border-green-700/50 rounded text-green-400 text-sm flex items-center gap-2">
+            <BookmarkCheck className="w-4 h-4" /> Search saved!
           </div>
         )}
 
@@ -188,7 +460,7 @@ export default function SearchPage() {
         {result && (
           <div className="flex gap-6">
             {/* Filter Sidebar */}
-            <aside className="w-64 shrink-0 hidden lg:block">
+            <aside className="w-56 shrink-0 hidden lg:block">
               <div className="bg-[#161b22] border border-gray-800 rounded-lg p-4 sticky top-4">
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-sm font-semibold text-gray-300 flex items-center gap-2">
@@ -196,111 +468,67 @@ export default function SearchPage() {
                   </span>
                   {hasActiveFilters && (
                     <button onClick={() => setFilters(DEFAULT_FILTERS)} className="text-xs text-gray-500 hover:text-gray-300 flex items-center gap-1">
-                      <X className="w-3 h-3" /> Clear
+                      <X className="w-3 h-3" />Clear
                     </button>
                   )}
                 </div>
-
-                <div className="space-y-4">
-                  {/* Min wholesale score */}
+                <div className="space-y-3">
                   <div>
-                    <label className="text-xs text-gray-500 mb-1 block">Min Deal Score</label>
-                    <select
-                      value={filters.minScore}
-                      onChange={e => setFilters(f => ({ ...f, minScore: e.target.value }))}
-                      className="w-full bg-[#0d1117] border border-gray-700 rounded px-2 py-1.5 text-sm text-gray-300 focus:outline-none focus:border-green-500"
-                    >
+                    <label className="text-xs text-gray-500 mb-1 block">Min Score</label>
+                    <select value={filters.minScore} onChange={e => setFilters(f => ({ ...f, minScore: e.target.value }))}
+                      className="w-full bg-[#0d1117] border border-gray-700 rounded px-2 py-1.5 text-sm text-gray-300 focus:outline-none focus:border-green-500">
                       <option value="">Any</option>
-                      <option value="75">75+ (Hot Deals)</option>
+                      <option value="75">75+ (Hot)</option>
                       <option value="50">50+ (Potential)</option>
                       <option value="25">25+</option>
                     </select>
                   </div>
-
-                  {/* Price range */}
                   <div>
                     <label className="text-xs text-gray-500 mb-1 block">Price Range</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="number"
-                        placeholder="Min"
-                        value={filters.minPrice}
+                    <div className="flex gap-1">
+                      <input type="number" placeholder="Min" value={filters.minPrice}
                         onChange={e => setFilters(f => ({ ...f, minPrice: e.target.value }))}
-                        className="w-full bg-[#0d1117] border border-gray-700 rounded px-2 py-1.5 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-green-500"
-                      />
-                      <input
-                        type="number"
-                        placeholder="Max"
-                        value={filters.maxPrice}
+                        className="w-full bg-[#0d1117] border border-gray-700 rounded px-2 py-1.5 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-green-500" />
+                      <input type="number" placeholder="Max" value={filters.maxPrice}
                         onChange={e => setFilters(f => ({ ...f, maxPrice: e.target.value }))}
-                        className="w-full bg-[#0d1117] border border-gray-700 rounded px-2 py-1.5 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-green-500"
-                      />
+                        className="w-full bg-[#0d1117] border border-gray-700 rounded px-2 py-1.5 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-green-500" />
                     </div>
                   </div>
-
-                  {/* Bedrooms */}
                   <div>
-                    <label className="text-xs text-gray-500 mb-1 block">Min Bedrooms</label>
-                    <select
-                      value={filters.minBedrooms}
-                      onChange={e => setFilters(f => ({ ...f, minBedrooms: e.target.value }))}
-                      className="w-full bg-[#0d1117] border border-gray-700 rounded px-2 py-1.5 text-sm text-gray-300 focus:outline-none focus:border-green-500"
-                    >
+                    <label className="text-xs text-gray-500 mb-1 block">Min Beds</label>
+                    <select value={filters.minBedrooms} onChange={e => setFilters(f => ({ ...f, minBedrooms: e.target.value }))}
+                      className="w-full bg-[#0d1117] border border-gray-700 rounded px-2 py-1.5 text-sm text-gray-300 focus:outline-none focus:border-green-500">
                       <option value="">Any</option>
-                      <option value="2">2+</option>
-                      <option value="3">3+</option>
-                      <option value="4">4+</option>
+                      <option value="2">2+</option><option value="3">3+</option><option value="4">4+</option>
                     </select>
                   </div>
-
-                  {/* Days on market */}
                   <div>
-                    <label className="text-xs text-gray-500 mb-1 block">Max Days on Market</label>
-                    <select
-                      value={filters.maxDom}
-                      onChange={e => setFilters(f => ({ ...f, maxDom: e.target.value }))}
-                      className="w-full bg-[#0d1117] border border-gray-700 rounded px-2 py-1.5 text-sm text-gray-300 focus:outline-none focus:border-green-500"
-                    >
+                    <label className="text-xs text-gray-500 mb-1 block">Max DOM</label>
+                    <select value={filters.maxDom} onChange={e => setFilters(f => ({ ...f, maxDom: e.target.value }))}
+                      className="w-full bg-[#0d1117] border border-gray-700 rounded px-2 py-1.5 text-sm text-gray-300 focus:outline-none focus:border-green-500">
                       <option value="">Any</option>
-                      <option value="30">30 days</option>
-                      <option value="60">60 days</option>
-                      <option value="90">90 days</option>
-                      <option value="180">180 days</option>
+                      <option value="30">30d</option><option value="60">60d</option>
+                      <option value="90">90d</option><option value="180">180d</option>
                     </select>
                   </div>
-
-                  {/* Property types */}
                   <div>
-                    <label className="text-xs text-gray-500 mb-2 block">Property Type</label>
-                    <div className="space-y-1.5">
-                      {PROPERTY_TYPES.map(type => (
-                        <label key={type} className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={filters.propertyTypes.includes(type)}
-                            onChange={e => setFilters(f => ({
-                              ...f,
-                              propertyTypes: e.target.checked
-                                ? [...f.propertyTypes, type]
-                                : f.propertyTypes.filter(t => t !== type),
-                            }))}
-                            className="accent-green-500"
-                          />
-                          <span className="text-sm text-gray-400">{type}</span>
+                    <label className="text-xs text-gray-500 mb-2 block">Type</label>
+                    <div className="space-y-1">
+                      {PROPERTY_TYPES.map(t => (
+                        <label key={t} className="flex items-center gap-2 cursor-pointer">
+                          <input type="checkbox" checked={filters.propertyTypes.includes(t)}
+                            onChange={e => setFilters(f => ({ ...f, propertyTypes: e.target.checked ? [...f.propertyTypes, t] : f.propertyTypes.filter(x => x !== t) }))}
+                            className="accent-green-500" />
+                          <span className="text-sm text-gray-400">{t}</span>
                         </label>
                       ))}
                     </div>
                   </div>
-
-                  {/* Only viable deals */}
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={filters.onlyDeals}
+                    <input type="checkbox" checked={filters.onlyDeals}
                       onChange={e => setFilters(f => ({ ...f, onlyDeals: e.target.checked }))}
-                      className="accent-green-500"
-                    />
-                    <span className="text-sm text-gray-400">Viable deals only</span>
+                      className="accent-green-500" />
+                    <span className="text-sm text-gray-400">Viable only</span>
                   </label>
                 </div>
               </div>
@@ -308,51 +536,90 @@ export default function SearchPage() {
 
             {/* Main content */}
             <div className="flex-1 min-w-0">
-              {/* Mobile filter toggle */}
-              <button
-                onClick={() => setFiltersOpen(f => !f)}
-                className="lg:hidden mb-4 flex items-center gap-2 text-sm text-gray-400 hover:text-gray-200"
-              >
-                <SlidersHorizontal className="w-4 h-4" />
-                Filters {hasActiveFilters && <span className="text-green-400">(active)</span>}
-                {filtersOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-              </button>
-
               {/* Market Summary */}
-              <MarketSummaryPanel summary={result.marketSummary} meta={result.meta} />
+              <div className="bg-[#161b22] border border-gray-800 rounded-lg p-4 mb-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-green-400" />{result.meta.market}
+                  </h2>
+                  <span className="text-xs text-gray-600">{result.meta.durationMs}ms</span>
+                </div>
+                <div className="grid grid-cols-4 gap-4 mb-3">
+                  <Stat label="Hot Deals" value={String(result.marketSummary.hotDeals)} sub="Score 75+" highlight={result.marketSummary.hotDeals > 0} />
+                  <Stat label="Potential" value={String(result.marketSummary.potentialDeals)} sub="Score 50-74" />
+                  <Stat label="Avg Score" value={String(result.marketSummary.avgWholesaleScore)} sub="Wholesale index" />
+                  <Stat label="Avg Equity" value={formatCurrency(result.marketSummary.avgEquitySpread)} sub="ARV − list" highlight={result.marketSummary.avgEquitySpread > 0} />
+                </div>
+                <ApiStatusPanel meta={result.meta} />
+                {result.marketSummary.topDistressSignals.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {result.marketSummary.topDistressSignals.map(sig => (
+                      <span key={sig} className="text-xs px-2 py-0.5 bg-orange-400/10 border border-orange-400/20 text-orange-400 rounded">{sig}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-              {/* Results count */}
+              {/* Toolbar */}
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm text-gray-500">
                   {filteredAnalyses.length} properties
                   {filteredAnalyses.length !== result.analyses.length && ` (filtered from ${result.analyses.length})`}
-                  {' '}· sorted by deal score
                 </p>
-                {result.meta.usedMock && (
-                  <span className="text-xs px-2 py-0.5 bg-yellow-400/10 border border-yellow-400/30 text-yellow-400 rounded">
-                    Demo data — add API keys for live results
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {/* View toggle */}
+                  <div className="flex border border-gray-700 rounded overflow-hidden">
+                    <button onClick={() => setViewMode('list')}
+                      className={cn('px-3 py-1.5 text-xs flex items-center gap-1', viewMode === 'list' ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-gray-200')}>
+                      <List className="w-3 h-3" />List
+                    </button>
+                    <button onClick={() => setViewMode('map')}
+                      className={cn('px-3 py-1.5 text-xs flex items-center gap-1', viewMode === 'map' ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-gray-200')}>
+                      <MapIcon className="w-3 h-3" />Map
+                    </button>
+                  </div>
+                  {/* Export */}
+                  <button onClick={exportCsv} disabled={filteredAnalyses.length === 0}
+                    className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-700 hover:border-gray-500 rounded text-xs text-gray-400 hover:text-gray-200 transition-colors disabled:opacity-40">
+                    <Download className="w-3 h-3" />Export CSV
+                  </button>
+                  {/* Save search */}
+                  {!showSaveDialog ? (
+                    <button onClick={() => setShowSaveDialog(true)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-700 hover:border-gray-500 rounded text-xs text-gray-400 hover:text-gray-200 transition-colors">
+                      <Bookmark className="w-3 h-3" />Save
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <input value={saveName} onChange={e => setSaveName(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && void saveSearch()}
+                        placeholder="Search name…" autoFocus
+                        className="px-2 py-1.5 bg-[#0d1117] border border-gray-700 rounded text-xs focus:outline-none focus:border-green-500 w-32" />
+                      <button onClick={() => void saveSearch()}
+                        className="px-2 py-1.5 bg-green-600 hover:bg-green-500 rounded text-xs">Save</button>
+                      <button onClick={() => setShowSaveDialog(false)} className="p-1.5 text-gray-600 hover:text-gray-400">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Property Cards */}
-              {filteredAnalyses.length === 0 ? (
+              {/* Results */}
+              {viewMode === 'map' ? (
+                <MapView analyses={filteredAnalyses} />
+              ) : filteredAnalyses.length === 0 ? (
                 <div className="py-16 text-center text-gray-500">
                   <Building2 className="w-8 h-8 mx-auto mb-3 opacity-30" />
                   <p>No properties match your filters.</p>
-                  <button onClick={() => setFilters(DEFAULT_FILTERS)} className="mt-2 text-green-400 hover:text-green-300 text-sm">
-                    Clear filters
-                  </button>
+                  <button onClick={() => setFilters(DEFAULT_FILTERS)} className="mt-2 text-green-400 hover:text-green-300 text-sm">Clear filters</button>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                   {filteredAnalyses.map(analysis => (
-                    <PropertyCard
-                      key={analysis.property.id}
-                      analysis={analysis}
+                    <PropertyCard key={analysis.property.id} analysis={analysis}
                       expanded={expandedId === analysis.property.id}
-                      onToggle={() => setExpandedId(id => id === analysis.property.id ? null : analysis.property.id)}
-                    />
+                      onToggle={() => setExpandedId(id => id === analysis.property.id ? null : analysis.property.id)} />
                   ))}
                 </div>
               )}
@@ -360,52 +627,17 @@ export default function SearchPage() {
           </div>
         )}
 
-        {/* Empty state */}
         {!result && !loading && !error && (
           <div className="text-center py-24">
             <Building2 className="w-12 h-12 mx-auto mb-4 text-gray-700" />
             <h2 className="text-xl font-semibold text-gray-400 mb-2">Find Wholesale Deals</h2>
             <p className="text-gray-600 max-w-md mx-auto text-sm">
-              Enter a US city/state or zip codes. Our AI scores every property for wholesale potential using ARV analysis, distress signals, and market momentum.
+              Enter a US city/state or zip codes. Our AI scores every property for wholesale potential
+              using ARV analysis, distress signals, and market momentum.
             </p>
           </div>
         )}
       </main>
-    </div>
-  );
-}
-
-function MarketSummaryPanel({
-  summary,
-  meta,
-}: {
-  summary: SearchResult['marketSummary'];
-  meta: SearchResult['meta'];
-}) {
-  return (
-    <div className="bg-[#161b22] border border-gray-800 rounded-lg p-4 mb-6">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
-          <TrendingUp className="w-4 h-4 text-green-400" />
-          {meta.market}
-        </h2>
-        <span className="text-xs text-gray-600">{meta.durationMs}ms</span>
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Stat label="Hot Deals" value={String(summary.hotDeals)} sub="Score 75+" highlight={summary.hotDeals > 0} />
-        <Stat label="Potential" value={String(summary.potentialDeals)} sub="Score 50-74" />
-        <Stat label="Avg Score" value={String(summary.avgWholesaleScore)} sub="Wholesale index" />
-        <Stat label="Avg Equity" value={formatCurrency(summary.avgEquitySpread)} sub="ARV − list price" highlight={summary.avgEquitySpread > 0} />
-      </div>
-      {summary.topDistressSignals.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {summary.topDistressSignals.map(sig => (
-            <span key={sig} className="text-xs px-2 py-0.5 bg-orange-400/10 border border-orange-400/20 text-orange-400 rounded">
-              {sig}
-            </span>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -420,27 +652,14 @@ function Stat({ label, value, sub, highlight }: { label: string; value: string; 
   );
 }
 
-function PropertyCard({
-  analysis,
-  expanded,
-  onToggle,
-}: {
-  analysis: DealAnalysis;
-  expanded: boolean;
-  onToggle: () => void;
-}) {
+function PropertyCard({ analysis, expanded, onToggle }: { analysis: DealAnalysis; expanded: boolean; onToggle: () => void }) {
   const { property: p } = analysis;
   const scoreClass = scoreColor(analysis.wholesaleScore);
 
   return (
-    <div
-      className={cn(
-        'bg-[#161b22] border rounded-lg p-4 cursor-pointer transition-all',
-        expanded ? 'border-green-600/50' : 'border-gray-800 hover:border-gray-600',
-      )}
-      onClick={onToggle}
-    >
-      {/* Header row */}
+    <div onClick={onToggle}
+      className={cn('bg-[#161b22] border rounded-lg p-4 cursor-pointer transition-all',
+        expanded ? 'border-green-600/50' : 'border-gray-800 hover:border-gray-600')}>
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-gray-200 truncate">{p.address}</p>
@@ -451,66 +670,46 @@ function PropertyCard({
         </div>
       </div>
 
-      {/* Key metrics row */}
-      <div className="grid grid-cols-3 gap-3 mb-3">
+      <div className="grid grid-cols-3 gap-2 mb-3">
         <MetricBox label="List Price" value={formatCurrency(p.price)} />
-        <MetricBox
-          label="MAO"
-          value={formatCurrency(analysis.mao)}
-          highlight={analysis.mao > p.price}
-          dim={analysis.mao <= 0}
-        />
-        <MetricBox
-          label="Profit @ List"
-          value={formatCurrency(analysis.projectedProfit)}
-          highlight={analysis.projectedProfit > 0}
-          dim={analysis.projectedProfit < 0}
-          prefix={analysis.projectedProfit > 0 ? '+' : ''}
-        />
+        <MetricBox label="MAO" value={formatCurrency(analysis.mao)} highlight={analysis.mao > p.price} dim={analysis.mao <= 0} />
+        <MetricBox label="Profit @ List" value={formatCurrency(analysis.projectedProfit)}
+          highlight={analysis.projectedProfit > 0} dim={analysis.projectedProfit < 0}
+          prefix={analysis.projectedProfit > 0 ? '+' : ''} />
       </div>
 
-      {/* Property details */}
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 mb-3">
-        <span>{p.bedrooms}bd / {p.bathrooms}ba</span>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 mb-2">
+        <span>{p.bedrooms}bd/{p.bathrooms}ba</span>
         <span>{p.sqft.toLocaleString()} sqft</span>
         <span>Built {p.yearBuilt}</span>
-        <span>{p.daysOnMarket}d on market</span>
+        <span>{p.daysOnMarket}d DOM</span>
         <span className="capitalize">{p.propertyType}</span>
-        {p.source !== 'mock' && <span className="text-blue-400">{p.source}</span>}
       </div>
 
-      {/* Distress signals */}
       {p.distressSignals.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-3">
+        <div className="flex flex-wrap gap-1 mb-2">
           {p.distressSignals.map(sig => (
-            <span key={sig} className="text-xs px-1.5 py-0.5 bg-orange-400/10 border border-orange-400/20 text-orange-400 rounded">
-              {sig}
-            </span>
+            <span key={sig} className="text-xs px-1.5 py-0.5 bg-orange-400/10 border border-orange-400/20 text-orange-400 rounded">{sig}</span>
           ))}
         </div>
       )}
 
-      {/* ARV confidence warning — shown on card face, not just expanded */}
       {analysis.arvConfidence === 'low' && (
-        <p className="text-xs text-yellow-500/60 flex items-center gap-1 mb-2">
-          <AlertTriangle className="w-3 h-3 shrink-0" /> ARV estimated — verify with comps
+        <p className="text-xs text-yellow-500/60 flex items-center gap-1 mb-1">
+          <AlertTriangle className="w-3 h-3 shrink-0" />ARV estimated — verify with comps
         </p>
       )}
 
-      {/* Score summary */}
       {analysis.scoreSummary && (
-        <p className="text-xs text-gray-500 italic border-t border-gray-800 pt-2 mb-2">
-          {analysis.scoreSummary}
-        </p>
+        <p className="text-xs text-gray-500 italic border-t border-gray-800 pt-2 mb-1">{analysis.scoreSummary}</p>
       )}
 
-      {/* Expanded deal breakdown */}
       {expanded && (
         <div className="border-t border-gray-800 pt-3 mt-1" onClick={e => e.stopPropagation()}>
           <p className="text-xs font-semibold text-gray-400 mb-2 flex items-center gap-1">
-            <DollarSign className="w-3 h-3" /> Deal Analysis
+            <DollarSign className="w-3 h-3" />Deal Analysis
           </p>
-          <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="grid grid-cols-2 gap-2 text-xs mb-3">
             <DetailRow label="ARV Estimate" value={formatCurrency(analysis.arvEstimate)} />
             <DetailRow label="ARV Confidence" value={analysis.arvConfidence} />
             <DetailRow label="Repair Estimate" value={formatCurrency(analysis.repairEstimate)} />
@@ -518,7 +717,7 @@ function PropertyCard({
             <DetailRow label="Equity Spread" value={formatCurrency(analysis.equitySpread)} positive={analysis.equitySpread > 0} />
             <DetailRow label="Profit @ List" value={formatCurrency(analysis.projectedProfit)} positive={analysis.projectedProfit > 0} />
           </div>
-          <div className="grid grid-cols-4 gap-2 mt-3">
+          <div className="grid grid-cols-4 gap-2">
             <ScoreBar label="Wholesale" value={analysis.wholesaleScore} />
             <ScoreBar label="Distress" value={analysis.distressScore} />
             <ScoreBar label="Momentum" value={analysis.momentumScore} />
@@ -526,8 +725,7 @@ function PropertyCard({
           </div>
           {analysis.arvConfidence === 'low' && (
             <p className="mt-2 text-xs text-yellow-500/70 flex items-center gap-1">
-              <AlertTriangle className="w-3 h-3" />
-              ARV estimate is approximate — verify with local comps before making an offer.
+              <AlertTriangle className="w-3 h-3" />Verify ARV with local comps before making an offer.
             </p>
           )}
         </div>
@@ -555,9 +753,7 @@ function DetailRow({ label, value, positive }: { label: string; value: string; p
   return (
     <div className="flex justify-between items-center py-1 border-b border-gray-800/50">
       <span className="text-gray-500">{label}</span>
-      <span className={cn('font-medium', positive === true ? 'text-green-400' : positive === false ? 'text-red-400' : 'text-gray-300')}>
-        {value}
-      </span>
+      <span className={cn('font-medium', positive === true ? 'text-green-400' : positive === false ? 'text-red-400' : 'text-gray-300')}>{value}</span>
     </div>
   );
 }
@@ -568,7 +764,7 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
     <div>
       <p className="text-xs text-gray-500 mb-1">{label}</p>
       <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
-        <div className={cn('h-full rounded-full transition-all', color)} style={{ width: `${value}%` }} />
+        <div className={cn('h-full rounded-full', color)} style={{ width: `${value}%` }} />
       </div>
       <p className="text-xs font-semibold text-gray-400 mt-0.5">{value}</p>
     </div>

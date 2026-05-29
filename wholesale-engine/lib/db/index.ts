@@ -53,6 +53,35 @@ const SCHEMA_STATEMENTS = [
     investor_activity TEXT,
     last_updated INTEGER NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS saved_searches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    market TEXT NOT NULL,
+    zip_codes TEXT,
+    filters TEXT NOT NULL DEFAULT '{}',
+    created_at INTEGER NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS buyers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    email TEXT,
+    phone TEXT,
+    markets TEXT NOT NULL DEFAULT '[]',
+    max_price REAL,
+    property_types TEXT NOT NULL DEFAULT '[]',
+    notes TEXT,
+    created_at INTEGER NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS alerts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL,
+    market TEXT NOT NULL,
+    min_score INTEGER NOT NULL DEFAULT 75,
+    max_price REAL,
+    frequency TEXT NOT NULL DEFAULT 'daily',
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at INTEGER NOT NULL
+  )`,
 ];
 
 function createDbClient(): Client | null {
