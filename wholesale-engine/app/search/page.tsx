@@ -22,6 +22,7 @@ type ParsedBuyBox = {
   maxDaysOnMarket: number | null;
   requireDistressSignals: boolean;
   minScore: number | null;
+  minProfit: number | null;
   summary: string;
 };
 
@@ -43,6 +44,7 @@ type SearchResult = {
     usedMock: boolean;
     hasClaude: boolean;
     durationMs: number;
+    agent?: AgentMeta;
   };
 };
 
@@ -55,6 +57,18 @@ type LocalFilters = {
   onlyDeals: boolean;
   minScore: string;
   requireDistress: boolean;
+  profitableOnly: boolean;
+  minProfit: string;
+};
+
+type AgentMeta = {
+  summary: string;
+  usedAi: boolean;
+  marketsScanned: number;
+  totalScanned: number;
+  profitableFound: number;
+  minProfit: number | null;
+  topMarkets: { market: string; count: number }[];
 };
 
 type SavedSearch = {
@@ -68,6 +82,7 @@ type SavedSearch = {
 const DEFAULT_FILTERS: LocalFilters = {
   minPrice: '', maxPrice: '', minBedrooms: '', maxDom: '',
   propertyTypes: [], onlyDeals: false, minScore: '', requireDistress: false,
+  profitableOnly: false, minProfit: '',
 };
 
 const PROPERTY_TYPES: PropertyType[] = ['SFR', 'MFR', 'Condo', 'Townhouse', 'Land'];
@@ -253,8 +268,9 @@ export default function SearchPage() {
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
   const [showSaved, setShowSaved] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [searchMode, setSearchMode] = useState<'quick' | 'buybox'>('quick');
+  const [searchMode, setSearchMode] = useState<'quick' | 'buybox' | 'agent'>('quick');
   const [buyBoxText, setBuyBoxText] = useState('');
+  const [agentText, setAgentText] = useState('');
   const [parsing, setParsing] = useState(false);
   const [interpreted, setInterpreted] = useState<{ summary: string; usedAi: boolean } | null>(null);
   const didAutoSearch = useRef(false);
@@ -331,6 +347,8 @@ export default function SearchPage() {
         onlyDeals: false,
         minScore: p.minScore != null ? String(p.minScore) : '',
         requireDistress: p.requireDistressSignals,
+        profitableOnly: false,
+        minProfit: p.minProfit != null ? String(p.minProfit) : '',
       });
       setSearchInput(target);
       setInterpreted({ summary: p.summary, usedAi: data.usedAi ?? false });
@@ -350,6 +368,33 @@ export default function SearchPage() {
       setParsing(false);
     }
   }, [runSearch]);
+
+  // Agent: scan every strong market in parallel and return only the best,
+  // profitable deals ranked across all of them.
+  const runAgent = useCallback(async (text: string) => {
+    if (!text.trim()) return;
+    setLoading(true);
+    setError(null);
+    setResult(null);
+    setShowSaved(false);
+    setInterpreted(null);
+    // The agent already returns only winners — don't double-filter client-side.
+    setFilters(DEFAULT_FILTERS);
+    try {
+      const res = await fetch('/api/agent-hunt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      const data = (await res.json()) as SearchResult & { ok: boolean; error?: string };
+      if (!data.ok) throw new Error(data.error ?? 'Agent hunt failed');
+      setResult(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Agent hunt failed');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   // Auto-search when arriving from Buyers "Match Deals" link (?markets=...)
   useEffect(() => {
@@ -427,13 +472,15 @@ export default function SearchPage() {
       if (filters.onlyDeals && !a.isViableDeal) return false;
       if (filters.minScore && a.wholesaleScore < Number(filters.minScore)) return false;
       if (filters.requireDistress && p.distressSignals.length === 0) return false;
+      if (filters.profitableOnly && a.projectedProfit <= 0) return false;
+      if (filters.minProfit && a.projectedProfit < Number(filters.minProfit)) return false;
       return true;
     }).sort((a, b) => b.wholesaleScore - a.wholesaleScore);
   }, [result, filters]);
 
   const hasActiveFilters = Object.entries(filters).some(([k, v]) => {
     if (k === 'propertyTypes') return (v as PropertyType[]).length > 0;
-    if (k === 'onlyDeals' || k === 'requireDistress') return v === true;
+    if (k === 'onlyDeals' || k === 'requireDistress' || k === 'profitableOnly') return v === true;
     return v !== '';
   });
 
@@ -484,9 +531,14 @@ export default function SearchPage() {
                 searchMode === 'buybox' ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-gray-200 border border-gray-700')}>
               <Wand2 className="w-3 h-3" />Describe your deal
             </button>
+            <button type="button" onClick={() => setSearchMode('agent')}
+              className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors',
+                searchMode === 'agent' ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-gray-200 border border-gray-700')}>
+              <Sparkles className="w-3 h-3" />Deal Agent
+            </button>
           </div>
 
-          {searchMode === 'buybox' ? (
+          {searchMode === 'buybox' && (
             <div>
               <div className="relative">
                 <Sparkles className="absolute left-3 top-3 w-4 h-4 text-green-400" />
@@ -515,7 +567,32 @@ export default function SearchPage() {
                 </div>
               )}
             </div>
-          ) : (
+          )}
+
+          {searchMode === 'agent' && (
+            <div>
+              <div className="relative">
+                <Sparkles className="absolute left-3 top-3 w-4 h-4 text-green-400" />
+                <textarea
+                  value={agentText}
+                  onChange={e => setAgentText(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void runAgent(agentText); } }}
+                  rows={2}
+                  placeholder="Tell the agent what you want — e.g. '3+ bed houses, motivated sellers, at least $25k profit' — it scans every strong market and returns the best deals."
+                  className="w-full pl-10 pr-4 py-3 bg-[#161b22] border border-gray-700 rounded-lg text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 resize-none"
+                />
+              </div>
+              <div className="flex items-center justify-between mt-2">
+                <span className="text-xs text-gray-600">Scans all {POPULAR_MARKETS.length}+ markets · ⌘/Ctrl + Enter to run</span>
+                <button type="button" onClick={() => void runAgent(agentText)} disabled={loading || !agentText.trim()}
+                  className="flex items-center gap-1.5 px-5 py-2 bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:text-gray-500 rounded-lg text-sm font-semibold transition-colors">
+                  <Sparkles className="w-4 h-4" />{loading ? 'Hunting…' : 'Run deal agent'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {searchMode === 'quick' && (
           <form onSubmit={handleSubmit} className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
@@ -669,12 +746,54 @@ export default function SearchPage() {
                       className="accent-green-500" />
                     <span className="text-sm text-gray-400">Distressed only</span>
                   </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={filters.profitableOnly}
+                      onChange={e => setFilters(f => ({ ...f, profitableOnly: e.target.checked }))}
+                      className="accent-green-500" />
+                    <span className="text-sm text-gray-400">Profitable only</span>
+                  </label>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">Min Profit @ List</label>
+                    <input type="number" placeholder="e.g. 20000" value={filters.minProfit}
+                      onChange={e => setFilters(f => ({ ...f, minProfit: e.target.value }))}
+                      className="w-full bg-[#0d1117] border border-gray-700 rounded px-2 py-1.5 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:border-green-500" />
+                  </div>
                 </div>
               </div>
             </aside>
 
             {/* Main content */}
             <div className="flex-1 min-w-0">
+              {/* Agent summary banner */}
+              {result.meta.agent && (
+                <div className="bg-green-900/10 border border-green-700/30 rounded-lg p-4 mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Sparkles className="w-4 h-4 text-green-400" />
+                    <span className="text-sm font-semibold text-green-400">Deal Agent results</span>
+                    <span className="text-xs text-gray-500">
+                      {result.meta.agent.usedAi ? 'AI-parsed' : 'keyword-parsed'} buy box
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-300 mb-2">{result.meta.agent.summary}</p>
+                  <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-gray-500">
+                    <span>Scanned <b className="text-gray-300">{result.meta.agent.marketsScanned}</b> markets</span>
+                    <span>Reviewed <b className="text-gray-300">{result.meta.agent.totalScanned}</b> properties</span>
+                    <span>Found <b className="text-green-400">{result.meta.agent.profitableFound}</b> deals worth pursuing</span>
+                    {result.meta.agent.minProfit != null && (
+                      <span>Min profit: <b className="text-gray-300">{formatCurrency(result.meta.agent.minProfit)}</b></span>
+                    )}
+                  </div>
+                  {result.meta.agent.topMarkets.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {result.meta.agent.topMarkets.map(tm => (
+                        <span key={tm.market} className="text-xs px-2 py-0.5 bg-green-400/10 border border-green-400/20 text-green-400 rounded">
+                          {tm.market} · {tm.count}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               {/* Market Summary */}
               <div className="bg-[#161b22] border border-gray-800 rounded-lg p-4 mb-4">
                 <div className="flex items-center justify-between mb-3">

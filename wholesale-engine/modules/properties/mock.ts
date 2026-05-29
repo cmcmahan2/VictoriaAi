@@ -75,26 +75,47 @@ export function generateMockProperties(query: {
   for (let i = 0; i < count; i++) {
     const seed = i + 1;
     const zip = zips[rng(seed * 5, zips.length)];
-    const basePrice = market.medianPrice;
-    const priceVariance = (rng(seed * 17, 60) - 20) / 100;
-    const price = Math.round(basePrice * (1 + priceVariance) / 1000) * 1000;
 
     const bedrooms = 2 + rng(seed * 3, 4);
     const bathrooms = 1 + rng(seed * 7, 3) * 0.5;
     const sqft = 800 + rng(seed * 11, 1600);
     const yearBuilt = 1945 + rng(seed * 13, 65);
-    const dom = rng(seed * 19, 180);
-    const priceReductions = rng(seed * 23, 4);
-    const forceHigh = i % 4 === 0;
-    const distressSignals = pickDistressSignals(seed, forceHigh);
+
+    // "Base value" ≈ what the home is worth in its current condition for the
+    // neighborhood, scaled by size around the market median.
+    const sizeFactor = 0.75 + (sqft / 2400) * 0.6;          // 0.75–1.35 by sqft
+    const valueVariance = (rng(seed * 17, 40) - 20) / 100;  // ±20%
+    const baseValue = Math.round(market.medianPrice * sizeFactor * (1 + valueVariance) / 1000) * 1000;
+
+    // Roughly 45% of listings are genuine wholesale opportunities: distressed
+    // and priced well below value. The rest are retail-priced (won't pencil out).
+    const isDeal = rng(seed * 61, 100) < 45;
+    const distressSignals = pickDistressSignals(seed, isDeal);
+
+    let price: number;
+    if (isDeal) {
+      // Motivated seller: 52%–72% of value → leaves real margin for a wholesaler
+      const discount = 0.52 + rng(seed * 67, 20) / 100;
+      price = Math.round(baseValue * discount / 1000) * 1000;
+    } else {
+      // Retail: 92%–115% of value → little to no wholesale margin
+      const markup = 0.92 + rng(seed * 71, 23) / 100;
+      price = Math.round(baseValue * markup / 1000) * 1000;
+    }
+
+    // Distressed deals tend to sit longer; retail listings move faster.
+    const dom = isDeal ? 45 + rng(seed * 19, 150) : rng(seed * 19, 70);
+    const priceReductions = isDeal ? 1 + rng(seed * 23, 3) : rng(seed * 23, 2);
 
     const propType = propertyTypes[rng(seed * 29, propertyTypes.length)];
-    const ownerTypes = ['owner-occupied', 'absentee', 'corporate', 'estate'] as const;
+    const ownerTypes = isDeal
+      ? (['absentee', 'estate', 'corporate', 'absentee'] as const)
+      : (['owner-occupied', 'owner-occupied', 'absentee', 'owner-occupied'] as const);
     const ownerType = ownerTypes[rng(seed * 37, ownerTypes.length)];
 
     const lastSoldYearsAgo = 1 + rng(seed * 41, 15);
     const lastSoldYear = new Date().getFullYear() - lastSoldYearsAgo;
-    const lastSoldPrice = Math.round(price * (0.6 + rng(seed * 43, 50) / 100) / 1000) * 1000;
+    const lastSoldPrice = Math.round(baseValue * (0.55 + rng(seed * 43, 40) / 100) / 1000) * 1000;
 
     properties.push({
       id: `mock-${market.state}-${zip}-${i}`,
@@ -112,11 +133,13 @@ export function generateMockProperties(query: {
       priceReductions,
       source: 'mock',
       distressSignals,
-      estimatedRent: Math.round((price * 0.008 + rng(seed * 47, 200)) / 50) * 50,
+      estimatedRent: Math.round((baseValue * 0.008 + rng(seed * 47, 200)) / 50) * 50,
       lastSoldDate: `${lastSoldYear}-${String(1 + rng(seed * 53, 12)).padStart(2, '0')}-15`,
       lastSoldPrice,
       ownerType,
-      taxAssessedValue: Math.round(price * (0.7 + rng(seed * 59, 30) / 100) / 1000) * 1000,
+      // Assessed value tracks the home's real value, not the (discounted) list price,
+      // so distressed deals show strong ARV / equity.
+      taxAssessedValue: Math.round(baseValue * (0.9 + rng(seed * 59, 20) / 100) / 1000) * 1000,
     });
   }
 
