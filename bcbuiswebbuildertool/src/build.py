@@ -45,6 +45,90 @@ STACK_BY_CATEGORY: dict[str, StackType] = {
 }
 
 
+# ── Visual themes (trade-specific look & feel) ─────────────────────────────────
+#
+# Each theme overrides the CSS :root palette + the hero treatment + display
+# font, so an electrician's site does not look identical to a landscaper's.
+# Every page inherits the palette automatically through the CSS variables.
+
+THEMES: dict[str, dict] = {
+    # Default: cool, modern, dark "tech" look. Good for trades / service pros.
+    "modern": {
+        "name": "modern",
+        "display_font": "'Space Grotesk', var(--font)",
+        "radius": "16px",
+        "palette": {
+            "--green": "#1fb574", "--green2": "#169a61",
+            "--navy": "#1a3a5c", "--dark": "#0a1622", "--dark2": "#0f2236",
+            "--light": "#f5f8fb", "--muted": "#64809e",
+            "--text": "#16232f", "--border": "#e3eaf2",
+        },
+        "hero_overlay": "linear-gradient(135deg, rgba(15,30,48,0.86) 0%, rgba(26,58,92,0.86) 100%)",
+        "css": "",
+    },
+    # Fresh / organic: lush forest greens, elegant serif headings, photo-forward
+    # hero. Built for landscapers, gardeners, nurseries (Blossom direction).
+    "fresh": {
+        "name": "fresh",
+        "display_font": "'Fraunces', Georgia, serif",
+        "radius": "22px",
+        "palette": {
+            "--green": "#3a9d5d", "--green2": "#2c7d47",
+            "--navy": "#1f3d2a", "--dark": "#11271a", "--dark2": "#16331f",
+            "--light": "#f2f7ee", "--muted": "#5e7567",
+            "--text": "#1b2a20", "--border": "#dde7d8",
+        },
+        # Lighter overlay so the greenery photography shows through.
+        "hero_overlay": "linear-gradient(180deg, rgba(17,39,26,0.38) 0%, rgba(17,39,26,0.72) 100%)",
+        "css": (
+            ".theme-fresh .hero::after{display:none}"
+            ".theme-fresh .hero::before{background:"
+            "radial-gradient(520px 380px at 15% 20%, rgba(58,157,93,0.28), transparent 70%),"
+            "radial-gradient(520px 380px at 85% 30%, rgba(120,175,90,0.20), transparent 70%);}"
+            ".theme-fresh .page-hero::after{background:radial-gradient(420px 260px at 80% 0%, rgba(58,157,93,0.22), transparent 65%);}"
+        ),
+    },
+    # Warm / appetising: terracotta + deep brown, serif headings. For food.
+    "warm": {
+        "name": "warm",
+        "display_font": "'Fraunces', Georgia, serif",
+        "radius": "18px",
+        "palette": {
+            "--green": "#d9763c", "--green2": "#b85c28",
+            "--navy": "#3a2418", "--dark": "#1c120c", "--dark2": "#261810",
+            "--light": "#faf5ef", "--muted": "#8a7565",
+            "--text": "#2a1d14", "--border": "#ece2d6",
+        },
+        "hero_overlay": "linear-gradient(180deg, rgba(28,18,12,0.42) 0%, rgba(28,18,12,0.74) 100%)",
+        "css": (
+            ".theme-warm .hero::after{display:none}"
+            ".theme-warm .hero::before{background:"
+            "radial-gradient(520px 380px at 15% 20%, rgba(217,118,60,0.26), transparent 70%),"
+            "radial-gradient(520px 380px at 85% 30%, rgba(180,92,40,0.18), transparent 70%);}"
+            ".theme-warm .page-hero::after{background:radial-gradient(420px 260px at 80% 0%, rgba(217,118,60,0.22), transparent 65%);}"
+        ),
+    },
+}
+
+THEME_BY_CATEGORY: dict[str, str] = {
+    "landscap": "fresh", "garden": "fresh", "nursery": "fresh",
+    "lawn": "fresh", "tree": "fresh", "florist": "fresh",
+    "restaurant": "warm", "cafe": "warm", "coffee": "warm",
+    "bakery": "warm", "bistro": "warm", "catering": "warm",
+}
+
+
+def _select_theme(business: dict) -> dict:
+    cats = business.get("categories") or [business.get("category", "")]
+    for cat in cats:
+        key = (cat or "").lower().strip()
+        for needle, theme_name in THEME_BY_CATEGORY.items():
+            if needle in key:
+                return THEMES[theme_name]
+    return THEMES["modern"]
+
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def build_website(profile_dir: str, output_dir: str = "./output") -> Path:
@@ -69,12 +153,16 @@ def build_website(profile_dir: str, output_dir: str = "./output") -> Path:
     stack = _select_stack(business)
     print(f"[build] Stack: {stack} for {business.get('name')}")
 
+    theme = _select_theme(business)
+    business["_theme"] = theme
+    print(f"[build] Theme: {theme['name']}")
+
     # Generate content via Claude (or fall back to templates)
     print("[build] Generating page content...")
     content = _generate_content(business, profile)
 
     print("[build] Building static site...")
-    _write_css(site_dir, content)
+    _write_css(site_dir, content, theme)
     _write_js(site_dir)
     _write_index(business, profile, content, site_dir)
     _write_services(business, content, site_dir)
@@ -272,30 +360,11 @@ def _template_content(business: dict, profile: dict) -> dict:
 
 # ── CSS ───────────────────────────────────────────────────────────────────────
 
-def _write_css(site_dir: Path, content: dict) -> None:
-    css = """\
-/* ── Reset & Variables ─────────────────────────────────────────────────── */
+def _write_css(site_dir: Path, content: dict, theme: dict | None = None) -> None:
+    theme = theme or THEMES["modern"]
+    css = _theme_css(theme) + """\
+/* ── Reset ─────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  --green:   #1fb574;
-  --green2:  #169a61;
-  --navy:    #1a3a5c;
-  --dark:    #0a1622;
-  --dark2:   #0f2236;
-  --light:   #f5f8fb;
-  --white:   #ffffff;
-  --muted:   #64809e;
-  --text:    #16232f;
-  --border:  #e3eaf2;
-  --shadow:  0 4px 24px rgba(13,27,42,0.07);
-  --shadow-lg: 0 18px 48px rgba(13,27,42,0.16);
-  --radius:  16px;
-  --radius-sm: 10px;
-  --font:    'Inter', system-ui, -apple-system, sans-serif;
-  --font-display: 'Space Grotesk', var(--font);
-  --ease:    cubic-bezier(0.22, 1, 0.36, 1);
-}
 
 html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
 
@@ -746,7 +815,26 @@ footer {
   body { padding-bottom: 76px; }
 }
 """
+    css += "\n/* ── Theme overrides ─────────────────────────────────────────── */\n"
+    css += theme.get("css", "")
     (site_dir / "css" / "style.css").write_text(css, encoding="utf-8")
+
+
+def _theme_css(theme: dict) -> str:
+    """Build the :root palette block for the selected theme."""
+    palette = "\n".join(f"  {k}: {v};" for k, v in theme["palette"].items())
+    return f""":root {{
+{palette}
+  --white:   #ffffff;
+  --shadow:  0 4px 24px rgba(13,27,42,0.07);
+  --shadow-lg: 0 18px 48px rgba(13,27,42,0.16);
+  --radius:  {theme.get('radius', '16px')};
+  --radius-sm: 10px;
+  --font:    'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: {theme['display_font']};
+  --ease:    cubic-bezier(0.22, 1, 0.36, 1);
+}}
+"""
 
 
 # ── JS ────────────────────────────────────────────────────────────────────────
@@ -985,13 +1073,13 @@ def _head(title: str, description: str, business: dict) -> str:
   <meta property="og:type" content="website" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=Fraunces:wght@500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
   <script type="application/ld+json">{json.dumps(schema)}</script>
   <!-- GA4: replace G-XXXXXXXXXX with your Measurement ID -->
   <!-- <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script> -->
 </head>
-<body>"""
+<body class="theme-{_esc(business.get('_theme', {}).get('name', 'modern') if isinstance(business.get('_theme'), dict) else 'modern')}">"""
 
 
 def _esc(s) -> str:
@@ -1126,6 +1214,8 @@ def _write_index(business: dict, profile: dict, content: dict, site_dir: Path) -
     cats     = business.get("categories") or [business.get("category", "")]
     keywords = _img_keywords(cats[0] if cats else "")
     hero_img = _img(keywords, 1600, 700, seed=name)
+    theme    = business.get("_theme") if isinstance(business.get("_theme"), dict) else THEMES["modern"]
+    hero_overlay = theme.get("hero_overlay", THEMES["modern"]["hero_overlay"])
 
     service_cards = "\n".join(
         f"""<div class="service-card">
@@ -1152,7 +1242,7 @@ def _write_index(business: dict, profile: dict, content: dict, site_dir: Path) -
     html += f"""
 <main>
   <!-- Hero -->
-  <section class="hero" style="background-image:linear-gradient(135deg, rgba(15,30,48,0.86) 0%, rgba(26,58,92,0.86) 100%), url('{_esc(hero_img)}');background-size:cover;background-position:center;">
+  <section class="hero" style="background-image:{hero_overlay}, url('{_esc(hero_img)}');background-size:cover;background-position:center;">
     <div class="container">
       <h1>{_esc(headline)}</h1>
       <p class="hero-sub">{_esc(tagline)}</p>
