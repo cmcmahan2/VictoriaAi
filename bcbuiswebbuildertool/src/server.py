@@ -238,7 +238,9 @@ async def run_pipeline(slug: str, data: PipelineRequest, request: Request):
             print(f"[Phase 5] Deploying {data.name}...")
             results["deployment"] = deploy_site(str(OUTPUT_DIR / _slug(data.name)), business)
         # Persist client record
-        live_url = (results.get("deployment") or {}).get("live_url")
+        deployment = results.get("deployment") or {}
+        live_url   = deployment.get("live_url")
+        portal_url = deployment.get("portal_url") or (f"{live_url}/portal.html" if live_url else f"/portal/{slug}")
         _upsert_client({
             "slug":         slug,
             "name":         data.name,
@@ -250,7 +252,7 @@ async def run_pipeline(slug: str, data: PipelineRequest, request: Request):
             "has_site":     bool(results.get("site_dir")),
             "has_pdf":      bool(results.get("pdf_path")),
             "live_url":     live_url,
-            "portal_url":   f"/portal/{slug}",
+            "portal_url":   portal_url,
         })
         return results
     _run(job_id, _go)
@@ -414,12 +416,15 @@ async def portal_info(slug: str):
             live_url = json.loads(deploy_path.read_text()).get("live_url")
         except Exception:
             pass
+    # Public share URL: prefer deployed portal.html, fall back to localhost
+    share_url = (f"{live_url}/portal.html" if live_url else None)
     return {
         "slug":          slug,
         "name":          _portal_business_name(slug),
         "has_site":      (site_dir / "index.html").exists(),
         "has_pdf":       pdf_path.exists(),
         "live_url":      live_url,
+        "share_url":     share_url,
         "preview_url":   f"/preview/{slug}/index.html",
         "pdf_url":       f"/portal/{slug}/pdf",
         "agency_name":   os.getenv("AGENCY_NAME", "Victoria AI"),

@@ -354,8 +354,13 @@
     loadClients();
   }
 
-  function copyPortal(slug,btn){
-    const url=location.origin+'/portal/'+slug;
+  async function copyPortal(slug,btn){
+    // Prefer the public Netlify portal URL; fall back to localhost
+    let url = location.origin+'/portal/'+slug;
+    try {
+      const res = await api('/api/portal/'+slug);
+      if (res.ok) { const d = await res.json(); if (d.share_url) url = d.share_url; }
+    } catch{}
     const done=()=>{ const t=btn.textContent; btn.textContent='Copied!'; setTimeout(()=>btn.textContent=t,1500); };
     if(navigator.clipboard){ navigator.clipboard.writeText(url).then(done).catch(()=>{ window.prompt('Copy this client link:',url); done(); }); }
     else { window.prompt('Copy this client link:',url); }
@@ -379,7 +384,7 @@
     const rows=clients.map(c=>{
       const sc=statusColors[c.status]||'var(--muted)';
       const liveCell=c.live_url?`<a href="${esc(c.live_url)}" target="_blank" style="color:var(--green)">${esc(c.live_url)}</a>`:'<span style="color:var(--muted)">Not deployed</span>';
-      const portalCell=c.portal_url?`<button class="btn-run" onclick="copyPortalUrl('${esc(c.slug)}',this)">Copy Link</button>`:'';
+      const portalCell=c.portal_url?`<button class="btn-run" onclick="copyRawUrl('${esc(c.portal_url)}',this)">Copy Link</button>`:'';
       const editCell=c.has_site?`<button class="btn-run" onclick="openEditor('${esc(c.slug)}')">Edit Site</button>`:'';
       const statusSel=`<select onchange="updateClientStatus('${esc(c.slug)}',this.value)" style="background:var(--dark2);border:1px solid var(--border2);color:${sc};border-radius:4px;padding:0.2rem 0.4rem;font-family:inherit;font-size:0.78rem;cursor:pointer;">
         ${['prospect','client','closed'].map(s=>`<option value="${s}" ${c.status===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('')}
@@ -395,8 +400,10 @@
     }).join('');
     el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Business</th><th>Type</th><th>Live Site</th><th>Share Link</th><th>Status</th><th>Edit</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   }
-  function copyPortalUrl(slug,btn){
-    copyPortal(slug,btn);
+  function copyRawUrl(url,btn){
+    const done=()=>{ const t=btn.textContent; btn.textContent='Copied!'; setTimeout(()=>btn.textContent=t,1500); };
+    if(navigator.clipboard){ navigator.clipboard.writeText(url).then(done).catch(()=>{ window.prompt('Copy this client link:',url); done(); }); }
+    else { window.prompt('Copy this client link:',url); }
   }
   async function updateClientStatus(slug,status){
     await api(`/api/clients/${slug}`,{method:'PATCH',body:{status}});
