@@ -12,8 +12,10 @@ export const maxDuration = 60;
 const TIMEOUT_MS = 55_000;
 // Cap how many properties go to Claude in one scoring call. Real providers can
 // return 50+ listings; scoring all of them in a single request is slow and can
-// overflow the response token budget. 25 keeps a single search responsive.
-const SCORE_LIMIT = 25;
+// overflow the response token budget. 15 keeps the Claude call comfortably
+// inside the scorer's 30s timeout so real AI scores return instead of timing
+// out and falling back to mock scores.
+const SCORE_LIMIT = 15;
 
 export async function POST(req: Request) {
   try {

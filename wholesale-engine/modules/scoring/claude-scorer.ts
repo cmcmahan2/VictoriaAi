@@ -128,9 +128,12 @@ export async function scorePropertiesWithClaude(
     return { scores: map, usage };
   }
 
-  // Cap the per-request time and retries so a slow Claude call can't hang the
-  // whole search — fall back to mock scores instead of timing out the route.
-  const client = new Anthropic({ apiKey, timeout: 45_000, maxRetries: 1 });
+  // Cap the per-request time and disable retries so a slow Claude call can't
+  // hang the whole search. With maxRetries > 0 a 45s first attempt plus a retry
+  // could exceed the route's 55s budget, timing out the WHOLE search before this
+  // function's mock-score fallback ever runs. Keep this comfortably under that
+  // budget and fall back to mock scores on any failure.
+  const client = new Anthropic({ apiKey, timeout: 30_000, maxRetries: 0 });
 
   let response;
   try {

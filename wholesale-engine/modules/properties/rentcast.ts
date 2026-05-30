@@ -40,6 +40,8 @@ export async function fetchRentcastProperties(
     const res = await fetch(url, {
       headers: { 'X-Api-Key': apiKey, Accept: 'application/json' },
       cache: 'no-store',
+      // Never let a slow RentCast response hang the whole search.
+      signal: AbortSignal.timeout(12_000),
     });
 
     if (!res.ok) {
