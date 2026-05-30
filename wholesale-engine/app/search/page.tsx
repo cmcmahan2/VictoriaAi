@@ -802,6 +802,18 @@ export default function SearchPage() {
                   )}
                 </div>
               )}
+              {/* No live data notice — usually a non-US market (RentCast is US-only) */}
+              {result.meta.usedMock && (
+                <div className="bg-yellow-900/10 border border-yellow-700/30 rounded-lg p-4 mb-4 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-yellow-500 shrink-0 mt-0.5" />
+                  <div className="text-sm text-yellow-500/90">
+                    <span className="font-semibold">No live listings found — showing demo data.</span>{' '}
+                    Real listings come from RentCast, which covers the <b>US only</b>. If you searched a
+                    non-US market (e.g. Vancouver, BC), try a US city instead — like Houston, TX,
+                    Memphis, TN, or Phoenix, AZ.
+                  </div>
+                </div>
+              )}
               {/* Market Summary */}
               <div className="bg-[#161b22] border border-gray-800 rounded-lg p-4 mb-4">
                 <div className="flex items-center justify-between mb-3">
