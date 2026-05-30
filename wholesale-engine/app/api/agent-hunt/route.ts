@@ -1,17 +1,41 @@
 import { NextResponse } from 'next/server';
 import { searchProperties } from '@/modules/properties/search';
-import { scorePropertiesWithClaude } from '@/modules/scoring/claude-scorer';
+import { scorePropertiesWithClaude, type ScoredProperty } from '@/modules/scoring/claude-scorer';
 import { buildDealAnalysis, buildMarketSummary } from '@/modules/deals/analysis';
 import { parseBuyBox } from '@/modules/agent/parse';
 import { getMockMarkets } from '@/modules/properties/mock';
 import { loadEnv } from '@/lib/env';
 import type { DealAnalysis } from '@/modules/deals/analysis';
-import type { SearchFilters } from '@/modules/properties/types';
+import type { RawProperty, SearchFilters } from '@/modules/properties/types';
 
 export const maxDuration = 60;
 const TIMEOUT_MS = 55_000;
 // Cap per-market property volume so multi-market scoring stays within budget.
 const PER_MARKET_LIMIT = 12;
+// Each scanned market with a live key = 1 RentCast request. Cap the sweep so a
+// single agent run doesn't burn the free-tier monthly quota (~50 requests).
+const MAX_LIVE_MARKETS = 6;
+// Total properties sent to Claude per agent run, scored in sequential batches.
+const AGENT_SCORE_LIMIT = 36;
+const SCORE_BATCH = 12;
+
+// Score a large set in sequential batches. Claude limits concurrent connections,
+// so firing one call per market in parallel trips a 429 — batching serially
+// keeps us under that limit while staying within each call's token budget.
+async function scoreInBatches(
+  props: RawProperty[],
+  apiKey: string | undefined,
+): Promise<{ scores: Map<string, Partial<ScoredProperty>>; inputTokens: number }> {
+  const merged = new Map<string, Partial<ScoredProperty>>();
+  let inputTokens = 0;
+  for (let i = 0; i < props.length; i += SCORE_BATCH) {
+    const batch = props.slice(i, i + SCORE_BATCH);
+    const { scores, usage } = await scorePropertiesWithClaude(batch, apiKey);
+    for (const [k, v] of scores) merged.set(k, v);
+    inputTokens += usage.inputTokens;
+  }
+  return { scores: merged, inputTokens };
+}
 
 type AgentResult = {
   analyses: DealAnalysis[];
@@ -82,26 +106,31 @@ async function runAgent(text: string, env: ReturnType<typeof loadEnv>): Promise<
     requireDistressSignals: parsed.requireDistressSignals || undefined,
   };
 
-  // 3. Search + score every market in parallel
+  // 3a. Search markets in parallel (network fetches are safe concurrently). When
+  // a live data key is present, limit the sweep to protect the RentCast quota.
+  const hasLiveKey = !!(env.RENTCAST_API_KEY || env.ZILLOW_API_KEY || env.ATTOM_API_KEY);
+  const scanMarkets = hasLiveKey ? markets.slice(0, MAX_LIVE_MARKETS) : markets;
+
   const sources: Record<string, number> = {};
   let usedMock = false;
 
-  const perMarket = await Promise.all(
-    markets.map(async (market) => {
+  const perMarketProps = await Promise.all(
+    scanMarkets.map(async (market) => {
       const { properties, sources: src, usedMock: mock } = await searchProperties(
         { market, filters: serverFilters },
         { ZILLOW_API_KEY: env.ZILLOW_API_KEY, ATTOM_API_KEY: env.ATTOM_API_KEY, RENTCAST_API_KEY: env.RENTCAST_API_KEY },
       );
       if (mock) usedMock = true;
       for (const [k, v] of Object.entries(src)) sources[k] = (sources[k] ?? 0) + v;
-
-      const capped = properties.slice(0, PER_MARKET_LIMIT);
-      const { scores } = await scorePropertiesWithClaude(capped, env.ANTHROPIC_API_KEY);
-      return capped.map(p => buildDealAnalysis(p, scores.get(p.id) ?? {}, 0.70));
+      return properties.slice(0, PER_MARKET_LIMIT);
     }),
   );
 
-  const allAnalyses = perMarket.flat();
+  // 3b. Flatten, cap the total, and score in sequential batches (one Claude call
+  // at a time) so we never trip the concurrent-connection rate limit.
+  const allProps = perMarketProps.flat().slice(0, AGENT_SCORE_LIMIT);
+  const { scores, inputTokens } = await scoreInBatches(allProps, env.ANTHROPIC_API_KEY);
+  const allAnalyses = allProps.map(p => buildDealAnalysis(p, scores.get(p.id) ?? {}, 0.70));
   const totalScanned = allAnalyses.length;
 
   // 4. Keep only deals worth pursuing: viable (profitable at list, or strong
@@ -132,16 +161,16 @@ async function runAgent(text: string, env: ReturnType<typeof loadEnv>): Promise<
     analyses: top,
     marketSummary: buildMarketSummary(top),
     meta: {
-      market: parsed.market ? `Agent · ${markets.length} markets (lead: ${parsed.market})` : `Agent · ${markets.length} markets`,
+      market: parsed.market ? `Agent · ${scanMarkets.length} markets (lead: ${parsed.market})` : `Agent · ${scanMarkets.length} markets`,
       propertyCount: top.length,
       sources,
       usedMock,
-      hasClaude: !!env.ANTHROPIC_API_KEY,
+      hasClaude: inputTokens > 0,
       durationMs: Date.now() - t0,
       agent: {
         summary: parsed.summary,
         usedAi,
-        marketsScanned: markets.length,
+        marketsScanned: scanMarkets.length,
         totalScanned,
         profitableFound: winners.length,
         minProfit,
