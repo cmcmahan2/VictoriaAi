@@ -160,7 +160,8 @@ export async function parseBuyBox(
   try {
     const client = new Anthropic({ apiKey });
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
+      // Haiku: cheap and fast for parsing a short buy-box description into JSON.
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 512,
       system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: userPrompt(text) }],

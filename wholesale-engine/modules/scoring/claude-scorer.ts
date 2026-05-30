@@ -138,7 +138,9 @@ export async function scorePropertiesWithClaude(
   let response;
   try {
     response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
+      // Haiku: ~3-4x cheaper than Sonnet. Wholesale scoring is a structured
+      // JSON task it handles well, so credits last much longer.
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 4096,
       system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: userPrompt(properties) }],
