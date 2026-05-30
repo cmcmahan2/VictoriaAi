@@ -161,6 +161,8 @@ def analyze(db_path: str, starting_bankroll: float = 100.0) -> dict:
 
     lo, hi = wilson_interval(nwins, n)
     pval = winrate_pvalue(nwins, n)
+    win_rate = nwins / n
+    significantly_above_50 = (win_rate > 0.5) and (pval < 0.05)
     avg_fav_price = sum(t.fav_price for t in trades) / n
     # break-even win rate: paying avg_fav_price for a $1 token, ignoring hedge,
     # you need to win at least avg_fav_price of the time just to break even.
@@ -191,6 +193,7 @@ def analyze(db_path: str, starting_bankroll: float = 100.0) -> dict:
         "win_rate_ci95": (lo, hi),
         "win_rate_pvalue_vs_50": pval,
         "significant_vs_50": pval < 0.05,
+        "significantly_above_50": significantly_above_50,
         "breakeven_winrate": breakeven_wr,
         "above_breakeven": (lo > breakeven_wr),
         "total_pnl": total_pnl,
@@ -225,7 +228,12 @@ def print_report(r: dict) -> None:
         print("No trades in database.")
         return
     lo, hi = r["win_rate_ci95"]
-    sig = "YES" if r["significant_vs_50"] else "NO  <-- NOT distinguishable from a coin flip"
+    if r["significantly_above_50"]:
+        sig = "YES"
+    elif r["significant_vs_50"] and r["win_rate"] < 0.5:
+        sig = "NO  <-- significantly WORSE than a coin flip"
+    else:
+        sig = "NO  <-- NOT distinguishable from a coin flip"
     abv = "YES" if r["above_breakeven"] else "NO  <-- CI lower bound is below break-even"
     print("=" * 64)
     print(" PERFORMANCE REPORT")

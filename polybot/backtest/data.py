@@ -198,8 +198,16 @@ def get_candles(symbol: str = "BTCUSDT", interval: str = "1m",
 # Synthetic fallback (sandbox demo only — CLEARLY not real data)
 # --------------------------------------------------------------------------- #
 def synthetic_candles(days: int = 7, end_ms: int | None = None,
-                      seed: int = config.RANDOM_SEED) -> list[Candle]:
-    """Seeded 1m candles with regime-switching drift. SYNTHETIC — not market data."""
+                      seed: int = config.RANDOM_SEED,
+                      drift_strength: float = 0.25) -> list[Candle]:
+    """Seeded 1m candles, near-efficient. SYNTHETIC — not market data.
+
+    Deliberately ALMOST a random walk: only a faint regime drift (default
+    drift_strength≈0.35·σ), because real 5-minute BTC direction is close to
+    unpredictable. Strong synthetic momentum would let a momentum strategy
+    'predict' the data trivially and massively OVERSELL the bot — the worst way to
+    be wrong. Crank drift_strength only to stress-test a known-predictable market.
+    """
     if end_ms is None:
         end_ms = int(time.time() * 1000)
     n = days * 1440
@@ -213,8 +221,8 @@ def synthetic_candles(days: int = 7, end_ms: int | None = None,
     out: list[Candle] = []
     for i in range(n):
         if regime_left <= 0:
-            regime_left = rng.randint(20, 60)
-            drift = rng.choice([-1, 0, 1]) * sigma * rng.uniform(1.0, 2.5)
+            regime_left = rng.randint(15, 40)
+            drift = rng.choice([-1, 0, 0, 1]) * sigma * drift_strength * rng.uniform(0.5, 1.5)
         regime_left -= 1
         z = rng.gauss(0, 1)
         ret = drift + sigma * z
