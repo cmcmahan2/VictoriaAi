@@ -72,6 +72,16 @@ export function generateMockProperties(query: {
   market?: string;
   zipCodes?: string[];
 }, count = 20): RawProperty[] {
+  // Special "Browse All Markets" mode — sample 4 properties from 6 top markets
+  if (query.market?.toLowerCase() === 'any') {
+    const topMarkets = ['Memphis, TN', 'Detroit, MI', 'Houston, TX', 'Atlanta, GA', 'Indianapolis, IN', 'Birmingham, AL'];
+    const results: RawProperty[] = [];
+    for (const mkt of topMarkets) {
+      results.push(...generateMockProperties({ market: mkt }, 4));
+    }
+    return results.slice(0, count);
+  }
+
   const marketKey = query.market
     ? Object.keys(MARKETS).find(k => k.toLowerCase().includes(query.market!.toLowerCase()))
     : null;
@@ -107,8 +117,9 @@ export function generateMockProperties(query: {
 
     let price: number;
     if (isDeal) {
-      // Motivated seller: 52%–72% of value → leaves real margin for a wholesaler
-      const discount = 0.52 + rng(seed * 67, 20) / 100;
+      // Motivated seller: 15–40% below value (60%–85% of baseValue) — realistic
+      // wholesale discount range; still leaves margin after repairs and assignment fee
+      const discount = 0.60 + rng(seed * 67, 25) / 100;
       price = Math.round(baseValue * discount / 1000) * 1000;
     } else {
       // Retail: 92%–115% of value → little to no wholesale margin

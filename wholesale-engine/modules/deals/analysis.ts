@@ -16,6 +16,8 @@ export type DealAnalysis = {
   equitySpread: number;
   /** MAO − asking price: positive means viable wholesale deal at list, negative means needs negotiation */
   projectedProfit: number;
+  /** projectedProfit / price — normalized for cross-market ranking */
+  profitRatio: number;
   isViableDeal: boolean;
   scoreSummary: string;
 };
@@ -41,6 +43,7 @@ export function buildDealAnalysis(
   const mao = Math.max(0, Math.round(arvEstimate * pct - repairEstimate));
   const equitySpread = Math.round(arvEstimate - property.price);
   const projectedProfit = Math.round(mao - property.price);
+  const profitRatio = property.price > 0 ? projectedProfit / property.price : 0;
   // A deal is viable if it passes the 70% rule at list price OR has a strong score
   // (high-score properties often have negotiation room even if list > MAO)
   const wholesaleScore = scoreData.wholesaleScore ?? 0;
@@ -58,22 +61,41 @@ export function buildDealAnalysis(
     mao,
     equitySpread,
     projectedProfit,
+    profitRatio,
     isViableDeal,
     scoreSummary: scoreData.scoreSummary ?? '',
   };
 }
 
-/** Fallback ARV when Claude is unavailable: tax assessed value × 1.15, or price × 0.95 */
+/**
+ * Fallback ARV when Claude is unavailable.
+ * Tax assessed value is typically 78–82% of market value — dividing by 0.78
+ * gives a more accurate ARV than the old ×1.15 multiplier. Falls back to
+ * last-sale-with-appreciation when assessed value is missing.
+ */
 function fallbackArv(p: RawProperty): number {
   const taxBase = p.taxAssessedValue ?? 0;
-  return Math.round(Math.max(taxBase > 0 ? taxBase * 1.15 : 0, p.price * 0.95) / 1000) * 1000;
+  if (taxBase > 0) {
+    return Math.round(taxBase / 0.78 / 1000) * 1000;
+  }
+  // Last sale + ~4% annual appreciation (capped at 10 years)
+  if (p.lastSoldPrice && p.lastSoldPrice > 0 && p.lastSoldDate) {
+    const soldYear = parseInt(p.lastSoldDate.slice(0, 4), 10);
+    const yearsAgo = Math.min(new Date().getFullYear() - soldYear, 10);
+    return Math.round(p.lastSoldPrice * Math.pow(1.04, yearsAgo) / 1000) * 1000;
+  }
+  return Math.round(p.price * 1.08 / 1000) * 1000;
 }
 
-/** Rough repair estimate based on year built and property size */
+/**
+ * Renovation premium tiers by age — scaled to 8–22% of typical ARV.
+ * Pre-1965 homes commonly need full gut rehabs; post-2010 need cosmetic work only.
+ */
 function fallbackRepair(p: RawProperty): number {
   const age = new Date().getFullYear() - (p.yearBuilt || 1980);
   if (age > 60) return 55000;
-  if (age > 35) return 30000;
+  if (age > 40) return 40000;
+  if (age > 25) return 28000;
   if (age > 15) return 18000;
   return 10000;
 }

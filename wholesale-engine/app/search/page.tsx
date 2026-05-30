@@ -638,6 +638,11 @@ export default function SearchPage() {
           {searchMode === 'quick' && !result && !loading && (
             <div className="mt-3 flex flex-wrap gap-2">
               <span className="text-xs text-gray-500 py-1">Try:</span>
+              <button
+                onClick={() => { setSearchInput('All Markets'); void runSearch('any'); }}
+                className="text-xs px-3 py-1 bg-green-600/20 border border-green-600/40 hover:border-green-500 rounded-full text-green-400 hover:text-green-300 transition-colors font-medium flex items-center gap-1">
+                <Sparkles className="w-3 h-3" />Browse All Markets
+              </button>
               {POPULAR_MARKETS.map(m => (
                 <button key={m} onClick={() => { setSearchInput(m); void runSearch(m); }}
                   className="text-xs px-3 py-1 bg-[#161b22] border border-gray-700 hover:border-gray-500 rounded-full text-gray-400 hover:text-gray-200 transition-colors">
@@ -798,7 +803,8 @@ export default function SearchPage() {
               <div className="bg-[#161b22] border border-gray-800 rounded-lg p-4 mb-4">
                 <div className="flex items-center justify-between mb-3">
                   <h2 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-green-400" />{result.meta.market}
+                    <TrendingUp className="w-4 h-4 text-green-400" />
+                    {result.meta.market === 'any' ? 'All Markets' : result.meta.market}
                   </h2>
                   <span className="text-xs text-gray-600">{result.meta.durationMs}ms</span>
                 </div>
