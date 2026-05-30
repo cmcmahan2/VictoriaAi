@@ -82,6 +82,26 @@ const SCHEMA_STATEMENTS = [
     active INTEGER NOT NULL DEFAULT 1,
     created_at INTEGER NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS deals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    external_id TEXT NOT NULL,
+    address TEXT NOT NULL,
+    city TEXT NOT NULL,
+    state TEXT NOT NULL,
+    zip TEXT NOT NULL,
+    price REAL NOT NULL,
+    property_type TEXT,
+    wholesale_score INTEGER,
+    arv_estimate REAL,
+    mao REAL,
+    projected_profit REAL,
+    source TEXT,
+    listing_url TEXT,
+    status TEXT NOT NULL DEFAULT 'lead',
+    notes TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  )`,
 ];
 
 function createDbClient(): Client | null {
@@ -91,6 +111,13 @@ function createDbClient(): Client | null {
   }
   if (process.env.DB_PATH) {
     return createClient({ url: `file:${process.env.DB_PATH}` });
+  }
+  // Local-dev fallback: persist to a SQLite file in the project so the deal
+  // pipeline, buyers, alerts, and saved searches all work out of the box with
+  // no Turso setup. Skipped in production (serverless fs is read-only) — there
+  // the app stays stateless unless Turso is configured.
+  if (process.env.NODE_ENV !== 'production') {
+    return createClient({ url: 'file:local.db' });
   }
   return null;
 }

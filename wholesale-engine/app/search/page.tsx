@@ -5,7 +5,7 @@ import {
   Search, SlidersHorizontal, Building2, TrendingUp, DollarSign,
   AlertTriangle, ChevronDown, ChevronUp, X, Download, Bookmark,
   Map as MapIcon, List, Calculator, Bell, Users, CheckCircle, XCircle,
-  BookmarkCheck, Trash2, ExternalLink, Sparkles, Wand2,
+  BookmarkCheck, Trash2, ExternalLink, Sparkles, Wand2, Briefcase, Check,
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn, formatCurrency, scoreColor, scoreLabel, listingUrl } from '@/lib/utils';
@@ -500,6 +500,9 @@ export default function SearchPage() {
             </div>
             <nav className="flex gap-4 text-sm">
               <Link href="/search" className="text-green-400 font-medium">Search</Link>
+              <Link href="/deals" className="text-gray-500 hover:text-gray-300 flex items-center gap-1">
+                <Briefcase className="w-3 h-3" />Pipeline
+              </Link>
               <Link href="/buyers" className="text-gray-500 hover:text-gray-300 flex items-center gap-1">
                 <Users className="w-3 h-3" />Buyers
               </Link>
@@ -916,6 +919,58 @@ function Stat({ label, value, sub, highlight }: { label: string; value: string; 
   );
 }
 
+function TrackDealButton({ analysis }: { analysis: DealAnalysis }) {
+  const [state, setState] = useState<'idle' | 'saving' | 'tracked'>('idle');
+  const p = analysis.property;
+
+  async function track(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (state !== 'idle') return;
+    setState('saving');
+    try {
+      const res = await fetch('/api/deals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          externalId: p.id,
+          address: p.address,
+          city: p.city,
+          state: p.state,
+          zip: p.zip,
+          price: p.price,
+          propertyType: p.propertyType,
+          wholesaleScore: analysis.wholesaleScore,
+          arvEstimate: analysis.arvEstimate,
+          mao: analysis.mao,
+          projectedProfit: analysis.projectedProfit,
+          source: p.source,
+          listingUrl: listingUrl(p),
+        }),
+      });
+      const data = (await res.json()) as { ok: boolean };
+      setState(data.ok ? 'tracked' : 'idle');
+    } catch {
+      setState('idle');
+    }
+  }
+
+  return (
+    <button
+      onClick={track}
+      disabled={state !== 'idle'}
+      className={cn('inline-flex items-center gap-1.5 px-3 py-1.5 border rounded text-xs font-semibold transition-colors',
+        state === 'tracked'
+          ? 'bg-gray-700/40 border-gray-600 text-gray-400 cursor-default'
+          : 'border-gray-700 text-gray-300 hover:border-green-500 hover:text-green-400')}
+      title="Save this property to your deal pipeline"
+    >
+      {state === 'tracked'
+        ? <><Check className="w-3 h-3" />Tracked</>
+        : <><Briefcase className="w-3 h-3" />{state === 'saving' ? 'Saving…' : 'Track Deal'}</>}
+    </button>
+  );
+}
+
 function PropertyCard({ analysis, expanded, onToggle }: { analysis: DealAnalysis; expanded: boolean; onToggle: () => void }) {
   const { property: p } = analysis;
   const scoreClass = scoreColor(analysis.wholesaleScore);
@@ -1002,16 +1057,19 @@ function PropertyCard({ analysis, expanded, onToggle }: { analysis: DealAnalysis
               <AlertTriangle className="w-3 h-3" />Verify ARV with local comps before making an offer.
             </p>
           )}
-          <a
-            href={listingUrl(p)}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={e => e.stopPropagation()}
-            className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-600/20 border border-green-600/40 text-green-400 hover:bg-green-600/30 rounded text-xs font-semibold transition-colors"
-          >
-            <ExternalLink className="w-3 h-3" />
-            {p.source === 'mock' ? `Browse ${p.city} on Zillow` : `View Listing on ${p.source}`}
-          </a>
+          <div className="mt-3 flex items-center gap-2">
+            <a
+              href={listingUrl(p)}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-600/20 border border-green-600/40 text-green-400 hover:bg-green-600/30 rounded text-xs font-semibold transition-colors"
+            >
+              <ExternalLink className="w-3 h-3" />
+              {p.source === 'mock' ? `Browse ${p.city} on Zillow` : `View Listing on ${p.source}`}
+            </a>
+            <TrackDealButton analysis={analysis} />
+          </div>
         </div>
       )}
 

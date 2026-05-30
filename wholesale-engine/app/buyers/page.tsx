@@ -103,6 +103,7 @@ export default function BuyersPage() {
             </Link>
             <nav className="flex gap-4 text-sm">
               <Link href="/search" className="text-gray-500 hover:text-gray-300">Search</Link>
+              <Link href="/deals" className="text-gray-500 hover:text-gray-300">Pipeline</Link>
               <Link href="/buyers" className="text-green-400 font-medium">Buyers</Link>
               <Link href="/alerts" className="text-gray-500 hover:text-gray-300">Alerts</Link>
             </nav>

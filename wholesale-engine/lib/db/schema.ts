@@ -79,3 +79,26 @@ export const alerts = sqliteTable('alerts', {
   active: integer('active', { mode: 'boolean' }).notNull().default(true),
   createdAt: integer('created_at').notNull(),
 });
+
+// Deal pipeline (CRM). A property the user is actively working toward contract.
+export const deals = sqliteTable('deals', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  externalId: text('external_id').notNull(),
+  address: text('address').notNull(),
+  city: text('city').notNull(),
+  state: text('state').notNull(),
+  zip: text('zip').notNull(),
+  price: real('price').notNull(),
+  propertyType: text('property_type'),
+  wholesaleScore: integer('wholesale_score'),
+  arvEstimate: real('arv_estimate'),
+  mao: real('mao'),
+  projectedProfit: real('projected_profit'),
+  source: text('source'),
+  listingUrl: text('listing_url'),
+  // lead | contacted | offer-sent | under-contract | assigned | closed | dead
+  status: text('status').notNull().default('lead'),
+  notes: text('notes'),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});

@@ -87,6 +87,7 @@ export default function AlertsPage() {
             <Link href="/search" className="font-bold text-lg text-gray-100">Wholesale Engine</Link>
             <nav className="flex gap-4 text-sm">
               <Link href="/search" className="text-gray-500 hover:text-gray-300">Search</Link>
+              <Link href="/deals" className="text-gray-500 hover:text-gray-300">Pipeline</Link>
               <Link href="/buyers" className="text-gray-500 hover:text-gray-300">Buyers</Link>
               <Link href="/alerts" className="text-green-400 font-medium">Alerts</Link>
             </nav>
