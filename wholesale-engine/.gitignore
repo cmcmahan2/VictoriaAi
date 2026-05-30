@@ -1,5 +1,6 @@
 .next/
 node_modules/
+*.tsbuildinfo
 *.db
 *.db-shm
 *.db-wal
