@@ -66,6 +66,10 @@ async function runPipeline(query: SearchQuery, env: ReturnType<typeof loadEnv>) 
 
   // Stage 2: Score with Claude (or mock scores if no API key)
   const { scores, usage } = await scorePropertiesWithClaude(properties, env.ANTHROPIC_API_KEY);
+  // Real AI scoring consumes tokens; a zero-token result means we fell back to
+  // mock scores (no key, timeout, or — commonly — an out-of-credits 400). Report
+  // the honest state so the UI badge doesn't claim "AI Scored" when it wasn't.
+  const aiScored = usage.inputTokens > 0;
 
   // Stage 3: Build deal analyses
   const maoPercentage = query.filters?.maoPercentage ?? 0.70;
@@ -129,7 +133,7 @@ async function runPipeline(query: SearchQuery, env: ReturnType<typeof loadEnv>) 
       propertyCount: analyses.length,
       sources,
       usedMock,
-      hasClaude: !!env.ANTHROPIC_API_KEY,
+      hasClaude: aiScored,
       durationMs: Date.now() - t0,
       usage,
     },
