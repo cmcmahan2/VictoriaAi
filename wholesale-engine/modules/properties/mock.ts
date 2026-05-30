@@ -96,7 +96,10 @@ export function generateMockProperties(query: {
   const marketSeed = marketSeedFor(market.city, market.state);
 
   for (let i = 0; i < count; i++) {
-    const seed = i + 1;
+    // Mix the market into the per-row seed so the same row index produces
+    // different bed/bath/sqft/year/price in each city. Without this, the first
+    // property of every market comes out identical (same 5bd/1ba, 1,579 sqft…).
+    const seed = i + 1 + marketSeed;
     const zip = zips[rng(seed * 5, zips.length)];
 
     const bedrooms = 2 + rng(seed * 3, 4);
