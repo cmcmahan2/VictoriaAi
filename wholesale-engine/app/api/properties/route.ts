@@ -9,7 +9,11 @@ import { unixNow } from '@/lib/utils';
 import type { SearchQuery } from '@/modules/properties/types';
 
 export const maxDuration = 60;
-const TIMEOUT_MS = 30_000;
+const TIMEOUT_MS = 55_000;
+// Cap how many properties go to Claude in one scoring call. Real providers can
+// return 50+ listings; scoring all of them in a single request is slow and can
+// overflow the response token budget. 25 keeps a single search responsive.
+const SCORE_LIMIT = 25;
 
 export async function POST(req: Request) {
   try {
@@ -49,11 +53,14 @@ async function runPipeline(query: SearchQuery, env: ReturnType<typeof loadEnv>) 
   const t0 = Date.now();
 
   // Stage 1: Search
-  const { properties, sources, usedMock } = await searchProperties(query, {
+  const { properties: allProperties, sources, usedMock } = await searchProperties(query, {
     ZILLOW_API_KEY: env.ZILLOW_API_KEY,
     ATTOM_API_KEY: env.ATTOM_API_KEY,
     RENTCAST_API_KEY: env.RENTCAST_API_KEY,
   });
+
+  // Cap the set sent to Claude so a single search stays fast.
+  const properties = allProperties.slice(0, SCORE_LIMIT);
 
   // Stage 2: Score with Claude (or mock scores if no API key)
   const { scores, usage } = await scorePropertiesWithClaude(properties, env.ANTHROPIC_API_KEY);

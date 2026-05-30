@@ -128,14 +128,27 @@ export async function scorePropertiesWithClaude(
     return { scores: map, usage };
   }
 
-  const client = new Anthropic({ apiKey });
+  // Cap the per-request time and retries so a slow Claude call can't hang the
+  // whole search — fall back to mock scores instead of timing out the route.
+  const client = new Anthropic({ apiKey, timeout: 45_000, maxRetries: 1 });
 
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 4096,
-    system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
-    messages: [{ role: 'user', content: userPrompt(properties) }],
-  });
+  let response;
+  try {
+    response = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 4096,
+      system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
+      messages: [{ role: 'user', content: userPrompt(properties) }],
+    });
+  } catch (err) {
+    console.warn('[scorer] Claude call failed — using mock scores:', err instanceof Error ? err.message : err);
+    const { scores, usage: mockUsage } = mockScores(properties);
+    const map = new Map<string, Partial<ScoredProperty>>();
+    for (const s of scores) {
+      if (s.id) map.set(s.id, s);
+    }
+    return { scores: map, usage: mockUsage };
+  }
 
   const usage: TokenUsage = {
     inputTokens: response.usage.input_tokens,
