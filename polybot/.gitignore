@@ -1,7 +1,7 @@
 # caches & generated artifacts
-backtest/data/*.csv
-backtest/data/*.csv.gz
-backtest/data/*.parquet
+backtest/cache/*.csv
+backtest/cache/*.csv.gz
+backtest/cache/*.parquet
 *.db
 *.db-journal
 reports/
