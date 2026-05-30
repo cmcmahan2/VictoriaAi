@@ -176,3 +176,12 @@ export function generateMockProperties(query: {
 export function getMockMarkets(): string[] {
   return Object.keys(MARKETS);
 }
+
+export function generateAllMarketsProperties(perMarket = 3): RawProperty[] {
+  return Object.keys(MARKETS).flatMap((key, mi) =>
+    generateMockProperties({ market: key }, perMarket).map(p => ({
+      ...p,
+      id: `${p.id}-m${mi}`,
+    }))
+  );
+}

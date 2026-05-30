@@ -20,26 +20,33 @@ export type TokenUsage = { inputTokens: number; outputTokens: number };
 
 // System prompt is >1024 tokens so ephemeral caching applies — ~90% cost
 // reduction on repeated calls within the same cache window.
-const SYSTEM_PROMPT = `You are a wholesale real estate analyst. Your job is to score residential properties for wholesale investment potential — finding deals where an investor can acquire below market value, assign the contract, or flip for profit.
+const SYSTEM_PROMPT = `You are a real estate investment analyst scoring properties for two audiences: wholesale investors and real estate developers.
 
-Scoring dimensions:
-1. wholesaleScore (1-100): Overall wholesale deal quality. 75+ = strong deal worth pursuing immediately. 50-74 = worth investigating. Below 50 = weak or overpriced.
-2. distressScore (1-100): Severity of seller distress and property distress signals. Pre-foreclosure, tax liens, probate/estate, divorce, long vacancy, high days-on-market, price reductions all increase this score.
-3. momentumScore (1-100): Market momentum in this zip code / neighborhood. Rising prices, high investor activity, recent flip comps selling above ARV increase this score. Declining markets score lower.
-4. sellerMotivation (1-100): Probability that the seller is motivated enough to accept a below-market offer. Absentee owner + distress signals = high motivation. Owner-occupied with no distress = low motivation.
+PROPERTY TYPES — score each differently:
 
-Financial estimates:
-- arvEstimate: After Repair Value in USD — what the property would sell for fully renovated to neighborhood standards. Base this on the property's zip code, size (sqft), bedrooms, bathrooms, year built, and property type.
-- arvConfidence: "high" if you have high confidence in the estimate (strong comps context), "medium" if moderate, "low" if limited data (use low when no real comps are available).
-- repairEstimate: Estimated cost to bring property to ARV condition, in USD. Base on year built, property type, and size. Deferred maintenance signals increase this. Typical range: $15,000 (light cosmetic) to $80,000 (full gut rehab).
+RESIDENTIAL (SFR, MFR, Condo, Townhouse):
+- wholesaleScore: Fix-and-flip / assignment potential. 75+ = strong deal. 50-74 = worth investigating. Below 50 = weak.
+- Use the 70% rule: MAO = ARV × 0.70 − repairs. If asking price is near or above MAO, score below 50.
+- arvEstimate: Post-renovation market value based on zip, size, beds/baths, year built.
+- repairEstimate: Cost to bring to ARV condition. Range: $10k (cosmetic) to $80k (gut rehab).
+
+LAND / VACANT LOTS:
+- wholesaleScore: Development / infill potential. Score based on: location quality, price vs comparable improved lots, motivated seller signals (high DOM, below last sale price), and development demand in that zip/city.
+- arvEstimate: Estimated value of the lot after entitlement or with a finished structure — e.g., a $12k Memphis lot in a rezoning corridor might support a $180k build with $140k in construction costs.
+- repairEstimate: Estimated site prep + infrastructure cost (utilities, grading, permits). Typical: $15k–$60k for infill lots.
+- Do NOT penalize land for having 0 bedrooms or 0 sqft — those are expected. Score the land on its own merits.
+- High DOM on land often signals a motivated seller willing to negotiate, NOT a bad asset.
+
+SHARED SCORING DIMENSIONS:
+1. wholesaleScore (1-100): Overall investment potential for the property type.
+2. distressScore (1-100): Seller/asset distress. High DOM, below last-sale price, tax liens, pre-foreclosure, estate, absentee owner all increase this.
+3. momentumScore (1-100): Market momentum in that zip/neighborhood. Development activity, rising prices, investor demand increase this.
+4. sellerMotivation (1-100): Probability seller accepts a below-market offer. Long DOM + absentee/estate = high motivation.
 
 Rules:
-- Output ONLY valid JSON — no prose, no markdown fences, no explanation outside the JSON structure.
-- Be realistic and conservative with ARV estimates — overestimating ARV destroys wholesale deals.
-- wholesaleScore should directly reflect whether this is a viable wholesale deal, NOT just how distressed the property is.
-- A property with a $200k ARV asking $180k is NOT a wholesale deal even if distressed.
-- The classic 70% rule: MAO = ARV × 0.70 − repair estimate. If asking price is near or above MAO, wholesaleScore should be below 50.
-- scoreSummary: One punchy sentence explaining the score — specifically what makes this property interesting (or not) for wholesale.`;
+- Output ONLY valid JSON — no prose, no markdown fences, no explanation outside the JSON.
+- arvConfidence: "high" = strong local comps; "medium" = reasonable estimate; "low" = limited data.
+- scoreSummary: One punchy sentence — what makes this property interesting (or not) for investment. Mention the asset type (lot, SFR, etc.) and the key reason for the score.`;
 
 const userPrompt = (properties: RawProperty[]) => `
 Score these ${properties.length} properties for wholesale potential. Each has address, price, size, condition signals, and distress indicators.
@@ -76,36 +83,80 @@ Return JSON:
 // Pre-computed mock scores for when ANTHROPIC_API_KEY is absent
 function mockScores(properties: RawProperty[]): { scores: Partial<ScoredProperty>[]; usage: TokenUsage } {
   const scores = properties.map((p, i) => {
-    const hasDistress = p.distressSignals.length > 0;
+    const distressCount = p.distressSignals.length;
+    const hasDistress = distressCount > 0;
     const isHighDom = p.daysOnMarket > 60;
     const isAbsentee = p.ownerType === 'absentee' || p.ownerType === 'estate';
-    const taxBase = p.taxAssessedValue ?? p.price;
-    const arvEstimate = Math.round(Math.max(taxBase * 1.15, p.price * 0.95) / 1000) * 1000;
-    const repairEstimate = p.yearBuilt < 1970 ? 45000 : p.yearBuilt < 1990 ? 25000 : 15000;
-    const mao = Math.max(0, Math.round(arvEstimate * 0.70 - repairEstimate));
-    const equitySpread = arvEstimate - p.price;
-    const projectedProfit = mao - p.price;
+    const isLand = p.propertyType === 'Land';
 
-    const baseScore = projectedProfit > 0
-      ? 60 + Math.min(30, Math.round(projectedProfit / 2000))
-      : 20 + Math.max(0, Math.round((projectedProfit + 30000) / 1000));
+    let arvEstimate: number;
+    let repairEstimate: number;
+    let wholesaleScore: number;
+    let scoreSummary: string;
 
-    const distressBonus = p.distressSignals.length * 5;
-    const domBonus = isHighDom ? 8 : 0;
-    const wholesaleScore = Math.min(99, Math.max(5, baseScore + distressBonus + domBonus - (i % 3 === 0 ? 10 : 0)));
+    if (isLand) {
+      // Land: value is development potential, not renovation
+      // Rough rule: a buildable infill lot is worth ~15-25% of finished home value
+      // Reverse: lot value × 5-7 ≈ finished home value (ARV for land = post-build value)
+      const lotMultiplier = 5 + (i % 3); // 5x, 6x, or 7x depending on location proxy
+      arvEstimate = Math.round(p.price * lotMultiplier / 1000) * 1000;
+      // Site prep + infrastructure for infill lot
+      repairEstimate = 25000 + (i % 4) * 10000; // $25k–$55k
+      const devSpread = arvEstimate - p.price - repairEstimate;
+      const devRatio = devSpread / Math.max(1, p.price);
+
+      const baseScore = devRatio > 3 ? 72 : devRatio > 1.5 ? 60 : devRatio > 0.5 ? 48 : 35;
+      const domBonus = isHighDom ? 10 : 0; // motivated seller on land = opportunity
+      wholesaleScore = Math.min(95, Math.max(15, baseScore + distressCount * 4 + domBonus));
+
+      scoreSummary = devSpread > 0
+        ? `Demo: Infill lot with ~$${Math.round(devSpread / 1000)}k development spread — verify zoning and utilities.`
+        : `Demo: Land priced near development cost — negotiate down or pass.`;
+    } else {
+      // Residential: standard wholesale / fix-and-flip analysis
+      // ARV: tax assessed values are typically ~78% of market value; divide to recover
+      // implied market value, then add renovation premium by age.
+      const assessedValue = p.taxAssessedValue ?? 0;
+      const renovationPremium = p.yearBuilt < 1970 ? 0.22 : p.yearBuilt < 1990 ? 0.15 : 0.08;
+      const impliedMarket = assessedValue > 0 ? assessedValue / 0.78 : p.price * (1 + renovationPremium);
+      arvEstimate = Math.round(impliedMarket * (1 + renovationPremium) / 1000) * 1000;
+
+      const agePool = p.yearBuilt < 1960
+        ? [20000, 35000, 50000, 65000]
+        : p.yearBuilt < 1985 ? [12000, 22000, 35000, 50000]
+        : p.yearBuilt < 2000 ? [8000, 15000, 25000, 35000]
+        : [5000, 10000, 18000, 25000];
+      repairEstimate = agePool[(i * 7 + distressCount) % agePool.length] ?? 15000;
+
+      const mao = Math.max(0, Math.round(arvEstimate * 0.70 - repairEstimate));
+      const projectedProfit = mao - p.price;
+      const profitRatio = projectedProfit / Math.max(1, p.price);
+
+      const baseScore = profitRatio >= 0
+        ? Math.min(90, 62 + Math.round(profitRatio * 60))
+        : Math.max(12, 50 + Math.round(profitRatio * 80));
+
+      wholesaleScore = Math.min(99, Math.max(10,
+        baseScore + Math.min(20, distressCount * 6) + (isHighDom ? 7 : 0) + (isAbsentee ? 5 : 0)
+      ));
+
+      const prefix = wholesaleScore >= 75 ? 'Hot lead' : wholesaleScore >= 50 ? 'Worth investigating' : 'Needs negotiation';
+      const profitStr = projectedProfit >= 0
+        ? `~$${Math.round(projectedProfit / 1000)}k profit at list`
+        : `$${Math.round(Math.abs(projectedProfit) / 1000)}k below MAO`;
+      scoreSummary = `Demo: ${prefix} — ${profitStr}${distressCount > 0 ? ` · ${distressCount} distress signal${distressCount > 1 ? 's' : ''}` : ''}.`;
+    }
 
     return {
       id: p.id,
       wholesaleScore,
-      distressScore: Math.min(95, 20 + p.distressSignals.length * 18 + (isHighDom ? 15 : 0)),
-      momentumScore: 45 + (i % 5) * 8,
-      sellerMotivation: Math.min(90, (hasDistress ? 55 : 25) + (isAbsentee ? 20 : 0) + (isHighDom ? 15 : 0)),
+      distressScore: Math.min(95, 15 + distressCount * 20 + (isHighDom ? 12 : 0)),
+      momentumScore: 40 + (i % 6) * 8,
+      sellerMotivation: Math.min(90, (hasDistress ? 52 : 20) + (isAbsentee ? 22 : 0) + (isHighDom ? 14 : 0)),
       arvEstimate,
-      arvConfidence: 'low' as ArvConfidence,
+      arvConfidence: (p.taxAssessedValue ?? 0) > 0 ? 'medium' as ArvConfidence : 'low' as ArvConfidence,
       repairEstimate,
-      scoreSummary: projectedProfit > 0
-        ? `Mock score: ${p.distressSignals.length > 0 ? 'Distressed' : 'Standard'} property with ~$${Math.round(projectedProfit / 1000)}k projected profit at list price.`
-        : `Mock score: Asking price exceeds MAO by $${Math.round(Math.abs(projectedProfit) / 1000)}k — needs price reduction to work as a wholesale deal.`,
+      scoreSummary,
     };
   });
   return { scores, usage: { inputTokens: 0, outputTokens: 0 } };

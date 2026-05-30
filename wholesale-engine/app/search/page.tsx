@@ -909,10 +909,9 @@ export default function SearchPage() {
         {!result && !loading && !error && (
           <div className="text-center py-24">
             <Building2 className="w-12 h-12 mx-auto mb-4 text-gray-700" />
-            <h2 className="text-xl font-semibold text-gray-400 mb-2">Find Wholesale Deals</h2>
+            <h2 className="text-xl font-semibold text-gray-400 mb-2">Find Investment Opportunities</h2>
             <p className="text-gray-600 max-w-md mx-auto text-sm">
-              Enter a US city/state or zip codes. Our AI scores every property for wholesale potential
-              using ARV analysis, distress signals, and market momentum.
+              Enter a US city/state or zip codes. AI scores every property — wholesale deals, fix-and-flip candidates, and land for development — using ARV analysis, distress signals, and market momentum.
             </p>
           </div>
         )}
@@ -1078,6 +1077,7 @@ function RealArvPanel({ analysis }: { analysis: DealAnalysis }) {
 function PropertyCard({ analysis, expanded, onToggle }: { analysis: DealAnalysis; expanded: boolean; onToggle: () => void }) {
   const { property: p } = analysis;
   const scoreClass = scoreColor(analysis.wholesaleScore);
+  const isLand = p.propertyType === 'Land';
 
   return (
     <div onClick={onToggle}
@@ -1105,18 +1105,32 @@ function PropertyCard({ analysis, expanded, onToggle }: { analysis: DealAnalysis
 
       <div className="grid grid-cols-3 gap-2 mb-3">
         <MetricBox label="List Price" value={formatCurrency(p.price)} />
-        <MetricBox label="MAO" value={formatCurrency(analysis.mao)} highlight={analysis.mao > p.price} dim={analysis.mao <= 0} />
-        <MetricBox label="Profit @ List" value={formatCurrency(analysis.projectedProfit)}
+        <MetricBox label={isLand ? 'Dev Value Est.' : 'MAO'}
+          value={formatCurrency(isLand ? analysis.arvEstimate : analysis.mao)}
+          highlight={isLand ? analysis.arvEstimate > p.price : analysis.mao > p.price}
+          dim={!isLand && analysis.mao <= 0} />
+        <MetricBox label={isLand ? 'Dev Spread' : 'Profit @ List'}
+          value={formatCurrency(analysis.projectedProfit)}
           highlight={analysis.projectedProfit > 0} dim={analysis.projectedProfit < 0}
           prefix={analysis.projectedProfit > 0 ? '+' : ''} />
       </div>
 
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 mb-2">
-        <span>{p.bedrooms}bd/{p.bathrooms}ba</span>
-        <span>{p.sqft.toLocaleString()} sqft</span>
-        <span>Built {p.yearBuilt}</span>
-        <span>{p.daysOnMarket}d DOM</span>
-        <span className="capitalize">{p.propertyType}</span>
+        {isLand ? (
+          <>
+            <span className="text-blue-400/70 font-medium">Vacant Land</span>
+            <span>{p.daysOnMarket}d DOM</span>
+            <span>{p.zip}</span>
+          </>
+        ) : (
+          <>
+            <span>{p.bedrooms}bd/{p.bathrooms}ba</span>
+            <span>{p.sqft.toLocaleString()} sqft</span>
+            <span>Built {p.yearBuilt}</span>
+            <span>{p.daysOnMarket}d DOM</span>
+            <span className="capitalize">{p.propertyType}</span>
+          </>
+        )}
       </div>
 
       {p.distressSignals.length > 0 && (
@@ -1143,15 +1157,15 @@ function PropertyCard({ analysis, expanded, onToggle }: { analysis: DealAnalysis
             <DollarSign className="w-3 h-3" />Deal Analysis
           </p>
           <div className="grid grid-cols-2 gap-2 text-xs mb-3">
-            <DetailRow label="ARV Estimate" value={formatCurrency(analysis.arvEstimate)} />
-            <DetailRow label="ARV Confidence" value={analysis.arvConfidence} />
-            <DetailRow label="Repair Estimate" value={formatCurrency(analysis.repairEstimate)} />
-            <DetailRow label="MAO (70% Rule)" value={formatCurrency(analysis.mao)} />
+            <DetailRow label={isLand ? 'Post-Dev Value Est.' : 'ARV Estimate'} value={formatCurrency(analysis.arvEstimate)} />
+            <DetailRow label="Confidence" value={analysis.arvConfidence} />
+            <DetailRow label={isLand ? 'Site Prep / Dev Cost' : 'Repair Estimate'} value={formatCurrency(analysis.repairEstimate)} />
+            <DetailRow label={isLand ? 'Dev Spread' : 'MAO (70% Rule)'} value={formatCurrency(isLand ? analysis.projectedProfit : analysis.mao)} positive={isLand ? analysis.projectedProfit > 0 : undefined} />
             <DetailRow label="Equity Spread" value={formatCurrency(analysis.equitySpread)} positive={analysis.equitySpread > 0} />
-            <DetailRow label="Profit @ List" value={formatCurrency(analysis.projectedProfit)} positive={analysis.projectedProfit > 0} />
+            <DetailRow label={isLand ? 'Net Dev Profit' : 'Profit @ List'} value={formatCurrency(analysis.projectedProfit)} positive={analysis.projectedProfit > 0} />
           </div>
           <div className="grid grid-cols-4 gap-2">
-            <ScoreBar label="Wholesale" value={analysis.wholesaleScore} />
+            <ScoreBar label={isLand ? 'Dev Score' : 'Wholesale'} value={analysis.wholesaleScore} />
             <ScoreBar label="Distress" value={analysis.distressScore} />
             <ScoreBar label="Momentum" value={analysis.momentumScore} />
             <ScoreBar label="Motivation" value={analysis.sellerMotivation} />

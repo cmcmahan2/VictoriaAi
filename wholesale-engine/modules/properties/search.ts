@@ -3,7 +3,7 @@ import { fetchZillowProperties } from './zillow';
 import { fetchAttomProperties } from './attom';
 import { fetchRentcastProperties } from './rentcast';
 import { fetchRedfinProperties } from './redfin';
-import { generateMockProperties } from './mock';
+import { generateMockProperties, generateAllMarketsProperties } from './mock';
 
 export type PropertySearchResult = {
   properties: RawProperty[];
@@ -19,6 +19,11 @@ export async function searchProperties(
     RENTCAST_API_KEY?: string;
   },
 ): Promise<PropertySearchResult> {
+  if (query.market?.toLowerCase() === 'any') {
+    const all = generateAllMarketsProperties(3);
+    return { properties: all.slice(0, 50), sources: { mock: all.length }, usedMock: true };
+  }
+
   const sources: Record<string, number> = {};
 
   // Fetch all live sources in parallel; each returns [] on failure/missing key
