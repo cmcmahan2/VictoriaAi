@@ -983,6 +983,98 @@ function TrackDealButton({ analysis }: { analysis: DealAnalysis }) {
   );
 }
 
+type AvmResponse = {
+  ok: boolean;
+  error?: string;
+  arv: number;
+  rangeLow: number;
+  rangeHigh: number;
+  compCount: number;
+  mao: number;
+  equitySpread: number;
+  projectedProfit: number;
+  comparables: { address: string; price: number; bedrooms: number; bathrooms: number; sqft: number; distance: number; daysOld: number }[];
+};
+
+// On-demand real ARV from RentCast comps. Each click costs 1 RentCast request,
+// so this is opt-in per property rather than run across the whole search.
+function RealArvPanel({ analysis }: { analysis: DealAnalysis }) {
+  const p = analysis.property;
+  const [state, setState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
+  const [data, setData] = useState<AvmResponse | null>(null);
+  const [error, setError] = useState('');
+
+  // Mock/demo properties have fake addresses RentCast can't comp.
+  if (p.source === 'mock') return null;
+
+  async function fetchArv(e: React.MouseEvent) {
+    e.stopPropagation();
+    setState('loading'); setError('');
+    try {
+      const res = await fetch('/api/avm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          address: p.address, city: p.city, state: p.state, zip: p.zip,
+          propertyType: p.propertyType, bedrooms: p.bedrooms, bathrooms: p.bathrooms, sqft: p.sqft,
+          price: p.price, repairEstimate: analysis.repairEstimate, maoPercentage: 0.70,
+        }),
+      });
+      const d = (await res.json()) as AvmResponse;
+      if (!d.ok) { setError(d.error ?? 'Failed to fetch comps'); setState('error'); return; }
+      setData(d); setState('done');
+    } catch {
+      setError('Request failed'); setState('error');
+    }
+  }
+
+  return (
+    <div className="mt-3 border-t border-gray-800 pt-3">
+      {state !== 'done' && (
+        <button onClick={fetchArv} disabled={state === 'loading'}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-700 hover:border-green-500 hover:text-green-400 rounded text-xs font-semibold text-gray-300 transition-colors disabled:opacity-50">
+          <TrendingUp className="w-3 h-3" />
+          {state === 'loading' ? 'Pulling comps…' : 'Get real ARV from comps'}
+          <span className="text-gray-600 font-normal">· uses 1 RentCast credit</span>
+        </button>
+      )}
+      {state === 'error' && <p className="text-xs text-red-400 mt-1.5">{error}</p>}
+      {state === 'done' && data && (
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <CheckCircle className="w-3.5 h-3.5 text-green-400" />
+            <span className="text-xs font-semibold text-green-400">Comp-based value ({data.compCount} comps · RentCast)</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            <MetricBox label="ARV (comps)" value={formatCurrency(data.arv)} highlight />
+            <MetricBox label="MAO (real)" value={formatCurrency(data.mao)} highlight={data.mao > p.price} dim={data.mao <= 0} />
+            <MetricBox label="Profit @ List" value={formatCurrency(data.projectedProfit)}
+              highlight={data.projectedProfit > 0} dim={data.projectedProfit < 0}
+              prefix={data.projectedProfit > 0 ? '+' : ''} />
+          </div>
+          <p className="text-xs text-gray-500 mb-2">
+            Value range {formatCurrency(data.rangeLow)} – {formatCurrency(data.rangeHigh)}
+          </p>
+          {data.comparables.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs text-gray-500 font-semibold">Comparable sales</p>
+              {data.comparables.map((c, i) => (
+                <div key={i} className="flex items-center justify-between text-xs text-gray-400 border-b border-gray-800/50 py-1">
+                  <span className="truncate max-w-[55%]">{c.address}</span>
+                  <span className="flex gap-2 shrink-0">
+                    <span className="text-gray-300 font-medium">{formatCurrency(c.price)}</span>
+                    <span className="text-gray-600">{c.distance.toFixed(1)}mi</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PropertyCard({ analysis, expanded, onToggle }: { analysis: DealAnalysis; expanded: boolean; onToggle: () => void }) {
   const { property: p } = analysis;
   const scoreClass = scoreColor(analysis.wholesaleScore);
@@ -1069,6 +1161,7 @@ function PropertyCard({ analysis, expanded, onToggle }: { analysis: DealAnalysis
               <AlertTriangle className="w-3 h-3" />Verify ARV with local comps before making an offer.
             </p>
           )}
+          <RealArvPanel analysis={analysis} />
           <div className="mt-3 flex items-center gap-2">
             <a
               href={listingUrl(p)}
