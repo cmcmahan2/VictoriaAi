@@ -56,8 +56,45 @@ polymarket_client.py  Market/Fill, calculate_pnl(), discovery + (guarded) execut
 logger.py             SQLite trade schema shared by live + backtest
 analyze.py            performance analyzer + reusable stat helpers (Wilson CI, Sharpe…)
 smoke_test.py         end-to-end wiring proof on synthetic data (no network)
-backtest/             the backtest engine (Phases 1–6) — see backtest/README once built
+backtest/
+  data.py             P1 klines + ground-truth 5m outcomes (real download + synthetic)
+  pricing.py          P2 P_up token-price model, mispricing/spread/slippage, synth book
+  engine.py           P3 no-look-ahead replay through the REAL Strategy/RiskEngine
+  report.py           P4 terminal + HTML report (Wilson CI, significance, break-even)
+  walkforward.py      P5 rolling train/test, out-of-sample-only reporting
+  optimize.py         P6 parameter sweep, walk-forward evaluated, overfit flags
+tests/test_no_lookahead.py   proves the future can't influence a past decision
 ```
+
+## Backtest usage
+
+```bash
+cd polybot
+# Phase 1 — data + outcomes (real download; --synthetic for the sandbox)
+python -m backtest.data --days 180
+python -m backtest.data --days 14 --synthetic
+
+# Phase 3 — full backtest -> backtest_trades.db + reports/backtest.html
+python -m backtest.engine --days 180
+python -m backtest.engine --days 90 --synthetic --mispricing 0.03 --orderbook momentum
+
+# analyze.py runs unchanged on the backtest DB
+python analyze.py --db backtest_trades.db
+
+# Phase 5 — walk-forward (reports OUT-OF-SAMPLE only)
+python -m backtest.walkforward --days 120 --synthetic
+
+# Phase 6 — parameter sweep, walk-forward evaluated
+python -m backtest.optimize --days 120 --synthetic
+python -m backtest.optimize --days 180 --random 20
+
+# the no-look-ahead test
+python tests/test_no_lookahead.py
+```
+
+Key knobs (all on `BacktestConfig`, all sweepable): `mispricing` (the edge knob,
+default 0 = efficient market), `spread`, `slippage`, `gas`, `orderbook_mode`
+(`noise` default / `momentum` / `edge`), `orderbook_edge`, `seed`.
 
 ## Running
 
