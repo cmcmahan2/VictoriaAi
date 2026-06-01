@@ -1,0 +1,16 @@
+.env.local
+.env
+.next/
+node_modules/
+*.db
+*.db-shm
+*.db-wal
+out/
+dist/
+.DS_Store
+next-env.d.ts
+*.tsbuildinfo
+
+# Downloaded source videos / transient media
+/data/
+/tmp-media/
