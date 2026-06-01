@@ -47,6 +47,14 @@ Each horizon renders in one of three **output modes** (defined in Step 3 / Outpu
 
 ---
 
+## Step 0 — Recall memory (cross-run continuity)
+
+Run `python macro/history.py report` first. It prints how the headline series have
+moved since the last run and ~1 week ago (e.g. "10y +5bp, gold +3.1%, VIX +2"), plus
+the prior run's trade ideas to re-assess. Weave this into the output — especially the
+`day` radar's "Since last" line and the trade-book's "still on?" check. If it says
+"no prior snapshots", this is the first run; note that and carry on.
+
 ## Step 1 — Collect data (free; no API keys)
 
 Pull broadly but efficiently. **Batch** where you can, and only fetch what the
@@ -186,6 +194,17 @@ Close every run with:
 - **On watch** (dated catalysts if available; otherwise flag the calendar as a gap).
 - Disclaimer line, verbatim:
   `Research only — not investment advice. Public data; verify before acting. You bear all risk.`
+
+## Step 5 — Persist memory (so the next run has continuity)
+
+Assemble this run's snapshot and record it:
+```
+python macro/history.py record --file -   # pipe the snapshot JSON on stdin
+```
+Snapshot fields: `date` (run date YYYY-MM-DD), `levels` (each asset → {close, chg_pct}),
+`vix`, `curve` ({m3,y2,y5,y10,y30,s2s10}), `sectors_pe`, `sectors_perf`, `regime`
+(your one-line call), and `ideas` (the trade-book ideas: name + conviction). Record only
+real retrieved numbers. This file is what the NEXT run's Step 0 differences against.
 
 ## Efficiency notes
 

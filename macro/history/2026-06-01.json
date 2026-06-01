@@ -1,0 +1,40 @@
+{
+  "date": "2026-06-01",
+  "levels": {
+    "S&P 500": {"close": 7580.1, "chg_pct": 0.01},
+    "Nasdaq 100": {"close": 30333.18, "chg_pct": -0.0},
+    "Dow": {"close": 51032.5, "chg_pct": 0.51},
+    "Russell 2000 (IWM)": {"close": 290.43, "chg_pct": -0.33},
+    "Gold": {"close": 4535.05, "chg_pct": -0.42},
+    "WTI Crude": {"close": 90.35, "chg_pct": 1.57},
+    "Copper": {"close": 644.75, "chg_pct": 1.01},
+    "NatGas": {"close": 3.391, "chg_pct": 1.19},
+    "Silver": {"close": 7601.5, "chg_pct": 2.46},
+    "US Dollar Index": {"close": 98.927, "chg_pct": -0.0},
+    "EUR/USD": {"close": 1.16588, "chg_pct": -0.01},
+    "Bitcoin": {"close": 72922.9, "chg_pct": -1.15},
+    "Ethereum": {"close": 1985.83, "chg_pct": -1.24}
+  },
+  "vix": 17.59,
+  "curve": {"m3": 3.69, "y2": 3.98, "y5": 4.13, "y10": 4.45, "y30": 4.99, "s2s10": 0.47},
+  "sectors_pe": {
+    "Healthcare": 25.8, "Financials": 26.5, "Communication Services": 28.0,
+    "Utilities": 29.5, "Basic Materials": 29.8, "Consumer Defensive": 37.4,
+    "Industrials": 41.7, "Energy": 49.4, "Real Estate": 55.1,
+    "Technology": 58.6, "Consumer Cyclical": 89.7
+  },
+  "sectors_perf": {
+    "Technology": 0.74, "Financials": 0.51, "Industrials": 0.41, "Utilities": 0.18,
+    "Energy": -0.02, "Real Estate": -0.13, "Healthcare": -0.24,
+    "Basic Materials": -0.38, "Consumer Cyclical": -0.50,
+    "Communication Services": -0.83, "Consumer Defensive": -2.51
+  },
+  "regime": "Mid-to-late-cycle soft landing: equities near highs, VIX low (~17.6), curve normal/positive (no recession signal), but record gold + firm oil + soft sub-100 dollar flag a live inflation/term-premium bid keeping long yields sticky.",
+  "ideas": [
+    {"name": "Curve steepener (long front / short long end)", "conviction": "High", "side": "5s30s steepener"},
+    {"name": "Short USD / long gold (debasement)", "conviction": "Med-High", "side": "short DXY, long gold on dips"},
+    {"name": "Long energy-real assets vs short expensive consumer", "conviction": "Med", "side": "long commodities/energy, short cons. discretionary"},
+    {"name": "Long volatility / cheap convexity", "conviction": "Med", "side": "SPX put spreads / VIX calls"},
+    {"name": "Small-caps vs large-caps", "conviction": "Low (watch)", "side": "watch IWM vs NDX for leadership turn"}
+  ]
+}
