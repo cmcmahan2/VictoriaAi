@@ -14,11 +14,11 @@ paste link → download → understand → generate metadata → review → publ
 
 | Stage | Module | Status |
 |-------|--------|--------|
-| Download source clip + caption | `modules/ingest/download.ts` | step 2 (stub) |
-| Transcribe audio (optional) | `modules/ingest/transcribe.ts` | step 2 (stub) |
+| Download source clip + caption | `modules/ingest/download.ts` | ✅ working (yt-dlp) |
+| Transcribe audio (optional) | `modules/ingest/transcribe.ts` | ✅ working (Whisper) |
 | Generate metadata (Claude) | `modules/generate/shorts-metadata.ts` | ✅ working |
-| YouTube OAuth | `modules/youtube/oauth.ts` | consent URL ✅ / exchange stub |
-| Upload to YouTube | `modules/youtube/upload.ts` | publish step (stub) |
+| YouTube OAuth | `modules/youtube/oauth.ts` | ✅ working |
+| Upload to YouTube | `modules/youtube/upload.ts` | ✅ working |
 
 ## Stack
 
@@ -40,6 +40,18 @@ cp .env.local.example .env.local   # add ANTHROPIC_API_KEY at minimum
 npm install
 npm run dev                        # http://localhost:3002
 ```
+
+## Connect YouTube (one-time)
+
+1. In **Google Cloud Console** → create an OAuth 2.0 Client ID (type: Web app).
+2. Add redirect URI `http://localhost:3002/api/auth/youtube`.
+3. Put the client id/secret in `.env.local`.
+4. Visit `http://localhost:3002/api/auth/youtube`, approve consent.
+5. Copy the returned `refreshToken` into `YOUTUBE_REFRESH_TOKEN`, restart `npm run dev`.
+
+Uploads default to **private** — flip the selector to public when you're ready.
+Note: the `youtube.upload` scope needs Google verification before non-test users
+can use it, and uploads cost 1,600 quota units each (~6/day default).
 
 ## Routes
 

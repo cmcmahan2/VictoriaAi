@@ -1,35 +1,49 @@
 // Google OAuth2 helpers for the YouTube Data API v3.
-// Step 1 provides the consent-URL builder (pure config, no network) so the
-// auth route is wired; token exchange + refresh land with the publish step.
+import { google } from 'googleapis';
+import type { OAuth2Client } from 'google-auth-library';
 import { loadEnv } from '../../lib/env';
 
 export const YOUTUBE_UPLOAD_SCOPE = 'https://www.googleapis.com/auth/youtube.upload';
 
-// Build the Google consent screen URL the user visits to grant upload access.
-export function buildConsentUrl(): string {
+// A bare OAuth2 client configured from env (no credentials set yet).
+export function oauthClient(): OAuth2Client {
   const env = loadEnv();
-  if (!env.GOOGLE_CLIENT_ID) {
-    throw new Error('GOOGLE_CLIENT_ID is not configured');
+  if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
+    throw new Error('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be configured');
   }
-
-  const params = new URLSearchParams({
-    client_id: env.GOOGLE_CLIENT_ID,
-    redirect_uri: env.GOOGLE_REDIRECT_URI,
-    response_type: 'code',
-    scope: YOUTUBE_UPLOAD_SCOPE,
-    access_type: 'offline', // request a refresh token
-    prompt: 'consent',
-  });
-
-  return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+  return new google.auth.OAuth2(
+    env.GOOGLE_CLIENT_ID,
+    env.GOOGLE_CLIENT_SECRET,
+    env.GOOGLE_REDIRECT_URI,
+  );
 }
 
-// Exchange the ?code= for tokens (incl. refresh_token). Implemented in the
-// publish step using googleapis' OAuth2 client.
+// URL of the Google consent screen the user visits to grant upload access.
+export function buildConsentUrl(): string {
+  return oauthClient().generateAuthUrl({
+    access_type: 'offline', // request a refresh token
+    prompt: 'consent',
+    scope: [YOUTUBE_UPLOAD_SCOPE],
+  });
+}
+
+// Exchange the ?code= from the consent redirect for tokens. The refresh_token
+// is what the user stores in YOUTUBE_REFRESH_TOKEN for unattended uploads.
 export async function exchangeCodeForTokens(
-  _code: string,
+  code: string,
 ): Promise<{ refreshToken: string | null }> {
-  throw new Error(
-    'exchangeCodeForTokens is a step-1 stub. Token exchange lands with the publish step.',
-  );
+  const { tokens } = await oauthClient().getToken(code);
+  return { refreshToken: tokens.refresh_token ?? null };
+}
+
+// An OAuth2 client primed with the stored refresh token, ready to authorize
+// API calls (the library refreshes the access token automatically).
+export function authorizedClient(): OAuth2Client {
+  const env = loadEnv();
+  if (!env.YOUTUBE_REFRESH_TOKEN) {
+    throw new Error('YOUTUBE_REFRESH_TOKEN is not configured');
+  }
+  const client = oauthClient();
+  client.setCredentials({ refresh_token: env.YOUTUBE_REFRESH_TOKEN });
+  return client;
 }

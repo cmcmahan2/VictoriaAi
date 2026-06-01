@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { buildConsentUrl, exchangeCodeForTokens } from '../../../../modules/youtube/oauth';
 import { capabilities } from '../../../../lib/env';
 
+export const runtime = 'nodejs';
+
 // GET /api/auth/youtube
 //   - no ?code   → redirect the user to Google's consent screen
-//   - with ?code → exchange for tokens (token exchange lands with publish step)
+//   - with ?code → exchange for tokens and show the refresh token to store
 export async function GET(req: NextRequest) {
   if (!capabilities.hasYouTubeOAuth()) {
     return NextResponse.json(
@@ -21,13 +23,23 @@ export async function GET(req: NextRequest) {
 
   try {
     const { refreshToken } = await exchangeCodeForTokens(code);
+    if (!refreshToken) {
+      return NextResponse.json(
+        {
+          error: {
+            message:
+              'No refresh token returned. Revoke the app at myaccount.google.com/permissions and retry (Google only returns it on first consent).',
+          },
+        },
+        { status: 400 },
+      );
+    }
     return NextResponse.json({
-      message:
-        'Copy this refresh token into YOUTUBE_REFRESH_TOKEN in .env.local to enable unattended uploads.',
+      message: 'Copy this into YOUTUBE_REFRESH_TOKEN in .env.local, then restart the dev server.',
       refreshToken,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Token exchange failed';
-    return NextResponse.json({ error: { message } }, { status: 501 });
+    return NextResponse.json({ error: { message } }, { status: 500 });
   }
 }

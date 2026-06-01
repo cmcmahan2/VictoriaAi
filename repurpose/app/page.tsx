@@ -10,46 +10,90 @@ type Metadata = {
   hook: string;
 };
 
+type Privacy = 'private' | 'unlisted' | 'public';
+
 export default function Home() {
   const [url, setUrl] = useState('');
   const [caption, setCaption] = useState('');
   const [channelContext, setChannelContext] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [metadata, setMetadata] = useState<Metadata | null>(null);
-  const [platform, setPlatform] = useState<string | null>(null);
 
-  async function handleGenerate() {
-    setLoading(true);
+  const [busy, setBusy] = useState<null | 'ingest' | 'publish'>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const [jobId, setJobId] = useState<number | null>(null);
+  const [localPath, setLocalPath] = useState<string | null>(null);
+  const [platform, setPlatform] = useState<string | null>(null);
+  const [metadata, setMetadata] = useState<Metadata | null>(null);
+
+  const [privacy, setPrivacy] = useState<Privacy>('private');
+  const [watchUrl, setWatchUrl] = useState<string | null>(null);
+
+  async function handleFetchAndGenerate() {
+    setBusy('ingest');
     setError(null);
+    setStatus('Downloading clip…');
     setMetadata(null);
+    setWatchUrl(null);
     try {
-      // Probe ingest so we can show detected platform (downloader lands step 2).
       const ingest = await fetch('/api/ingest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url }),
       });
       const ingestData = await ingest.json();
-      if (ingestData.platform) setPlatform(ingestData.platform);
+      if (!ingest.ok) throw new Error(ingestData?.error?.message || 'Download failed');
 
-      // Generate metadata from whatever context we have today.
+      setJobId(ingestData.jobId ?? null);
+      setLocalPath(ingestData.localPath ?? null);
+      setPlatform(ingestData.platform ?? null);
+      const fetchedCaption = caption || ingestData.caption || '';
+      setCaption(fetchedCaption);
+
+      setStatus('Generating metadata…');
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          jobId: ingestData.jobId ?? undefined,
           sourcePlatform: ingestData.platform,
-          sourceCaption: caption || null,
+          sourceCaption: fetchedCaption || null,
+          transcript: ingestData.transcript || null,
           channelContext: channelContext || null,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error?.message || 'Generation failed');
       setMetadata(data.metadata);
+      setStatus('Ready to review.');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong');
+      setStatus(null);
     } finally {
-      setLoading(false);
+      setBusy(null);
+    }
+  }
+
+  async function handlePublish() {
+    if (!metadata) return;
+    setBusy('publish');
+    setError(null);
+    setStatus('Uploading to YouTube…');
+    try {
+      const res = await fetch('/api/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId, localPath, metadata, privacyStatus: privacy }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || 'Publish failed');
+      setWatchUrl(data.result.watchUrl);
+      setStatus('Published!');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Publish failed');
+      setStatus(null);
+    } finally {
+      setBusy(null);
     }
   }
 
@@ -73,13 +117,13 @@ export default function Home() {
 
         <label className="block">
           <span className="text-sm text-[#8b949e]">
-            Original caption <span className="text-[#6e7681]">(optional — until auto-fetch lands in step 2)</span>
+            Caption <span className="text-[#6e7681]">(auto-filled after download — editable)</span>
           </span>
           <textarea
             value={caption}
             onChange={(e) => setCaption(e.target.value)}
             rows={3}
-            placeholder="Paste the caption from the original post for better metadata."
+            placeholder="Pulled from the original post; tweak to steer the metadata."
             className="mt-1 w-full rounded-md border border-[#30363d] bg-[#0d1117] px-3 py-2 text-sm outline-none focus:border-[#1f6feb]"
           />
         </label>
@@ -97,16 +141,15 @@ export default function Home() {
         </label>
 
         <button
-          onClick={handleGenerate}
-          disabled={loading || !url}
+          onClick={handleFetchAndGenerate}
+          disabled={busy !== null || !url}
           className="rounded-md bg-[#1f6feb] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
         >
-          {loading ? 'Generating…' : 'Generate metadata'}
+          {busy === 'ingest' ? 'Working…' : 'Fetch & generate'}
         </button>
 
-        {platform && (
-          <p className="text-xs text-[#6e7681]">Detected platform: {platform}</p>
-        )}
+        {platform && <p className="text-xs text-[#6e7681]">Detected platform: {platform}</p>}
+        {status && <p className="text-sm text-[#3fb950]">{status}</p>}
         {error && <p className="text-sm text-[#f85149]">{error}</p>}
       </div>
 
@@ -147,13 +190,34 @@ export default function Home() {
             <p className="text-sm text-[#58a6ff]">{metadata.hashtags.join(' ')}</p>
           </Field>
 
-          <button
-            disabled
-            title="Publishing lands with the YouTube upload step"
-            className="rounded-md border border-[#30363d] px-4 py-2 text-sm text-[#6e7681]"
-          >
-            Publish to YouTube (coming soon)
-          </button>
+          <div className="flex items-center gap-3 pt-2">
+            <select
+              value={privacy}
+              onChange={(e) => setPrivacy(e.target.value as Privacy)}
+              className="rounded-md border border-[#30363d] bg-[#0d1117] px-3 py-2 text-sm"
+            >
+              <option value="private">Private</option>
+              <option value="unlisted">Unlisted</option>
+              <option value="public">Public</option>
+            </select>
+
+            <button
+              onClick={handlePublish}
+              disabled={busy !== null}
+              className="rounded-md bg-[#3fb950] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            >
+              {busy === 'publish' ? 'Publishing…' : 'Publish to YouTube'}
+            </button>
+          </div>
+
+          {watchUrl && (
+            <p className="text-sm text-[#3fb950]">
+              Published →{' '}
+              <a href={watchUrl} target="_blank" rel="noreferrer" className="underline">
+                {watchUrl}
+              </a>
+            </p>
+          )}
         </div>
       )}
     </div>
