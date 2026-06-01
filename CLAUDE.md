@@ -113,3 +113,4 @@ Project-level slash commands live in `.claude/commands/`. Run them as `/project:
 | `/project:music-review` | Draft an album review or artist brief |
 | `/project:domain-outreach` | Draft cold email to a potential domain buyer |
 | `/project:board-memo` | Format analysis into a one-page board memo |
+| `/macro-scan` | Full-spectrum macro market research scan across all time horizons (week → lifetime), using the Finance (FMP) MCP data |
