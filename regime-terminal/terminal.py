@@ -206,7 +206,9 @@ def main():
     ap = argparse.ArgumentParser(description="Regime Terminal")
     ap.add_argument("--ticker", default=config.TICKER)
     ap.add_argument("--days", type=int, default=240)
-    ap.add_argument("--synthetic", action="store_true")
+    ap.add_argument("--synthetic", action="store_true", help="alias for --source synthetic")
+    ap.add_argument("--source", choices=["synthetic", "yfinance", "kucoin"], default=None,
+                    help="data source (kucoin uses symbols like BTC-USDT)")
     ap.add_argument("--drift-scale", type=float, default=0.2)
     ap.add_argument("--leverage", type=float, default=config.LEVERAGE)
     ap.add_argument("--train-once", action="store_true", help="faster, mildly leaky (not WF)")
@@ -214,19 +216,19 @@ def main():
     args = ap.parse_args()
     config.LEVERAGE = args.leverage
 
-    if args.synthetic:
+    source = args.source or ("synthetic" if args.synthetic else "yfinance")
+    if source == "synthetic":
         from data import synthetic_ohlcv
         print(f"[synthetic] {args.days}d hourly bars (drift_scale={args.drift_scale}) — NOT real data")
         bars, _ = synthetic_ohlcv(days=args.days, drift_scale=args.drift_scale)
-        source = "synthetic"
     else:
         from data import get_bars
-        print(f"[yfinance] {args.ticker} {args.days}d hourly…")
+        print(f"[{source}] {args.ticker} {args.days}d hourly…")
         try:
-            bars = get_bars(args.ticker, args.days)
-            source = "yfinance"
+            bars = get_bars(args.ticker, args.days, source=source)
         except RuntimeError as e:
-            print(f"  ✗ {e}\n  Sandbox blocks Yahoo Finance — run locally, or use --synthetic.")
+            print(f"  ✗ {e}\n  This sandbox blocks exchange/data hosts — run locally, "
+                  f"or use --synthetic.")
             raise SystemExit(2)
 
     print("Training regime model + running walk-forward backtest (this trains an HMM "

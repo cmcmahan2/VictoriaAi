@@ -49,8 +49,9 @@ button:hover{background:#1d4ed8}
   <div class="row">
     <div><label>Data source</label>
       <select name="source"><option value="synthetic">Synthetic (sandbox)</option>
-      <option value="real">Yahoo Finance (local only)</option></select></div>
-    <div><label>Ticker</label><input name="ticker" value="BTC-USD"></div>
+      <option value="kucoin">KuCoin (e.g. BTC-USDT)</option>
+      <option value="yfinance">Yahoo Finance (e.g. BTC-USD)</option></select></div>
+    <div><label>Ticker</label><input name="ticker" value="BTC-USDT"></div>
   </div>
   <div class="row">
     <div><label>Days (hourly bars)</label><input name="days" type="number" value="180" min="40" max="730"></div>
@@ -84,16 +85,17 @@ def run_analysis(p):
     days = max(40, min(int(g("days", "180")), 730))
     fast = g("mode", "wf") == "fast"
     source = g("source", "synthetic")
-    if source == "real":
+    ticker = g("ticker", "BTC-USDT")
+    if source in ("kucoin", "yfinance"):
         from data import get_bars
-        bars = get_bars(g("ticker", "BTC-USD"), days)   # raises if blocked/no pkg
-        src = "yfinance"
+        bars = get_bars(ticker, days, source=source)   # raises if blocked/no pkg
+        src = source
     else:
         bars = synthetic_ohlcv(days=days, drift_scale=float(g("drift", "0.2")))[0]
         src = "synthetic"
     cur = current_read(bars, config)
     res = run_backtest(bars, config, walk_forward=not fast)
-    res.meta.update({"ticker": g("ticker", "BTC-USD"), "data_source": src, "git": _git()})
+    res.meta.update({"ticker": ticker, "data_source": src, "git": _git()})
     return BACK + render_html(cur, res, res.meta)
 
 

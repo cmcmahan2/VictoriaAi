@@ -61,6 +61,45 @@ def load_yfinance(ticker: str = config.TICKER, days: int = config.LOOKBACK_DAYS,
 
 
 # --------------------------------------------------------------------------- #
+# Real data (KuCoin public candles — clean REST API, crypto, supports leverage)
+# --------------------------------------------------------------------------- #
+KUCOIN_HOST = "https://api.kucoin.com"
+_KC_TYPE = {"1h": "1hour", "1hour": "1hour", "4h": "4hour", "1d": "1day", "15m": "15min"}
+
+
+def load_kucoin(symbol: str = "BTC-USDT", days: int = config.LOOKBACK_DAYS,
+                interval: str = config.INTERVAL) -> list[Bar]:
+    """Fetch hourly bars from KuCoin's public /market/candles (no key needed).
+
+    KuCoin caps ~1500 candles/request and returns newest-first as
+    [time, open, close, high, low, volume, turnover] (note: open, CLOSE, high, low).
+    Symbols use a dash, e.g. BTC-USDT. Raises if the network is blocked (sandbox)."""
+    import requests
+    ktype = _KC_TYPE.get(interval, "1hour")
+    end = int(time.time())
+    start = end - days * 86400
+    out, cur_end = [], end
+    while cur_end > start:
+        r = requests.get(f"{KUCOIN_HOST}/api/v1/market/candles",
+                         params={"type": ktype, "symbol": symbol,
+                                 "startAt": max(start, cur_end - 1500 * 3600),
+                                 "endAt": cur_end}, timeout=15)
+        r.raise_for_status()
+        data = (r.json() or {}).get("data") or []
+        if not data:
+            break
+        for t, o, c, h, l, v, _turn in data:           # KuCoin column order!
+            out.append(Bar(int(t), float(o), float(h), float(l), float(c), float(v)))
+        cur_end = int(data[-1][0]) - 3600               # page older (data is newest-first)
+    out.sort(key=lambda b: b.ts)
+    seen, uniq = set(), []
+    for b in out:
+        if b.ts not in seen:
+            seen.add(b.ts); uniq.append(b)
+    return uniq
+
+
+# --------------------------------------------------------------------------- #
 # Synthetic (sandbox demo + HMM validation): bars WITH planted regime labels
 # --------------------------------------------------------------------------- #
 # Each planted regime has a distinct (drift, vol) signature the HMM should recover.
@@ -120,8 +159,8 @@ def synthetic_ohlcv(days: int = 120, interval_hours: int = 1,
 # --------------------------------------------------------------------------- #
 # Cache
 # --------------------------------------------------------------------------- #
-def cache_path(ticker: str, interval: str) -> str:
-    return os.path.join(CACHE_DIR, f"{ticker.replace('/', '-')}-{interval}.csv")
+def cache_path(ticker: str, interval: str, source: str = "yfinance") -> str:
+    return os.path.join(CACHE_DIR, f"{source}-{ticker.replace('/', '-')}-{interval}.csv")
 
 
 def save_csv(bars: list[Bar], path: str) -> None:
@@ -143,11 +182,16 @@ def load_csv(path: str) -> list[Bar]:
 
 
 def get_bars(ticker: str = config.TICKER, days: int = config.LOOKBACK_DAYS,
-             interval: str = config.INTERVAL, use_cache: bool = True) -> list[Bar]:
-    """Cached yfinance load. Raises RuntimeError if the network/pkg is unavailable."""
-    path = cache_path(ticker, interval)
+             interval: str = config.INTERVAL, source: str = "yfinance",
+             use_cache: bool = True) -> list[Bar]:
+    """Cached real-data load. source = 'yfinance' or 'kucoin'. Raises RuntimeError
+    if the network/package is unavailable (e.g. blocked in this sandbox)."""
+    path = cache_path(ticker, interval, source)
     if use_cache and os.path.exists(path):
         return load_csv(path)
-    bars = load_yfinance(ticker, days, interval)
+    bars = load_kucoin(ticker, days, interval) if source == "kucoin" \
+        else load_yfinance(ticker, days, interval)
+    if not bars:
+        raise RuntimeError(f"no bars from {source} for {ticker}")
     save_csv(bars, path)
     return bars
