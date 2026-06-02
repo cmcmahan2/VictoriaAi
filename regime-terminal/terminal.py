@@ -28,7 +28,9 @@ from strategy import Indicators, confirmations
 # --------------------------------------------------------------------------- #
 # current causal read (train on ALL history is fine for "now" — no future exists)
 # --------------------------------------------------------------------------- #
-def current_read(bars, cfg):
+def current_read(bars, cfg, progress=None):
+    if progress:
+        progress("Detecting current regime…", 0.90)
     saved = cfg.HMM_N_INIT                       # the "current" snapshot needs fewer
     cfg.HMM_N_INIT = min(saved, 3)               # restarts than the validated headline
     try:
@@ -101,17 +103,20 @@ def _chart(title, inner, w=900, h=180):
 # HTML
 # --------------------------------------------------------------------------- #
 def render_html(cur, res, meta) -> str:
+    import json
     m = res.metrics
-    closes = [c for _, c, _ in res.overlay]
-    eq = [e for _, e in res.equity_curve]
-    bh = [v for _, v in res.bh_curve]
-    big = (max(eq) / max(min(eq), 1e-9)) > 20 if eq else False
-
-    price_chart = _chart("Price + regime overlay (causal)",
-                         _stance_bands(res.overlay, 900, 180) + _poly(closes, 900, 180, color="#e2e8f0"))
-    eq_chart = _chart("Equity (blue) vs buy & hold (gray)" + (" — log" if big else ""),
-                      _poly(bh, 900, 180, color="#64748b", logscale=big)
-                      + _poly(eq, 900, 180, color="#38bdf8", logscale=big))
+    ov, eqc, bhc = res.overlay, res.equity_curve, res.bh_curve
+    N = len(ov)
+    step = max(1, N // 800)                        # downsample for snappy charts
+    idxs = list(range(0, N, step))
+    labels = [time.strftime("%m-%d %H:%M", time.gmtime(ov[i][0])) for i in idxs]
+    closes = [round(ov[i][1], 4) for i in idxs]
+    stances = [ov[i][2] for i in idxs]
+    equity = [round(eqc[i][1], 2) for i in idxs]
+    bh = [round(bhc[i][1], 2) for i in idxs]
+    big = (max(equity) / max(min(equity), 1e-9) > 20) if equity else False
+    cdata = json.dumps({"labels": labels, "closes": closes, "stances": stances,
+                        "equity": equity, "bh": bh, "logEq": big})
 
     checks_html = "".join(
         f'<span class="chk {"ok" if ok else "no"}">{html.escape(n)}</span>' for n, ok in cur["checks"])
@@ -147,43 +152,86 @@ def render_html(cur, res, meta) -> str:
                 f'{meta["leverage"]}x — it can LIQUIDATE you. Backtests are not guarantees.</div>')
 
     stance_color = {"long": "#16a34a", "avoid": "#dc2626", "neutral": "#64748b"}.get(cur["stance"], "#64748b")
-    doc = f"""<!doctype html><html><head><meta charset="utf-8"><title>Regime Terminal</title>
-<style>
-body{{font:14px/1.5 ui-monospace,Menlo,Consolas,monospace;margin:0;background:#070a14;color:#cbd5e1}}
-.wrap{{max-width:980px;margin:0 auto;padding:22px}}
-h1{{margin:0;color:#e2e8f0}} h3{{color:#94a3b8;font-size:12px;margin:0 0 6px;text-transform:uppercase;letter-spacing:.06em}}
-.now{{display:flex;gap:18px;align-items:center;background:#0b1020;border:1px solid #1e293b;border-radius:10px;padding:16px;margin:12px 0}}
-.regime{{font-size:26px;font-weight:700;color:{stance_color}}}
-.sig{{font-size:16px;color:#e2e8f0}}
-.banner{{padding:9px 13px;border-radius:7px;margin:8px 0;font-weight:600}}
-.banner.red{{background:#7f1d1d;color:#fee2e2}} .banner.amber{{background:#78350f;color:#fef3c7}}
-.card{{background:#0b1020;border:1px solid #1e293b;border-radius:10px;padding:12px;margin:12px 0}}
-table{{width:100%;border-collapse:collapse}} td{{padding:5px 9px;border-bottom:1px solid #16203a}}
-td:first-child{{color:#94a3b8}}
-.chk{{display:inline-block;padding:2px 7px;margin:2px;border-radius:5px;font-size:12px}}
-.chk.ok{{background:#14532d;color:#bbf7d0}} .chk.no{{background:#3f1d1d;color:#fecaca}}
-.pos{{color:#4ade80}} .neg{{color:#f87171}}
-.grid{{display:grid;grid-template-columns:1fr 1fr;gap:12px}}
-</style></head><body><div class="wrap">
-<h1>◆ Regime Terminal</h1>
-<div style="color:#64748b">{html.escape(meta.get('ticker','?'))} · {meta.get('bars','?')} hourly bars ·
- {meta.get('covered','?')} backtested · git {html.escape(meta.get('git','?'))}</div>
+    call = cur["signal"].split(" ")[0]            # LONG / FLAT / NEUTRAL
+
+    style = """<style>
+body{font:14px/1.55 ui-monospace,Menlo,Consolas,monospace;margin:0;background:#070a14;color:#cbd5e1}
+.wrap{max-width:1040px;margin:0 auto;padding:22px}
+h1{margin:0;color:#e2e8f0} h3{color:#94a3b8;font-size:12px;margin:0 0 6px;text-transform:uppercase;letter-spacing:.06em}
+.now{display:flex;gap:14px;background:#0b1020;border:1px solid #1e293b;border-radius:12px;padding:18px;margin:12px 0}
+.now .box{flex:1}
+.regime{font-size:26px;font-weight:800}
+.call{font-size:26px;font-weight:800;padding:3px 14px;border-radius:9px;display:inline-block}
+.call-LONG{background:#14532d;color:#bbf7d0}.call-FLAT{background:#7f1d1d;color:#fecaca}.call-NEUTRAL{background:#334155;color:#e2e8f0}
+.muted{color:#64748b;font-size:13px;margin-top:4px}
+.banner{padding:9px 13px;border-radius:7px;margin:8px 0;font-weight:600}
+.banner.red{background:#7f1d1d;color:#fee2e2}.banner.amber{background:#78350f;color:#fef3c7}
+.card{background:#0b1020;border:1px solid #1e293b;border-radius:12px;padding:14px;margin:12px 0}
+table{width:100%;border-collapse:collapse}td{padding:5px 9px;border-bottom:1px solid #16203a}td:first-child{color:#94a3b8}
+.chk{display:inline-block;padding:3px 8px;margin:2px;border-radius:6px;font-size:12px}
+.chk.ok{background:#14532d;color:#bbf7d0}.chk.no{background:#3f1d1d;color:#fecaca}
+.pos{color:#4ade80}.neg{color:#f87171}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.chartwrap{position:relative;height:210px}
+a{color:#38bdf8}
+</style>"""
+    head_scripts = ('<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>'
+                    '<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>')
+    init = """<script>
+(function(){
+ if(typeof Chart==='undefined'){document.querySelectorAll('.chartwrap').forEach(function(e){e.innerHTML='<div class="muted">Charts need internet (Chart.js CDN did not load).</div>';});return;}
+ try{Chart.register(window['chartjs-plugin-zoom']||window.ChartZoom);}catch(e){}
+ var D=__CDATA__, SC={long:'#16a34a',avoid:'#dc2626',neutral:'#64748b'};
+ var zoom={zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x'},pan:{enabled:true,mode:'x'}};
+ new Chart(document.getElementById('priceChart'),{type:'line',
+  data:{labels:D.labels,datasets:[{label:'Price',data:D.closes,borderWidth:1.5,pointRadius:0,
+   segment:{borderColor:function(c){return SC[D.stances[c.p1DataIndex]]||'#94a3b8';}}}]},
+  options:{animation:false,responsive:true,maintainAspectRatio:false,
+   plugins:{legend:{display:false},zoom:zoom,
+    tooltip:{callbacks:{afterLabel:function(c){return 'regime: '+D.stances[c.dataIndex];}}}},
+   scales:{x:{ticks:{maxTicksLimit:8,color:'#64748b'}},y:{ticks:{color:'#64748b'}}}}});
+ new Chart(document.getElementById('eqChart'),{type:'line',
+  data:{labels:D.labels,datasets:[
+   {label:'Strategy equity',data:D.equity,borderColor:'#38bdf8',borderWidth:1.6,pointRadius:0},
+   {label:'Buy & hold',data:D.bh,borderColor:'#94a3b8',borderWidth:1.2,pointRadius:0}]},
+  options:{animation:false,responsive:true,maintainAspectRatio:false,
+   plugins:{legend:{labels:{color:'#cbd5e1'}},zoom:zoom},
+   scales:{x:{ticks:{maxTicksLimit:8,color:'#64748b'}},
+    y:{type:D.logEq?'logarithmic':'linear',ticks:{color:'#64748b'}}}}});
+})();
+</script>""".replace("__CDATA__", cdata)
+
+    body = f"""<div class="wrap">
+<h1>&#9670; Regime Terminal</h1>
+<div class="muted">{html.escape(str(meta.get('ticker','?')))} &middot; {meta.get('bars','?')} hourly bars &middot;
+ {meta.get('covered','?')} backtested &middot; {html.escape(str(meta.get('data_source','?')))} &middot;
+ git {html.escape(str(meta.get('git','?')))}</div>
 {banners}
 <div class="now">
-  <div><h3>Detected regime</h3><div class="regime">{html.escape(cur['name']).upper()}</div>
-       <div style="color:#94a3b8">confidence {cur['confidence']*100:.0f}% · state {cur['state']}</div></div>
-  <div style="flex:1"><h3>Signal</h3><div class="sig">{html.escape(cur['signal'])}</div>
-       <div style="margin-top:6px">{checks_html}</div></div>
+  <div class="box"><h3>Detected regime</h3>
+    <div class="regime" style="color:{stance_color}">{html.escape(cur['name']).upper()}</div>
+    <div class="muted">confidence {cur['confidence']*100:.0f}% &middot; state {cur['state']} &middot; price {cur['price']:,.2f}</div></div>
+  <div class="box"><h3>Signal</h3>
+    <div class="call call-{call}">{call}</div>
+    <div class="muted">{html.escape(cur['signal'])}</div></div>
+  <div class="box" style="flex:1.6"><h3>Confirmations {cur['n_pass']}/8</h3>
+    <div>{checks_html}</div></div>
+</div>
+<div class="grid">
+  <div class="card"><h3>Price + regime overlay &mdash; green long / gray neutral / red avoid</h3>
+    <div class="chartwrap"><canvas id="priceChart"></canvas></div></div>
+  <div class="card"><h3>Equity (blue) vs buy &amp; hold (gray){' &mdash; log' if big else ''}</h3>
+    <div class="chartwrap"><canvas id="eqChart"></canvas></div></div>
 </div>
 <div class="grid">
   <div class="card"><h3>Performance (walk-forward, out-of-sample)</h3><table>{metric_rows}</table></div>
-  <div>{price_chart}{eq_chart}</div>
+  <div class="card"><h3>Recent trades</h3><table>
+    <tr><td>entry</td><td>exit</td><td>bars</td><td>return</td><td>exit reason</td></tr>
+    {trade_rows}</table></div>
 </div>
-<div class="card"><h3>Recent trades</h3><table>
-  <tr><td>entry</td><td>exit</td><td>bars</td><td>return</td><td>exit reason</td></tr>
-  {trade_rows}</table></div>
-</div></body></html>"""
-    return doc
+</div>"""
+    return ("<!doctype html><html><head><meta charset=\"utf-8\"><title>Regime Terminal</title>"
+            + head_scripts + style + "</head><body>" + body + init + "</body></html>")
 
 
 def build_html(cur, res, meta, path):

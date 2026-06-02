@@ -27,6 +27,7 @@ HMM_MIN_VAR = 1e-2            # variance floor (features are z-scored ~unit var)
                              # prevents a state collapsing onto outlier bars
 HMM_SELF_TRANS_PRIOR = 0.95   # regimes are sticky
 HMM_N_INIT = 6                # EM random restarts (avoid local optima)
+HMM_BACKEND = "auto"          # "auto" = use hmmlearn if installed (fast), else pure-Python
 SEED = 1337
 
 # How regimes are read for DECISIONS. 'filter' = causal (no look-ahead) — correct

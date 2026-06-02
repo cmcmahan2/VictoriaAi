@@ -125,11 +125,23 @@ class GaussianHMM:
         self.log_start, self.log_trans, self.means, self.vars = ls[:], [r[:] for r in lt], \
             [m[:] for m in mu], [v[:] for v in vr]
 
-    def fit(self, X, n_init: int = 1):
-        """Baum-Welch EM with n_init random restarts (keeps the best log-likelihood).
-        Restarts matter: EM finds local optima, so a single init can land badly."""
+    def fit(self, X, n_init: int = 1, backend: str = "python"):
+        """Fit by Baum-Welch EM with n_init random restarts (keeps best log-lik).
+
+        backend: "python" (default) uses the pure implementation here; "hmmlearn"
+        (or "auto" if hmmlearn is installed) fits ~100x faster via hmmlearn and loads
+        the resulting params back into THIS object — so filter/smooth/viterbi (and the
+        causal no-look-ahead guarantee) are identical regardless of backend.
+        """
         if len(X) < self.N:
             raise ValueError("need at least n_states observations")
+        if backend in ("auto", "hmmlearn"):
+            try:
+                return self._fit_hmmlearn(X, n_init)
+            except ImportError:
+                if backend == "hmmlearn":
+                    raise  # explicitly requested but unavailable
+                # backend == "auto": silently fall through to pure-Python
         best = None
         for i in range(max(1, n_init)):
             self._init_params(X, seed=self.seed + i * 101)
@@ -138,6 +150,38 @@ class GaussianHMM:
                 best = (loglik, self._snapshot(), n_iter, conv)
         self._restore(best[1])
         self.loglik_, self.n_iter_, self.converged_ = best[0], best[2], best[3]
+        return self
+
+    def _fit_hmmlearn(self, X, n_init):
+        """Fit with hmmlearn, then copy params into self for our own inference."""
+        import numpy as np
+        from hmmlearn.hmm import GaussianHMM as _HL  # ImportError -> caller decides
+
+        arr = np.asarray(X, dtype=float)
+        best = None
+        for i in range(max(1, n_init)):
+            m = _HL(n_components=self.N, covariance_type="diag", n_iter=self.max_iter,
+                    tol=self.tol, min_covar=self.min_var, random_state=self.seed + i,
+                    init_params="stmc", params="stmc")
+            m.fit(arr)
+            try:
+                ll = float(m.score(arr))
+            except Exception:
+                ll = float("-inf")
+            if best is None or ll > best[0]:
+                best = (ll, m)
+        ll, m = best
+        eps = 1e-300
+        cov = np.asarray(m.covars_)
+        if cov.ndim == 3:                       # (N,d,d) -> diagonal
+            cov = np.stack([np.diag(c) for c in cov])
+        self.log_start = [math.log(max(float(p), eps)) for p in m.startprob_]
+        self.log_trans = [[math.log(max(float(p), eps)) for p in row] for row in m.transmat_]
+        self.means = [[float(v) for v in row] for row in m.means_]
+        self.vars = [[max(self.min_var, float(v)) for v in row] for row in cov]
+        self.loglik_ = ll
+        self.n_iter_ = int(getattr(m.monitor_, "iter", self.max_iter))
+        self.converged_ = bool(getattr(m.monitor_, "converged", True))
         return self
 
     def _em(self, X):

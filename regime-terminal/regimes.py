@@ -49,7 +49,7 @@ class RegimeModel:
         self.hmm = GaussianHMM(self.n_states, len(self.features), seed=self.seed,
                                max_iter=config.HMM_MAX_ITER, min_var=config.HMM_MIN_VAR,
                                self_trans_prior=config.HMM_SELF_TRANS_PRIOR
-                               ).fit(z, n_init=config.HMM_N_INIT)
+                               ).fit(z, n_init=config.HMM_N_INIT, backend=config.HMM_BACKEND)
         self._classify(self.hmm.viterbi(z), feats_raw)
         return self
 

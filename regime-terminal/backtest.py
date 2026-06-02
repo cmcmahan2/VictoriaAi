@@ -80,19 +80,33 @@ def _max_dd(curve):
 # --------------------------------------------------------------------------- #
 # walk-forward causal regime stream -> per-bar (stance, conf, name)
 # --------------------------------------------------------------------------- #
-def walk_forward_regimes(bars, cfg=config):
+def _est_folds(n, train, test, step):
+    c, start = 0, 0
+    while start + train + 1 < n and start + train < n:
+        if start + train >= n:
+            break
+        c += 1
+        start += step
+    return max(c, 1)
+
+
+def walk_forward_regimes(bars, cfg=config, progress=None):
     train = cfg.WALK_FORWARD_TRAIN_DAYS * 24
     test = cfg.WALK_FORWARD_TEST_DAYS * 24
     step = cfg.WALK_FORWARD_STEP_DAYS * 24
     n = len(bars)
     out: dict[int, tuple] = {}
     folds = 0
+    n_est = _est_folds(n, train, test, step)
     start = 0
     while start + train + 1 < n:
         tr_lo, tr_hi = start, start + train
         te_lo, te_hi = tr_hi, min(tr_hi + test, n)
         if te_lo >= te_hi:
             break
+        if progress:
+            progress(f"Training regime HMM — fold {folds + 1}/{n_est}…",
+                     0.10 + 0.65 * folds / max(n_est, 1))
         model = RegimeModel(cfg.N_STATES, tuple(cfg.FEATURES), seed=cfg.SEED)
         # train on the train slice (cheaper restarts during WF)
         import config as _c
@@ -113,9 +127,11 @@ def walk_forward_regimes(bars, cfg=config):
     return out, folds
 
 
-def train_once_regimes(bars, cfg=config):
+def train_once_regimes(bars, cfg=config, progress=None):
     """Faster, mildly-leaky alternative: one HMM on all bars (params see the whole
     series), causal filtered read. Use only for quick looks; WF is the honest path."""
+    if progress:
+        progress("Training regime HMM (train-once)…", 0.30)
     model = RegimeModel(cfg.N_STATES, tuple(cfg.FEATURES), seed=cfg.SEED).fit(bars)
     out = {}
     for (i, k, prob, stance, name) in model.regime_stream(bars, smooth=False):
@@ -126,12 +142,14 @@ def train_once_regimes(bars, cfg=config):
 # --------------------------------------------------------------------------- #
 # simulate
 # --------------------------------------------------------------------------- #
-def run_backtest(bars, cfg=config, walk_forward=True) -> BacktestResult:
+def run_backtest(bars, cfg=config, walk_forward=True, progress=None) -> BacktestResult:
     ind = Indicators(bars, cfg)
     if walk_forward:
-        regimes, folds = walk_forward_regimes(bars, cfg)
+        regimes, folds = walk_forward_regimes(bars, cfg, progress=progress)
     else:
-        regimes, folds, _ = train_once_regimes(bars, cfg)
+        regimes, folds, _ = train_once_regimes(bars, cfg, progress=progress)
+    if progress:
+        progress("Simulating leveraged trades…", 0.85)
 
     covered = sorted(i for i in regimes if 0 < i < len(bars))
     res = BacktestResult(meta={"walk_forward": walk_forward, "folds": folds,
