@@ -100,7 +100,7 @@ def _chart(title, inner, w=900, h=180):
 # --------------------------------------------------------------------------- #
 # HTML
 # --------------------------------------------------------------------------- #
-def build_html(cur, res, meta, path):
+def render_html(cur, res, meta) -> str:
     m = res.metrics
     closes = [c for _, c, _ in res.overlay]
     eq = [e for _, e in res.equity_curve]
@@ -183,6 +183,11 @@ td:first-child{{color:#94a3b8}}
   <tr><td>entry</td><td>exit</td><td>bars</td><td>return</td><td>exit reason</td></tr>
   {trade_rows}</table></div>
 </div></body></html>"""
+    return doc
+
+
+def build_html(cur, res, meta, path):
+    doc = render_html(cur, res, meta)
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     with open(path, "w") as f:
         f.write(doc)

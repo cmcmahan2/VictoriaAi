@@ -48,19 +48,32 @@ re-trains itself.
 - [x] **Features** (`features.py`) — returns / range / (optional) volume, causal, z-scored.
 - [x] **Validation** (`verify_hmm.py`) — ~99% regime recovery; quantifies the
   filter-vs-smooth look-ahead gap.
-- [ ] **Regimes** (`regimes.py`) — auto-label states (bull/bear/crash/chop) + causal stream.
-- [ ] **Strategy** (`strategy.py`) — k-of-n confirmations, hysteresis, cooldown.
-- [ ] **Backtest** (`backtest.py`) — leveraged, walk-forward (no look-ahead), honest metrics.
-- [ ] **Terminal** (`terminal.py`) — HTML dashboard: current regime + confidence, signal, chart, equity, trades.
-- [ ] **Test** (`tests/test_no_lookahead.py`).
+- [x] **Regimes** (`regimes.py`) — auto-label states (bull/bear/crash/chop) + causal stream.
+- [x] **Strategy** (`strategy.py`) — k-of-8 confirmations, hysteresis, cooldown.
+- [x] **Backtest** (`backtest.py`) — leveraged, walk-forward (no look-ahead), honest metrics.
+- [x] **Terminal** (`terminal.py`) — HTML dashboard: current regime + confidence, signal, chart, equity, trades.
+- [x] **Web app** (`serve.py`) — interactive local UI (stdlib), form + Run Analysis.
+- [x] **Test** (`tests/test_no_lookahead.py`) — both pass.
 
 ## Run
 
 ```bash
 cd regime-terminal
-python verify_hmm.py              # validate the HMM core (synthetic, no deps)
-# later: python -m terminal --ticker BTC-USD --days 730   (real data, run locally)
+
+# 1) Interactive web app (no deps) — the "terminal". Open http://localhost:8000
+python serve.py
+
+# 2) One-shot CLI -> terminal summary + HTML dashboard (reports/regime_terminal.html)
+python terminal.py --synthetic --days 240            # sandbox demo
+python terminal.py --ticker BTC-USD --days 730       # real data (run locally; pip install yfinance)
+
+# 3) Validate the HMM core, and the no-look-ahead guarantee
+python verify_hmm.py
+python tests/test_no_lookahead.py
 ```
+
+Real data needs `pip install yfinance` and a machine where Yahoo Finance isn't
+blocked (this sandbox blocks it; use the synthetic source here).
 
 Sandbox note: this environment's network allowlist blocks Yahoo Finance, so real
 data must be fetched on your machine; synthetic data keeps everything runnable here.
