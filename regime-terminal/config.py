@@ -60,9 +60,10 @@ SLIPPAGE_BPS = 2.0
 FUNDING_BPS_PER_8H = 1.0      # perp funding drag while in a position (approx)
 
 # ----------------------------- backtest ---------------------------------- #
-WALK_FORWARD_TRAIN_DAYS = 365  # retrain HMM on a rolling window (no look-ahead)
+WALK_FORWARD_TRAIN_DAYS = 120  # retrain HMM on a rolling window (no look-ahead)
 WALK_FORWARD_TEST_DAYS = 30
 WALK_FORWARD_STEP_DAYS = 30
+WALK_FORWARD_N_INIT = 3        # EM restarts during walk-forward (fewer = faster)
 RETRAIN_HMM_WALK_FORWARD = True
 
 

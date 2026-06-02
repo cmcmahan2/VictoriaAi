@@ -67,16 +67,25 @@ def load_yfinance(ticker: str = config.TICKER, days: int = config.LOOKBACK_DAYS,
 # Signatures are well-separated so a CORRECT HMM should recover them at high
 # accuracy — this validates the machinery, not the (harder) real-data task.
 PLANTED_REGIMES = [
-    ("bull",   0.0030, 0.004),  # clear up-trend, low vol
+    ("bull",   0.0050, 0.004),  # clear up-trend, low vol
     ("chop",   0.0000, 0.002),  # flat, very calm
     ("bear",  -0.0030, 0.006),  # clear down-trend, elevated vol
     ("crash", -0.0080, 0.015),  # violent down, high vol + high volume
 ]
+# Selection weights (indices into PLANTED_REGIMES): bull/chop common, crash rare,
+# tuned so the long-run drift is ~neutral (a realistic wandering market, not a
+# structural crater). Validation (drift_scale=1.0) still sees all 4 clearly.
+REGIME_WEIGHTS = [0, 0, 0, 1, 1, 1, 2, 2, 3]
 
 
 def synthetic_ohlcv(days: int = 120, interval_hours: int = 1,
-                    seed: int = config.SEED, end_ts: int | None = None):
-    """Seeded hourly OHLCV with planted regimes. Returns (bars, true_labels)."""
+                    seed: int = config.SEED, end_ts: int | None = None,
+                    drift_scale: float = 1.0):
+    """Seeded hourly OHLCV with planted regimes. Returns (bars, true_labels).
+
+    drift_scale scales the planted drifts: 1.0 = strong/separable (for HMM
+    VALIDATION); ~0.2 = realistic, bounded price paths (for BACKTEST demos, so
+    the strategy can't trivially print money on cratering synthetic prices)."""
     if end_ts is None:
         end_ts = int(time.time())
     n = days * 24 // interval_hours
@@ -90,10 +99,10 @@ def synthetic_ohlcv(days: int = 120, interval_hours: int = 1,
     for i in range(n):
         if regime_left <= 0:
             regime_left = rng.randint(120, 300)   # sticky regimes
-            cur = rng.randrange(len(PLANTED_REGIMES))
+            cur = rng.choice(REGIME_WEIGHTS)
         regime_left -= 1
         name, drift, vol = PLANTED_REGIMES[cur]
-        ret = drift + vol * rng.gauss(0, 1)
+        ret = drift * drift_scale + vol * rng.gauss(0, 1)
         new = price * math.exp(ret)
         hi = max(price, new) * (1 + abs(rng.gauss(0, vol / 2)))
         lo = min(price, new) * (1 - abs(rng.gauss(0, vol / 2)))
