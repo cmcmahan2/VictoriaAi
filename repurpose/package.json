@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@libsql/client": "^0.14.0",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.30.10",
@@ -23,6 +24,7 @@
     "openai": "^4.67.0",
     "react": "^18",
     "react-dom": "^18",
+    "sharp": "^0.33.5",
     "tailwind-merge": "^2.3.0",
     "youtube-dl-exec": "^3.0.10"
   },

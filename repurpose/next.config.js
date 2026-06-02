@@ -6,7 +6,9 @@ const nextConfig = {
     serverComponentsExternalPackages: [
       'youtube-dl-exec',
       'fluent-ffmpeg',
+      '@ffmpeg-installer/ffmpeg',
       'googleapis',
+      'sharp',
     ],
   },
 };

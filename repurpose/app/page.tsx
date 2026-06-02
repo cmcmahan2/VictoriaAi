@@ -26,6 +26,70 @@ export default function Home() {
   const [busy, setBusy] = useState<null | 'ideas' | 'plan'>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Video production + upload
+  const [producing, setProducing] = useState(false);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [jobId, setJobId] = useState<number | null>(null);
+  const [privacy, setPrivacy] = useState<'private' | 'unlisted' | 'public'>('private');
+  const [uploading, setUploading] = useState(false);
+  const [watchUrl, setWatchUrl] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  function resetVideo() {
+    setVideoUrl(null);
+    setJobId(null);
+    setWatchUrl(null);
+    setNotice(null);
+  }
+
+  async function generateVideo() {
+    if (!plan) return;
+    setProducing(true);
+    setError(null);
+    resetVideo();
+    setNotice('Producing video — photos, voice, and assembly. This can take a minute…');
+    try {
+      const res = await fetch('/api/produce', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || 'Video production failed');
+      setVideoUrl(data.videoUrl);
+      setJobId(data.jobId);
+      setNotice('Video ready — review it below.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong');
+      setNotice(null);
+    } finally {
+      setProducing(false);
+    }
+  }
+
+  async function uploadVideo() {
+    if (jobId === null) return;
+    setUploading(true);
+    setError(null);
+    setNotice('Uploading to YouTube…');
+    try {
+      const res = await fetch('/api/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobId, privacyStatus: privacy }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || 'Upload failed');
+      setWatchUrl(data.result.watchUrl);
+      setNotice('Published!');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Upload failed');
+      setNotice(null);
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function suggestIdeas() {
     setBusy('ideas');
     setError(null);
@@ -52,6 +116,7 @@ export default function Home() {
     setBusy('plan');
     setError(null);
     setPlan(null);
+    resetVideo();
     try {
       const res = await fetch('/api/matchup', {
         method: 'POST',
@@ -193,11 +258,67 @@ export default function Home() {
             <p className="text-[#58a6ff]">{plan.youtube.hashtags.join(' ')}</p>
           </Section>
 
-          {/* Next phase */}
-          <div className="rounded-md border border-dashed border-[#30363d] p-4 text-sm text-[#6e7681]">
-            🎬 <span className="text-[#8b949e]">Next:</span> auto-fetch player photos, render the stat
-            graphics, add AI voiceover, and assemble the video — then this becomes a one-click{' '}
-            <span className="text-[#3fb950]">Upload</span>. (Building in the next phases.)
+          {/* Produce + upload */}
+          <div className="space-y-4 rounded-md border border-[#30363d] bg-[#0d1117] p-4">
+            {!videoUrl && (
+              <button
+                onClick={generateVideo}
+                disabled={producing}
+                className="rounded-md bg-[#ffa657] px-4 py-2 text-sm font-semibold text-black disabled:opacity-50"
+              >
+                {producing ? '🎬 Producing…' : '🎬 Generate video'}
+              </button>
+            )}
+
+            {notice && <p className="text-sm text-[#3fb950]">{notice}</p>}
+
+            {videoUrl && (
+              <>
+                <video
+                  src={videoUrl}
+                  controls
+                  playsInline
+                  className="mx-auto max-h-[70vh] rounded-md border border-[#30363d]"
+                />
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <select
+                    value={privacy}
+                    onChange={(e) => setPrivacy(e.target.value as typeof privacy)}
+                    className="rounded-md border border-[#30363d] bg-[#0d1117] px-3 py-2 text-sm"
+                  >
+                    <option value="private">Private</option>
+                    <option value="unlisted">Unlisted</option>
+                    <option value="public">Public</option>
+                  </select>
+
+                  <button
+                    onClick={uploadVideo}
+                    disabled={uploading}
+                    className="rounded-md bg-[#3fb950] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    {uploading ? 'Uploading…' : '⬆️ Upload to YouTube'}
+                  </button>
+
+                  <button
+                    onClick={generateVideo}
+                    disabled={producing}
+                    className="rounded-md border border-[#30363d] px-4 py-2 text-sm text-[#8b949e] disabled:opacity-50"
+                  >
+                    Re-generate
+                  </button>
+                </div>
+
+                {watchUrl && (
+                  <p className="text-sm text-[#3fb950]">
+                    Published →{' '}
+                    <a href={watchUrl} target="_blank" rel="noreferrer" className="underline">
+                      {watchUrl}
+                    </a>
+                  </p>
+                )}
+              </>
+            )}
           </div>
         </div>
       )}

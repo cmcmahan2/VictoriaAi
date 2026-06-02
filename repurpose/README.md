@@ -1,16 +1,33 @@
-# Repurpose Engine
+# Matchup Maker (Repurpose Engine)
 
-Paste a TikTok / Instagram Reel / YouTube Short link → Claude generates
-YouTube Shorts metadata (title, description, tags, hashtags, hook) → publish to
-your YouTube channel.
+Two tools in one app:
 
-Shorts-first. Long-form support comes later.
+1. **Matchup Maker** (primary) — type a sports debate ("Jordan vs LeBron") →
+   Claude researches both players, writes the debate + stats, fetches photos,
+   renders graphics, voices the narration, assembles a vertical Short, and
+   uploads it to YouTube. Original content, copyright-clean.
+2. **Repurpose** (legacy) — paste a TikTok/IG/Short link → metadata → publish.
 
-## Pipeline
+Shorts-first.
+
+## Matchup Maker pipeline
 
 ```
-paste link → download → understand → generate metadata → review → publish
+prompt → research/script → photos → scenes → voice → assemble → review → upload
 ```
+
+| Stage | Module | Status |
+|-------|--------|--------|
+| Idea generator | `modules/matchup/ideas.ts` | ✅ working |
+| Research + debate script + stats | `modules/matchup/script.ts` | ✅ working |
+| Player photos (Wikimedia + attribution) | `modules/visuals/photos.ts` | ✅ working |
+| Stat-card / scene graphics (SVG→PNG) | `modules/visuals/scenes.ts` | ✅ working |
+| AI voiceover (ElevenLabs / OpenAI) | `modules/voice/tts.ts` | ✅ working |
+| Video assembly (bundled ffmpeg) | `modules/video/assemble.ts` | ✅ working |
+| Orchestrator (one prompt → mp4) | `modules/matchup/produce.ts` | ✅ working |
+| Upload to YouTube | `modules/youtube/upload.ts` | ✅ working |
+
+## Repurpose (legacy) pipeline
 
 | Stage | Module | Status |
 |-------|--------|--------|

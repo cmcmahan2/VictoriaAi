@@ -9,6 +9,10 @@ export type Env = {
   GOOGLE_REDIRECT_URI: string;
   YOUTUBE_REFRESH_TOKEN: string | undefined;
   OPENAI_API_KEY: string | undefined;
+  ELEVENLABS_API_KEY: string | undefined;
+  ELEVENLABS_VOICE_ID: string;
+  OPENAI_TTS_VOICE: string;
+  TTS_PROVIDER: 'elevenlabs' | 'openai';
   MEDIA_DIR: string;
 };
 
@@ -31,6 +35,14 @@ export function loadEnv(): Env {
       optionalEnv('GOOGLE_REDIRECT_URI') || 'http://localhost:3002/api/auth/youtube',
     YOUTUBE_REFRESH_TOKEN: optionalEnv('YOUTUBE_REFRESH_TOKEN'),
     OPENAI_API_KEY: optionalEnv('OPENAI_API_KEY'),
+    ELEVENLABS_API_KEY: optionalEnv('ELEVENLABS_API_KEY'),
+    // Default voice = "Adam" (a widely-used ElevenLabs preset). Override per channel.
+    ELEVENLABS_VOICE_ID: optionalEnv('ELEVENLABS_VOICE_ID') || 'pNInz6obpgDQGcFmaJgB',
+    OPENAI_TTS_VOICE: optionalEnv('OPENAI_TTS_VOICE') || 'onyx',
+    // Prefer ElevenLabs when its key is present, else fall back to OpenAI.
+    TTS_PROVIDER:
+      (optionalEnv('TTS_PROVIDER') as 'elevenlabs' | 'openai') ||
+      (process.env.ELEVENLABS_API_KEY ? 'elevenlabs' : 'openai'),
     MEDIA_DIR: optionalEnv('MEDIA_DIR') || './tmp-media',
   };
 }
@@ -50,4 +62,6 @@ export const capabilities = {
     ),
   // Transcription available for richer Claude context.
   hasTranscription: () => !!process.env.OPENAI_API_KEY,
+  // A text-to-speech provider is configured (ElevenLabs or OpenAI).
+  hasVoice: () => !!(process.env.ELEVENLABS_API_KEY || process.env.OPENAI_API_KEY),
 };
