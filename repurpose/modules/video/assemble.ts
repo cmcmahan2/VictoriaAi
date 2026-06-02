@@ -16,13 +16,29 @@ export async function assembleVideo(
   scenes: string[],
   audios: string[],
   outPath: string,
-  opts: { speed?: number } = {},
+  opts: { speed?: number; animate?: boolean } = {},
 ): Promise<string> {
   if (scenes.length === 0) throw new Error('No scenes to assemble');
   const n = Math.min(scenes.length, audios.length);
   if (n === 0) throw new Error('No audio to assemble');
 
   const speed = Math.min(2, Math.max(0.5, opts.speed || 1));
+  const animate = opts.animate !== false; // default on
+
+  // Ken Burns: upscale for headroom, then slowly zoom in. Alternate the focal
+  // point per scene so consecutive cards don't feel identical. Falls back to a
+  // plain scale when animation is disabled.
+  function videoFilter(index: number): string {
+    if (!animate) return 'scale=1080:1920,setsar=1';
+    const zoomIn = index % 2 === 0;
+    const z = zoomIn
+      ? `'min(zoom+0.0005,1.2)'`
+      : `'if(eq(on,0),1.2,max(zoom-0.0005,1.0))'`;
+    return (
+      `scale=1620:2880,zoompan=z=${z}:d=1500:` +
+      `x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:fps=30,setsar=1`
+    );
+  }
 
   const dir = path.dirname(outPath);
   fs.mkdirSync(dir, { recursive: true });
@@ -38,7 +54,7 @@ export async function assembleVideo(
       '-c:v', 'libx264',
       '-tune', 'stillimage',
       '-pix_fmt', 'yuv420p',
-      '-vf', 'scale=1080:1920,setsar=1',
+      '-vf', videoFilter(i),
       '-r', '30',
       '-c:a', 'aac',
       '-b:a', '192k',
