@@ -37,6 +37,9 @@ export default function Home() {
   const [watchUrl, setWatchUrl] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
+  // Editor settings
+  const [speed, setSpeed] = useState(1.75);
+
   function resetVideo() {
     setVideoUrl(null);
     setVideoPath(null);
@@ -56,7 +59,7 @@ export default function Home() {
       const res = await fetch('/api/produce', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({ plan, speed }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error?.message || 'Video production failed');
@@ -267,6 +270,25 @@ export default function Home() {
 
           {/* Produce + upload */}
           <div className="space-y-4 rounded-md border border-[#30363d] bg-[#0d1117] p-4">
+            {/* Editor settings */}
+            <div className="flex flex-wrap items-center gap-3 border-b border-[#30363d] pb-3">
+              <span className="text-xs uppercase tracking-wide text-[#6e7681]">🎚️ Editor</span>
+              <label className="flex items-center gap-2 text-sm text-[#8b949e]">
+                Narration speed
+                <select
+                  value={speed}
+                  onChange={(e) => setSpeed(Number(e.target.value))}
+                  className="rounded-md border border-[#30363d] bg-[#0d1117] px-2 py-1 text-sm text-[#e6edf3]"
+                >
+                  <option value={1}>1x</option>
+                  <option value={1.25}>1.25x</option>
+                  <option value={1.5}>1.5x</option>
+                  <option value={1.75}>1.75x</option>
+                  <option value={2}>2x</option>
+                </select>
+              </label>
+            </div>
+
             {!videoUrl && (
               <button
                 onClick={generateVideo}

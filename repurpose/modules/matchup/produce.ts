@@ -16,7 +16,7 @@ export type ProduceResult = {
 // One prompt → finished vertical Short. Each stage degrades gracefully:
 // missing photos fall back to initials cards; the rest is required.
 export async function produceMatchupVideo(
-  input: { matchup?: string; plan?: MatchupPlan },
+  input: { matchup?: string; plan?: MatchupPlan; speed?: number },
   apiKey?: string,
 ): Promise<ProduceResult> {
   const env = loadEnv();
@@ -43,9 +43,9 @@ export async function produceMatchupVideo(
     synthesizeBeats(beats, jobDir),
   ]);
 
-  // 4. Stitch into the final vertical Short.
+  // 4. Stitch into the final vertical Short (speed = narration pacing).
   const videoPath = path.join(jobDir, 'final.mp4');
-  await assembleVideo(scenes, clips.map((c) => c.audioPath), videoPath);
+  await assembleVideo(scenes, clips.map((c) => c.audioPath), videoPath, { speed: input.speed });
 
   const attributions = [photoA?.attribution, photoB?.attribution].filter(Boolean) as string[];
   return { plan, videoPath, attributions };

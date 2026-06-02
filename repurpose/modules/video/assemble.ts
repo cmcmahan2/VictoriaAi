@@ -10,14 +10,19 @@ function concatLine(p: string): string {
 
 // Assemble a vertical 1080x1920 Short: each scene PNG is shown for exactly the
 // length of its matching narration mp3, then all segments are concatenated.
+// `speed` time-stretches the narration (and thus the pacing) via ffmpeg atempo
+// — 1.0 = normal, 1.75 = punchy. Clamped to ffmpeg's 0.5–2.0 atempo range.
 export async function assembleVideo(
   scenes: string[],
   audios: string[],
   outPath: string,
+  opts: { speed?: number } = {},
 ): Promise<string> {
   if (scenes.length === 0) throw new Error('No scenes to assemble');
   const n = Math.min(scenes.length, audios.length);
   if (n === 0) throw new Error('No audio to assemble');
+
+  const speed = Math.min(2, Math.max(0.5, opts.speed || 1));
 
   const dir = path.dirname(outPath);
   fs.mkdirSync(dir, { recursive: true });
@@ -25,7 +30,7 @@ export async function assembleVideo(
   const segments: string[] = [];
   for (let i = 0; i < n; i++) {
     const seg = path.join(dir, `seg-${String(i).padStart(2, '0')}.mp4`);
-    await runFfmpeg([
+    const args = [
       '-y',
       '-loop', '1',
       '-i', scenes[i],
@@ -37,9 +42,11 @@ export async function assembleVideo(
       '-r', '30',
       '-c:a', 'aac',
       '-b:a', '192k',
-      '-shortest',
-      seg,
-    ]);
+    ];
+    // Speed up the voiceover; the looped image follows via -shortest.
+    if (speed !== 1) args.push('-filter:a', `atempo=${speed}`);
+    args.push('-shortest', seg);
+    await runFfmpeg(args);
     segments.push(seg);
   }
 

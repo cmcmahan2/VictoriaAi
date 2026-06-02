@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = (await req.json()) as { matchup?: string; plan?: MatchupPlan };
+    const body = (await req.json()) as { matchup?: string; plan?: MatchupPlan; speed?: number };
     if (!body.matchup && !body.plan) {
       return NextResponse.json({ error: { message: 'Provide a matchup or a plan' } }, { status: 400 });
     }
