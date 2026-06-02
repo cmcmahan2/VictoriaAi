@@ -29,6 +29,8 @@ export default function Home() {
   // Video production + upload
   const [producing, setProducing] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoPath, setVideoPath] = useState<string | null>(null);
+  const [uploadMeta, setUploadMeta] = useState<Record<string, unknown> | null>(null);
   const [jobId, setJobId] = useState<number | null>(null);
   const [privacy, setPrivacy] = useState<'private' | 'unlisted' | 'public'>('private');
   const [uploading, setUploading] = useState(false);
@@ -37,6 +39,8 @@ export default function Home() {
 
   function resetVideo() {
     setVideoUrl(null);
+    setVideoPath(null);
+    setUploadMeta(null);
     setJobId(null);
     setWatchUrl(null);
     setNotice(null);
@@ -57,6 +61,8 @@ export default function Home() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error?.message || 'Video production failed');
       setVideoUrl(data.videoUrl);
+      setVideoPath(data.videoPath ?? null);
+      setUploadMeta(data.metadata ?? null);
       setJobId(data.jobId);
       setNotice('Video ready — review it below.');
     } catch (e) {
@@ -68,7 +74,7 @@ export default function Home() {
   }
 
   async function uploadVideo() {
-    if (jobId === null) return;
+    if (!videoPath && jobId === null) return;
     setUploading(true);
     setError(null);
     setNotice('Uploading to YouTube…');
@@ -76,7 +82,8 @@ export default function Home() {
       const res = await fetch('/api/publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId, privacyStatus: privacy }),
+        // Send localPath + metadata so upload works with or without a DB.
+        body: JSON.stringify({ jobId, localPath: videoPath, metadata: uploadMeta, privacyStatus: privacy }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error?.message || 'Upload failed');
