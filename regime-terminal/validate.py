@@ -39,15 +39,21 @@ def main():
     ap.add_argument("--leverage", type=float, default=config.LEVERAGE)
     ap.add_argument("--short", action="store_true", help="allow shorting bear/crash regimes")
     ap.add_argument("--no-walk-forward", action="store_true", help="train once (faster, but optimistic)")
+    ap.add_argument("--end", help="github source only: window END date YYYY-MM-DD (test historical periods)")
     args = ap.parse_args()
 
     config.N_STATES = max(2, min(args.states, 12))
     config.LEVERAGE = args.leverage
     config.HMM_N_INIT = 4
 
-    print(f"Fetching {args.days}d of {args.ticker} from {args.source} …")
+    print(f"Fetching {args.days}d of {args.ticker} from {args.source} "
+          f"{('ending ' + args.end) if args.end else ''}…")
     t0 = time.time()
-    bars = load_recent(args.source, args.ticker, args.days)
+    if args.source == "github":
+        from data import load_github_btc
+        bars = load_github_btc(args.days, end=args.end)   # supports --end historical windows
+    else:
+        bars = load_recent(args.source, args.ticker, args.days)
     print(f"  {len(bars)} bars in {time.time()-t0:.1f}s. Running walk-forward backtest "
           f"(lev {args.leverage:g}x, short={args.short}) …")
 

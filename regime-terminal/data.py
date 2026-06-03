@@ -146,7 +146,8 @@ GITHUB_BTC_URL = ("https://raw.githubusercontent.com/bukosabino/ta/master/"
                   "test/data/datas.csv")
 
 
-def load_github_btc(days: int = config.LOOKBACK_DAYS, interval: str = "1h") -> list[Bar]:
+def load_github_btc(days: int = config.LOOKBACK_DAYS, interval: str = "1h",
+                    end: str | None = None) -> list[Bar]:
     import requests
     r = requests.get(GITHUB_BTC_URL, headers={"User-Agent": "Mozilla/5.0"}, timeout=60)
     r.raise_for_status()
@@ -161,6 +162,10 @@ def load_github_btc(days: int = config.LOOKBACK_DAYS, interval: str = "1h") -> l
         if c > 0:
             bars.append(Bar(ts, o, h, l, c, v))
     bars.sort(key=lambda b: b.ts)
+    if end:                                # window END date (YYYY-MM-DD) -> test any period
+        import calendar
+        end_ts = calendar.timegm(time.strptime(end, "%Y-%m-%d"))
+        bars = [b for b in bars if b.ts <= end_ts]
     if days and len(bars) > days * 24:
         bars = bars[-days * 24:]           # keep the most recent `days` of hourly bars
     return bars
