@@ -72,7 +72,7 @@ def cycle(args, broker, guardrails):
 def main():
     ap = argparse.ArgumentParser(description="Regime Terminal live cycle (paper-first)")
     ap.add_argument("--symbol", default="BTC/USD", help="broker symbol (e.g. BTC/USD, AAPL)")
-    ap.add_argument("--data-source", choices=["synthetic", "kucoin", "coinbase", "yfinance"], default="synthetic")
+    ap.add_argument("--data-source", choices=["synthetic", "kucoin", "coinbase", "yfinance", "github"], default="synthetic")
     ap.add_argument("--data-ticker", default="BTC-USDT", help="data feed ticker (e.g. BTC-USDT)")
     ap.add_argument("--days", type=int, default=120)
     ap.add_argument("--states", type=int, default=7)

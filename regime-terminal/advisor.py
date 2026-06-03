@@ -213,7 +213,7 @@ def advise(args):
 
 def main():
     ap = argparse.ArgumentParser(description="Manual-trading advisor — it tells you, you trade.")
-    ap.add_argument("--data-source", choices=["synthetic", "kucoin", "coinbase", "yfinance"], default="kucoin")
+    ap.add_argument("--data-source", choices=["synthetic", "kucoin", "coinbase", "yfinance", "github"], default="kucoin")
     ap.add_argument("--data-ticker", default="BTC-USDT", help="data feed ticker (e.g. BTC-USDT)")
     ap.add_argument("--days", type=int, default=120)
     ap.add_argument("--states", type=int, default=7)

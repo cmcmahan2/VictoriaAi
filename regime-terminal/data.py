@@ -138,6 +138,34 @@ def load_coinbase(symbol: str = "BTC-USD", days: int = config.LOOKBACK_DAYS,
     return uniq
 
 
+# Public real BTC/USD hourly OHLCV (Bitstamp, 2011–2017) shipped in the `ta` library
+# repo. Reachable from sandboxes whose allowlist permits raw.githubusercontent.com but
+# blocks the exchange APIs. Data ENDS 2017 — for strategy validation on real history,
+# not live trading.
+GITHUB_BTC_URL = ("https://raw.githubusercontent.com/bukosabino/ta/master/"
+                  "test/data/datas.csv")
+
+
+def load_github_btc(days: int = config.LOOKBACK_DAYS, interval: str = "1h") -> list[Bar]:
+    import requests
+    r = requests.get(GITHUB_BTC_URL, headers={"User-Agent": "Mozilla/5.0"}, timeout=60)
+    r.raise_for_status()
+    bars: list[Bar] = []
+    for row in csv.DictReader(r.text.splitlines()):
+        try:
+            ts = int(float(row["Timestamp"]))
+            o, h, l, c = float(row["Open"]), float(row["High"]), float(row["Low"]), float(row["Close"])
+            v = float(row.get("Volume_BTC") or 0.0)
+        except (ValueError, KeyError, TypeError):
+            continue                       # skip blank/NaN rows in early Bitstamp data
+        if c > 0:
+            bars.append(Bar(ts, o, h, l, c, v))
+    bars.sort(key=lambda b: b.ts)
+    if days and len(bars) > days * 24:
+        bars = bars[-days * 24:]           # keep the most recent `days` of hourly bars
+    return bars
+
+
 # --------------------------------------------------------------------------- #
 # Synthetic (sandbox demo + HMM validation): bars WITH planted regime labels
 # --------------------------------------------------------------------------- #
@@ -232,6 +260,8 @@ def get_bars(ticker: str = config.TICKER, days: int = config.LOOKBACK_DAYS,
         bars = load_kucoin(ticker, days, interval)
     elif source == "coinbase":
         bars = load_coinbase(ticker, days, interval)
+    elif source == "github":
+        bars = load_github_btc(days, interval)
     else:
         bars = load_yfinance(ticker, days, interval)
     if not bars:

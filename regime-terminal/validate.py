@@ -32,7 +32,7 @@ def pct(x):
 
 def main():
     ap = argparse.ArgumentParser(description="Validate strategy edge via walk-forward backtest")
-    ap.add_argument("--source", choices=["synthetic", "kucoin", "coinbase", "yfinance"], default="kucoin")
+    ap.add_argument("--source", choices=["synthetic", "kucoin", "coinbase", "yfinance", "github"], default="kucoin")
     ap.add_argument("--ticker", default="BTC-USDT", help="data ticker (BTC-USDT kucoin, BTC-USD coinbase/yf)")
     ap.add_argument("--days", type=int, default=720, help="history to test over")
     ap.add_argument("--states", type=int, default=7)
