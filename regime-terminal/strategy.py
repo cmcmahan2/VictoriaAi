@@ -75,6 +75,7 @@ class Indicators:
         self.adx = self._adx(highs, lows, closes, cfg.ADX_PERIOD)
         self.sma_fast = _sma(closes, cfg.MA_FAST)
         self.sma_slow = _sma(closes, cfg.MA_SLOW)
+        self.sma_trend = _sma(closes, getattr(cfg, "TREND_MA", 200))   # long-term trend filter
         self.vol_ma = _sma(vols, cfg.VOLUME_MA)
         self.momentum = [None] * n
         for t in range(n):
@@ -207,21 +208,27 @@ def decide(stance: str, confidence: float, n_confirm: int,
 
 
 def target_dir(stance, confidence, n_confirm, cur_dir, bars_held, bars_since_exit,
-               allow_short, cfg=config):
+               allow_short, cfg=config, trend_down=True):
     """Desired position direction (-1 short / 0 flat / +1 long) + reason.
 
     With allow_short=False this reduces to the original long-or-flat logic, so
     existing results are unchanged. With allow_short=True it also shorts bear/crash
-    regimes and can flip directly long<->short on a regime reversal."""
+    regimes and can flip directly long<->short on a regime reversal.
+
+    trend_down (price < long-term TREND_MA) GATES every short: on real data, shorting
+    bull-market pullbacks — where stance flips to 'avoid' but price is still above the
+    trend — was the single behavior that blew up the strategy. Shorts now require the
+    bigger-picture trend to actually be down."""
+    can_short = allow_short and trend_down
     if cur_dir > 0:                                   # currently long
         if stance == "avoid":
-            return (-1, "regime->avoid: flip short") if allow_short else (0, "regime->avoid: exit")
+            return (-1, "regime->avoid: flip short") if can_short else (0, "regime->avoid: exit")
         if stance != "long" and bars_held >= cfg.MIN_HOLD_HOURS:
             return 0, f"left bull, held {bars_held}h"
         return 1, "hold long"
     if cur_dir < 0:                                   # currently short
-        if stance == "long":
-            return 1, "regime->bull: flip long"
+        if stance == "long" or not trend_down:        # bull regime OR price reclaimed trend
+            return (1, "regime->bull: flip long") if stance == "long" else (0, "trend reclaimed: cover")
         if stance != "avoid" and bars_held >= cfg.MIN_HOLD_HOURS:
             return 0, f"left bear, held {bars_held}h"
         return -1, "hold short"
@@ -230,6 +237,6 @@ def target_dir(stance, confidence, n_confirm, cur_dir, bars_held, bars_since_exi
         return 0, f"cooldown {bars_since_exit}/{cfg.COOLDOWN_HOURS}h"
     if stance == "long" and confidence >= cfg.MIN_REGIME_CONFIDENCE and n_confirm >= cfg.CONFIRMATIONS_REQUIRED:
         return 1, f"bull + {n_confirm}/{cfg.CONFIRMATIONS_TOTAL}"
-    if allow_short and stance == "avoid" and confidence >= cfg.MIN_REGIME_CONFIDENCE:
-        return -1, "bear/crash regime"
+    if can_short and stance == "avoid" and confidence >= cfg.MIN_REGIME_CONFIDENCE:
+        return -1, "bear/crash + downtrend"
     return 0, f"flat ({stance})"

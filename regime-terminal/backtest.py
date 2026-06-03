@@ -208,8 +208,10 @@ def run_backtest(bars, cfg=config, walk_forward=True, progress=None,
         # 2) decide target direction using info known at bar close
         stance, conf, name = regimes[idx]
         n_confirm, _ = count_passed(ind, idx)
+        tr = ind.sma_trend[idx]
+        trend_down = tr is not None and b.close < tr     # below long-term trend = real downtrend
         tgt, reason = target_dir(stance, conf, n_confirm, pos_dir, bars_held,
-                                 bars_since_exit, allow_short, cfg)
+                                 bars_since_exit, allow_short, cfg, trend_down=trend_down)
 
         if tgt != pos_dir:
             if pos_dir != 0:                      # close current leg

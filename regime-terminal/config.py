@@ -54,6 +54,8 @@ MOMENTUM_LOOKBACK = 24        # hours
 VOL_LOOKBACK = 24
 VOLUME_MA = 24
 MA_FAST, MA_SLOW = 24, 72     # price > MA confirmations
+TREND_MA = 200                # long-term trend filter: only SHORT when price is below it
+                              # (blocks shorting bull pullbacks; keeps shorting real bears)
 
 # ----------------------------- risk / costs ------------------------------ #
 START_CAPITAL = 10_000.0
