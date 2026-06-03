@@ -61,7 +61,17 @@ def main():
     res = run_backtest(bars, config, walk_forward=not args.no_walk_forward, allow_short=args.short)
     m = res.metrics
     if m.get("trades", 0) == 0:
-        print("No trades taken over this window — nothing to score (try more --days or --short).")
+        bh = bars[-1].close / bars[0].close - 1.0
+        if bh < 0:
+            v = f"DEFENSIVE WIN — stayed in cash through a {pct(bh)} crash. Capital preserved."
+        else:
+            v = f"MISSED — sat out a {pct(bh)} rally; entry filter too strict for this window."
+        bar = "=" * 64
+        print("\n".join(["", bar, f"  STRATEGY VALIDATION — {args.ticker} ({args.source})", bar,
+                         "  strategy took 0 trades — flat (100% in cash) this whole window.",
+                         f"  strategy return : +0.0%",
+                         f"  buy & hold      : {pct(bh)}",
+                         f"  ALPHA vs hold   : {pct(-bh)}", bar, f"  VERDICT: {v}", bar]))
         return
 
     beat_bh = m["alpha_vs_bh"] > 0
