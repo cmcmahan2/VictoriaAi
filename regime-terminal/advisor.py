@@ -19,6 +19,7 @@ Advisory only — every order is your decision and your risk. Leverage cuts both
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import os
 import time
@@ -46,6 +47,53 @@ def _save_last(action, price):
             json.dump({"action": action, "price": price, "ts": time.time()}, f)
     except Exception:
         pass
+
+
+JOURNAL_COLS = ["time_utc", "ts", "action", "price", "regime", "confidence",
+                "signal", "notional", "leverage", "stop"]
+
+
+def _append_journal(path, row):
+    new = not os.path.exists(path)
+    with open(path, "a", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=JOURNAL_COLS)
+        if new:
+            w.writeheader()
+        w.writerow(row)
+
+
+def review_journal(path):
+    """Score how the logged calls would have done: hold each call's position until
+    the next call, at that call's leverage. Compounded, directional, leverage-applied."""
+    if not os.path.exists(path):
+        print(f"no journal at {path} yet — run with --journal {path} first.")
+        return
+    with open(path) as f:
+        rows = list(csv.DictReader(f))
+    if len(rows) < 2:
+        print(f"{len(rows)} call(s) logged — need at least 2 to score a closed leg.")
+        return
+    eq, legs = 1.0, []
+    for a, b in zip(rows, rows[1:]):
+        p0, p1 = float(a["price"]), float(b["price"])
+        lev = float(a.get("leverage") or 1)
+        d = {"GO LONG": 1, "GO SHORT": -1}.get(a["action"], 0)   # CLOSE/WAIT = flat
+        r = d * (p1 - p0) / p0 * lev if p0 else 0.0
+        eq *= 1 + r
+        if d:
+            legs.append(r)
+    wins = sum(1 for r in legs if r > 0)
+    bar = "=" * W
+    print("\n".join([
+        "", bar, f"  JOURNAL REVIEW  ({path})", bar,
+        f"  calls logged     : {len(rows)}   (oldest {rows[0]['time_utc']} UTC)",
+        f"  positions taken  : {len(legs)} long/short legs (CLOSE/WAIT = flat, skipped)",
+        f"  win rate         : {wins}/{len(legs)} = {(100*wins/len(legs)) if legs else 0:.0f}%",
+        f"  best / worst leg : {max(legs)*100:+.1f}% / {min(legs)*100:+.1f}%" if legs else "  best / worst leg : n/a",
+        f"  TOTAL (compounded, {('%g' % float(rows[0].get('leverage') or 1))}x-ish): {(eq-1)*100:+.1f}%",
+        "  (hypothetical — ignores fees, funding, slippage, and intra-leg stops;",
+        "   the most recent call is still open and not scored)", bar])
+    )
 
 
 def advise(args):
@@ -78,6 +126,15 @@ def advise(args):
     first = not last
     _save_last(action, price)
 
+    logged = bool(args.journal) and (first or changed)        # journal flips only, not every tick
+    if logged:
+        _append_journal(args.journal, {
+            "time_utc": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()), "ts": f"{time.time():.0f}",
+            "action": action, "price": f"{price:.2f}", "regime": cur["name"],
+            "confidence": f"{cur['confidence']:.3f}", "signal": cur["signal"],
+            "notional": f"{args.notional:.0f}", "leverage": f"{lev:g}",
+            "stop": (f"{stop:.2f}" if stop is not None else "")})
+
     bar = "=" * W
     out = ["", bar,
            f"  BTC ADVISOR   {time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())} UTC",
@@ -99,6 +156,8 @@ def advise(args):
         out.append(f"  RISK: at {lev:g}x, ~{100/lev:.0f}% against you ~= liquidation; your "
                    f"stop is ~{abs(stop-price)/price*100:.1f}% out, well inside.")
     out.append("  (advisory only — your decision, your risk)")
+    if logged:
+        out.append(f"  logged this flip -> {args.journal}")
     out.append("-" * W)
     if first:
         out.append("  (first run — baseline saved; future runs flag changes)")
@@ -124,7 +183,12 @@ def main():
     ap.add_argument("--leverage", type=float, default=config.LEVERAGE, help="leverage you'd use (for margin/risk note)")
     ap.add_argument("--short", action="store_true", help="allow SHORT calls in bear/crash regimes")
     ap.add_argument("--loop", type=int, default=0, help="seconds between checks (0 = run once); beeps on change")
+    ap.add_argument("--journal", metavar="CSV", help="append each call (on a flip) to this CSV file")
+    ap.add_argument("--review", metavar="CSV", help="score a journal CSV's hypothetical P&L and exit")
     args = ap.parse_args()
+    if args.review:
+        review_journal(args.review)
+        return
     config.N_STATES = max(2, min(args.states, 12))
     config.HMM_N_INIT = 3
 
