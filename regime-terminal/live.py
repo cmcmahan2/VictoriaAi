@@ -25,7 +25,7 @@ import argparse
 import time
 
 import config
-from execution import AlpacaBroker, Guardrails, MockBroker, reconcile
+from execution import AlpacaBroker, BybitBroker, Guardrails, MockBroker, reconcile
 from terminal import current_read
 
 
@@ -54,8 +54,8 @@ def cycle(args, broker, guardrails):
     cur = current_read(bars, config)
     price = cur["price"]
     target = decide_target(cur, price, args.notional, args.short, config)
-    if "/" not in args.symbol:                  # equities trade in whole shares
-        target = float(int(target))
+    if args.broker == "alpaca" and "/" not in args.symbol:   # equities = whole shares
+        target = float(int(target))             # crypto (Bybit/Alpaca BTC/USD) stays fractional
     log = []
     log.append(f"regime={cur['name']} ({cur['confidence']*100:.0f}%)  "
                f"signal={cur['signal'].split(' ')[0]}  confirms={cur['n_pass']}/8  px={price:,.2f}")
@@ -78,8 +78,10 @@ def main():
     ap.add_argument("--states", type=int, default=7)
     ap.add_argument("--notional", type=float, default=5000.0, help="$ exposure when in a position")
     ap.add_argument("--short", action="store_true", help="allow shorting bear/crash regimes")
-    ap.add_argument("--broker", choices=["mock", "alpaca"], default="mock")
-    ap.add_argument("--mode", choices=["paper", "live"], default="paper")
+    ap.add_argument("--broker", choices=["mock", "alpaca", "bybit"], default="mock")
+    ap.add_argument("--mode", choices=["paper", "live"], default="paper",
+                    help="paper = Alpaca paper / Bybit testnet; live = real money")
+    ap.add_argument("--leverage", type=float, default=config.LEVERAGE, help="Bybit leverage to set")
     ap.add_argument("--arm", action="store_true", help="ACTUALLY send orders (default: log only)")
     ap.add_argument("--max-notional", type=float, default=5000.0)
     ap.add_argument("--max-exposure", type=float, default=20000.0)
@@ -90,10 +92,14 @@ def main():
 
     if args.broker == "alpaca":
         broker = AlpacaBroker(mode=args.mode, dry_run=not args.arm)
-        if args.mode == "live" and args.arm:
-            print("!! LIVE + ARMED: real orders will be sent. Ctrl-C now if unintended. !!")
+    elif args.broker == "bybit":
+        broker = BybitBroker(mode=args.mode, dry_run=not args.arm)
+        if args.arm:
+            print("set leverage:", broker.set_leverage(args.symbol, args.leverage))
     else:
         broker = MockBroker()                   # local play-money broker
+    if args.broker != "mock" and args.mode == "live" and args.arm:
+        print("!! LIVE + ARMED: REAL orders with REAL money will be sent. Ctrl-C now if unintended. !!")
 
     guardrails = Guardrails(max_notional_per_order=args.max_notional,
                             max_total_exposure=args.max_exposure,

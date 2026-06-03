@@ -168,6 +168,108 @@ class AlpacaBroker(Broker):
         return self._req("DELETE", f"/v2/positions/{symbol}")
 
 
+class BybitBroker(Broker):
+    """Bybit v5 USDT-perpetual (BTC leverage). mode 'paper'(=testnet)|'live';
+    dry_run logs only. Keys BYBIT_API_KEY / BYBIT_API_SECRET. HMAC-signed.
+
+    UNVERIFIED in this sandbox (network blocked) — test on TESTNET first. Note:
+    Bybit is NOT available to Canadian residents for REAL money; the TESTNET
+    (paper leverage) works from anywhere. Symbols are like BTCUSDT."""
+
+    TESTNET = "https://api-testnet.bybit.com"
+    LIVE = "https://api.bybit.com"
+    RECV = "5000"
+
+    def __init__(self, mode: str = "paper", dry_run: bool = True, category: str = "linear"):
+        self.mode = mode
+        self.dry_run = dry_run
+        self.category = category
+        self.base = self.TESTNET if mode == "paper" else self.LIVE
+        self.key = os.environ.get("BYBIT_API_KEY")
+        self.secret = os.environ.get("BYBIT_API_SECRET")
+
+    def _sign(self, ts: str, payload: str) -> str:
+        import hashlib
+        import hmac
+        msg = (ts + (self.key or "") + self.RECV + payload).encode()
+        return hmac.new((self.secret or "").encode(), msg, hashlib.sha256).hexdigest()
+
+    def _headers(self, ts, sign):
+        return {"X-BAPI-API-KEY": self.key, "X-BAPI-TIMESTAMP": ts,
+                "X-BAPI-RECV-WINDOW": self.RECV, "X-BAPI-SIGN": sign,
+                "Content-Type": "application/json"}
+
+    def _get(self, path, params):
+        import urllib.parse
+        import requests
+        if not self.key or not self.secret:
+            raise RuntimeError("set BYBIT_API_KEY and BYBIT_API_SECRET")
+        import time as _t
+        qs = urllib.parse.urlencode(params)
+        ts = str(int(_t.time() * 1000))
+        r = requests.get(self.base + path + ("?" + qs if qs else ""),
+                         headers=self._headers(ts, self._sign(ts, qs)), timeout=15)
+        r.raise_for_status()
+        return r.json()
+
+    def _post(self, path, body):
+        import json as _j
+        import time as _t
+        import requests
+        if not self.key or not self.secret:
+            raise RuntimeError("set BYBIT_API_KEY and BYBIT_API_SECRET")
+        payload = _j.dumps(body, separators=(",", ":"))
+        ts = str(int(_t.time() * 1000))
+        r = requests.post(self.base + path, data=payload,
+                          headers=self._headers(ts, self._sign(ts, payload)), timeout=15)
+        r.raise_for_status()
+        return r.json()
+
+    def get_account(self):
+        d = self._get("/v5/account/wallet-balance", {"accountType": "UNIFIED"})
+        eq = float(d["result"]["list"][0]["totalEquity"])
+        return Account(cash=eq, equity=eq)
+
+    def get_position(self, symbol):
+        d = self._get("/v5/position/list", {"category": self.category, "symbol": symbol})
+        lst = d.get("result", {}).get("list", [])
+        if not lst or float(lst[0].get("size") or 0) == 0:
+            return None
+        p = lst[0]
+        size = float(p["size"])
+        signed = size if p.get("side") == "Buy" else -size
+        return Position(symbol, signed, float(p.get("avgPrice") or 0))
+
+    def set_leverage(self, symbol, lev):
+        body = {"category": self.category, "symbol": symbol,
+                "buyLeverage": str(lev), "sellLeverage": str(lev)}
+        if self.dry_run:
+            return {"status": "dry_run", "set_leverage": body}
+        try:
+            return self._post("/v5/position/set-leverage", body)
+        except Exception as e:
+            return {"status": "leverage_note", "msg": str(e)}   # often "leverage not modified"
+
+    def submit(self, order: Order, price=None):
+        body = {"category": self.category, "symbol": order.symbol,
+                "side": "Buy" if order.side == "buy" else "Sell",
+                "orderType": "Market", "qty": str(round(abs(order.qty), 3))}
+        if self.dry_run:
+            return {"status": "dry_run", "order": body}
+        return self._post("/v5/order/create", body)
+
+    def flatten(self, symbol, price=None):
+        if self.dry_run:
+            return {"status": "dry_run", "flatten": symbol}
+        pos = self.get_position(symbol)
+        if not pos:
+            return {"status": "flat"}
+        body = {"category": self.category, "symbol": symbol,
+                "side": "Sell" if pos.qty > 0 else "Buy", "orderType": "Market",
+                "qty": str(round(abs(pos.qty), 3)), "reduceOnly": True}
+        return self._post("/v5/order/create", body)
+
+
 # --------------------------------------------------------------------------- #
 # Reconcile current position -> target (minimal order), guarded
 # --------------------------------------------------------------------------- #
