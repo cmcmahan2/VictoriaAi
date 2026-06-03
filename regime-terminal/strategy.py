@@ -204,3 +204,32 @@ def decide(stance: str, confidence: float, n_confirm: int,
     if n_confirm < cfg.CONFIRMATIONS_REQUIRED:
         return Decision("flat", f"confirms {n_confirm}/{cfg.CONFIRMATIONS_REQUIRED}", n_confirm)
     return Decision("enter", f"bull regime + {n_confirm}/{cfg.CONFIRMATIONS_TOTAL} confirms", n_confirm)
+
+
+def target_dir(stance, confidence, n_confirm, cur_dir, bars_held, bars_since_exit,
+               allow_short, cfg=config):
+    """Desired position direction (-1 short / 0 flat / +1 long) + reason.
+
+    With allow_short=False this reduces to the original long-or-flat logic, so
+    existing results are unchanged. With allow_short=True it also shorts bear/crash
+    regimes and can flip directly long<->short on a regime reversal."""
+    if cur_dir > 0:                                   # currently long
+        if stance == "avoid":
+            return (-1, "regime->avoid: flip short") if allow_short else (0, "regime->avoid: exit")
+        if stance != "long" and bars_held >= cfg.MIN_HOLD_HOURS:
+            return 0, f"left bull, held {bars_held}h"
+        return 1, "hold long"
+    if cur_dir < 0:                                   # currently short
+        if stance == "long":
+            return 1, "regime->bull: flip long"
+        if stance != "avoid" and bars_held >= cfg.MIN_HOLD_HOURS:
+            return 0, f"left bear, held {bars_held}h"
+        return -1, "hold short"
+    # flat
+    if bars_since_exit < cfg.COOLDOWN_HOURS:
+        return 0, f"cooldown {bars_since_exit}/{cfg.COOLDOWN_HOURS}h"
+    if stance == "long" and confidence >= cfg.MIN_REGIME_CONFIDENCE and n_confirm >= cfg.CONFIRMATIONS_REQUIRED:
+        return 1, f"bull + {n_confirm}/{cfg.CONFIRMATIONS_TOTAL}"
+    if allow_short and stance == "avoid" and confidence >= cfg.MIN_REGIME_CONFIDENCE:
+        return -1, "bear/crash regime"
+    return 0, f"flat ({stance})"

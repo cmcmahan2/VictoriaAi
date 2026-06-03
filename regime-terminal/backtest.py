@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 
 import config
 from regimes import RegimeModel
-from strategy import Indicators, count_passed, decide
+from strategy import Indicators, count_passed, decide, target_dir
 
 HOURS_PER_YEAR = 24 * 365
 
@@ -142,8 +142,11 @@ def train_once_regimes(bars, cfg=config, progress=None):
 # --------------------------------------------------------------------------- #
 # simulate
 # --------------------------------------------------------------------------- #
-def run_backtest(bars, cfg=config, walk_forward=True, progress=None) -> BacktestResult:
+def run_backtest(bars, cfg=config, walk_forward=True, progress=None,
+                 allow_short=None) -> BacktestResult:
     ind = Indicators(bars, cfg)
+    if allow_short is None:
+        allow_short = getattr(cfg, "ALLOW_SHORT", False)
     if walk_forward:
         regimes, folds = walk_forward_regimes(bars, cfg, progress=progress)
     else:
@@ -165,7 +168,7 @@ def run_backtest(bars, cfg=config, walk_forward=True, progress=None) -> Backtest
 
     equity = cfg.START_CAPITAL
     bh_units = cfg.START_CAPITAL / bars[covered[0]].close   # buy&hold from first covered bar
-    in_pos = False
+    pos_dir = 0                          # -1 short, 0 flat, +1 long
     entry_price = entry_ts = 0.0
     entry_equity = 0.0
     bars_held = 0
@@ -177,16 +180,16 @@ def run_backtest(bars, cfg=config, walk_forward=True, progress=None) -> Backtest
     prev_close = bars[covered[0]].close
     for idx in covered:
         b = bars[idx]
-        # 1) mark-to-market the open position into this bar
-        if in_pos:
+        # 1) mark-to-market the open position into this bar (signed by direction)
+        if pos_dir != 0:
             r = b.close / prev_close - 1.0
-            growth = 1.0 + L * r - funding_bar
-            if growth <= 0:                      # liquidation
-                equity = max(equity * 0.0, 0.0)
+            growth = 1.0 + L * pos_dir * r - funding_bar
+            if growth <= 0:                      # liquidation (long crash or short squeeze)
+                equity = 0.0
                 liquidations += 1
                 res.trades.append(Trade(int(entry_ts), int(b.ts), entry_price, b.close,
                                         bars_held, -1.0, reason_in, "LIQUIDATED"))
-                in_pos = False
+                pos_dir = 0
                 bars_since_exit = 0
                 prev_close = b.close
                 res.equity_curve.append((b.ts, equity))
@@ -202,27 +205,28 @@ def run_backtest(bars, cfg=config, walk_forward=True, progress=None) -> Backtest
             bar_rets.append(0.0)
         prev_close = b.close
 
-        # 2) decide using info known at bar close
+        # 2) decide target direction using info known at bar close
         stance, conf, name = regimes[idx]
         n_confirm, _ = count_passed(ind, idx)
-        d = decide(stance, conf, n_confirm, in_pos, bars_since_exit, bars_held, cfg)
+        tgt, reason = target_dir(stance, conf, n_confirm, pos_dir, bars_held,
+                                 bars_since_exit, allow_short, cfg)
 
-        if d.action == "enter":
-            equity *= (1.0 - cost_rate * L)       # entry cost on notional
-            in_pos = True
-            entry_price, entry_ts = b.close, b.ts
-            entry_equity = equity
-            bars_held = 0
-            reason_in = d.reason
-        elif d.action == "exit":
-            equity *= (1.0 - cost_rate * L)        # exit cost on notional
-            res.trades.append(Trade(int(entry_ts), int(b.ts), entry_price, b.close,
-                                    bars_held, equity / entry_equity - 1.0, reason_in, d.reason))
-            in_pos = False
-            bars_since_exit = 0
-        else:
-            if not in_pos:
-                bars_since_exit += 1
+        if tgt != pos_dir:
+            if pos_dir != 0:                      # close current leg
+                equity *= (1.0 - cost_rate * L)
+                res.trades.append(Trade(int(entry_ts), int(b.ts), entry_price, b.close,
+                                        bars_held, equity / entry_equity - 1.0, reason_in, reason))
+                pos_dir = 0
+                bars_since_exit = 0
+            if tgt != 0:                          # open new leg
+                equity *= (1.0 - cost_rate * L)
+                pos_dir = tgt
+                entry_price, entry_ts = b.close, b.ts
+                entry_equity = equity
+                bars_held = 0
+                reason_in = ("LONG " if tgt > 0 else "SHORT ") + reason
+        elif pos_dir == 0:
+            bars_since_exit += 1
 
         res.equity_curve.append((b.ts, equity))
         res.bh_curve.append((b.ts, bh_units * b.close))

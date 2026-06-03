@@ -28,7 +28,7 @@ from strategy import Indicators, confirmations
 # --------------------------------------------------------------------------- #
 # current causal read (train on ALL history is fine for "now" — no future exists)
 # --------------------------------------------------------------------------- #
-def current_read(bars, cfg, progress=None):
+def current_read(bars, cfg, progress=None, allow_short=False):
     if progress:
         progress("Detecting current regime…", 0.90)
     saved = cfg.HMM_N_INIT                       # the "current" snapshot needs fewer
@@ -44,7 +44,10 @@ def current_read(bars, cfg, progress=None):
     n_pass = sum(1 for _, ok in cks if ok)
     # live signal
     if stance == "avoid":
-        signal = "FLAT — exit / avoid (bear/crash regime)"
+        if allow_short and conf >= cfg.MIN_REGIME_CONFIDENCE:
+            signal = "SHORT — enter/hold (bear/crash regime)"
+        else:
+            signal = "FLAT — exit / avoid (bear/crash regime)"
     elif stance == "long" and conf >= cfg.MIN_REGIME_CONFIDENCE and n_pass >= cfg.CONFIRMATIONS_REQUIRED:
         signal = f"LONG — enter/hold ({n_pass}/{cfg.CONFIRMATIONS_TOTAL} confirms)"
     elif stance == "long":
@@ -162,7 +165,7 @@ h1{margin:0;color:#e2e8f0} h3{color:#94a3b8;font-size:12px;margin:0 0 6px;text-t
 .now .box{flex:1}
 .regime{font-size:26px;font-weight:800}
 .call{font-size:26px;font-weight:800;padding:3px 14px;border-radius:9px;display:inline-block}
-.call-LONG{background:#14532d;color:#bbf7d0}.call-FLAT{background:#7f1d1d;color:#fecaca}.call-NEUTRAL{background:#334155;color:#e2e8f0}
+.call-LONG{background:#14532d;color:#bbf7d0}.call-FLAT{background:#7f1d1d;color:#fecaca}.call-NEUTRAL{background:#334155;color:#e2e8f0}.call-SHORT{background:#7c2d12;color:#fed7aa}
 .muted{color:#64748b;font-size:13px;margin-top:4px}
 .banner{padding:9px 13px;border-radius:7px;margin:8px 0;font-weight:600}
 .banner.red{background:#7f1d1d;color:#fee2e2}.banner.amber{background:#78350f;color:#fef3c7}
@@ -259,6 +262,7 @@ def main():
                     help="data source (kucoin uses symbols like BTC-USDT)")
     ap.add_argument("--drift-scale", type=float, default=0.2)
     ap.add_argument("--leverage", type=float, default=config.LEVERAGE)
+    ap.add_argument("--short", action="store_true", help="also short bear/crash regimes")
     ap.add_argument("--train-once", action="store_true", help="faster, mildly leaky (not WF)")
     ap.add_argument("--html", default="reports/regime_terminal.html")
     args = ap.parse_args()
@@ -281,8 +285,8 @@ def main():
 
     print("Training regime model + running walk-forward backtest (this trains an HMM "
           "per fold)…")
-    cur = current_read(bars, config)
-    res = run_backtest(bars, config, walk_forward=not args.train_once)
+    cur = current_read(bars, config, allow_short=args.short)
+    res = run_backtest(bars, config, walk_forward=not args.train_once, allow_short=args.short)
     res.meta.update({"ticker": args.ticker, "data_source": source, "git": _git()})
 
     # terminal summary

@@ -63,6 +63,7 @@ def worker(job: Job):
             config.N_STATES = max(2, min(int(g("states", "7")), 12))
             days = max(40, min(int(g("days", "180")), 730))
             fast = g("mode", "wf") == "fast"
+            short = g("short", "") == "on"
             source = g("source", "synthetic")
             ticker = g("ticker", "BTC-USDT")
 
@@ -73,8 +74,8 @@ def worker(job: Job):
             else:
                 bars = synthetic_ohlcv(days=days, drift_scale=float(g("drift", "0.2")))[0]
 
-            cur = current_read(bars, config, progress=job.progress)
-            res = run_backtest(bars, config, walk_forward=not fast, progress=job.progress)
+            cur = current_read(bars, config, progress=job.progress, allow_short=short)
+            res = run_backtest(bars, config, walk_forward=not fast, progress=job.progress, allow_short=short)
             res.meta.update({"ticker": ticker, "data_source": source, "git": _git()})
             job.progress("Rendering dashboard…", 0.97)
             html_doc = render_html(cur, res, res.meta)
@@ -151,6 +152,8 @@ def form_page():
       <option value="fast">Fast / train-once (mildly leaky)</option></select></div>
     <div><label>Synthetic drift scale</label><input name="drift" type="number" step="0.05" value="0.2" min="0" max="1"></div>
   </div>
+  <div style="margin-top:12px"><label style="display:inline">
+    <input type="checkbox" name="short" style="width:auto;vertical-align:middle"> Also SHORT bear/crash regimes (instead of just sitting out)</label></div>
   <button type="submit">Run Analysis &rarr;</button>
   <div class="note"><span class="amber">&#9888;</span> Fewer states + 'Fast' mode finish quicker.
    Leverage can liquidate you; synthetic results are plumbing, not edge.</div>

@@ -37,6 +37,7 @@ REGIME_INFERENCE = "filter"
 
 # ----------------------------- strategy ---------------------------------- #
 LEVERAGE = 2.5                # you said you trade leverage; this scales P&L AND risk
+ALLOW_SHORT = False           # also SHORT bear/crash regimes (default: long-or-flat only)
 CONFIRMATIONS_REQUIRED = 7    # of CONFIRMATIONS_TOTAL must pass to enter
 CONFIRMATIONS_TOTAL = 8
 MIN_REGIME_CONFIDENCE = 0.60  # filtered P(regime) must exceed this to act
