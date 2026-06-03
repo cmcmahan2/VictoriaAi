@@ -62,7 +62,41 @@ def _append_journal(path, row):
         w.writerow(row)
 
 
-def review_journal(path):
+def _ascii_curve(pct, height=9, width=60):
+    """Tiny ASCII equity curve from a list of cumulative % returns. Pure ASCII so it
+    renders in any terminal (incl. Windows cmd). Marks the 0% breakeven line."""
+    if len(pct) < 2:
+        return "  (need >=2 points to draw a curve)"
+    if len(pct) > width:                                   # downsample to fit
+        idx = [round(i * (len(pct) - 1) / (width - 1)) for i in range(width)]
+        pts = [pct[i] for i in idx]
+    else:
+        pts = pct
+    lo, hi = min(pts + [0.0]), max(pts + [0.0])            # always include breakeven
+    rng = (hi - lo) or 1.0
+    grid = [[" "] * len(pts) for _ in range(height)]
+    zero_row = height - 1 - round((0.0 - lo) / rng * (height - 1))
+    for c, v in enumerate(pts):
+        grid[height - 1 - round((v - lo) / rng * (height - 1))][c] = "*"
+    lines = []
+    for r in range(height):
+        row = "".join(grid[r])
+        if r == zero_row:
+            row = "".join(ch if ch != " " else "-" for ch in row)   # breakeven baseline
+            label = "  +0.0%"
+        elif r == 0:
+            label = f"{hi:+6.1f}%"
+        elif r == height - 1:
+            label = f"{lo:+6.1f}%"
+        else:
+            label = " " * 7
+        lines.append("  " + label + " |" + row)
+    lines.append("  " + " " * 7 + " +" + "-" * len(pts))
+    lines.append("  " + " " * 9 + "oldest -> newest")
+    return "\n".join(lines)
+
+
+def review_journal(path, show_equity=False):
     """Score how the logged calls would have done: hold each call's position until
     the next call, at that call's leverage. Compounded, directional, leverage-applied."""
     if not os.path.exists(path):
@@ -73,13 +107,14 @@ def review_journal(path):
     if len(rows) < 2:
         print(f"{len(rows)} call(s) logged — need at least 2 to score a closed leg.")
         return
-    eq, legs = 1.0, []
+    eq, legs, curve = 1.0, [], [1.0]
     for a, b in zip(rows, rows[1:]):
         p0, p1 = float(a["price"]), float(b["price"])
         lev = float(a.get("leverage") or 1)
         d = {"GO LONG": 1, "GO SHORT": -1}.get(a["action"], 0)   # CLOSE/WAIT = flat
         r = d * (p1 - p0) / p0 * lev if p0 else 0.0
         eq *= 1 + r
+        curve.append(eq)
         if d:
             legs.append(r)
     wins = sum(1 for r in legs if r > 0)
@@ -94,6 +129,9 @@ def review_journal(path):
         "  (hypothetical — ignores fees, funding, slippage, and intra-leg stops;",
         "   the most recent call is still open and not scored)", bar])
     )
+    if show_equity:
+        print(_ascii_curve([(v - 1) * 100 for v in curve]))
+        print(bar)
 
 
 def advise(args):
@@ -185,9 +223,10 @@ def main():
     ap.add_argument("--loop", type=int, default=0, help="seconds between checks (0 = run once); beeps on change")
     ap.add_argument("--journal", metavar="CSV", help="append each call (on a flip) to this CSV file")
     ap.add_argument("--review", metavar="CSV", help="score a journal CSV's hypothetical P&L and exit")
+    ap.add_argument("--equity", action="store_true", help="with --review, draw an ASCII equity curve")
     args = ap.parse_args()
     if args.review:
-        review_journal(args.review)
+        review_journal(args.review, show_equity=args.equity)
         return
     config.N_STATES = max(2, min(args.states, 12))
     config.HMM_N_INIT = 3
