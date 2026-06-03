@@ -68,7 +68,7 @@ def worker(job: Job):
             ticker = g("ticker", "BTC-USDT")
 
             job.progress(f"Fetching {source} data ({ticker}, {days}d)…", 0.05)
-            if source in ("kucoin", "yfinance"):
+            if source in ("kucoin", "coinbase", "yfinance"):
                 from data import get_bars
                 bars = get_bars(ticker, days, source=source)
             else:
@@ -134,6 +134,7 @@ def form_page():
   <div class="row">
     <div><label>Data source</label><select name="source">
       <option value="synthetic">Synthetic (sandbox)</option>
+      <option value="coinbase">Coinbase (e.g. BTC-USD)</option>
       <option value="kucoin">KuCoin (e.g. BTC-USDT)</option>
       <option value="yfinance">Yahoo Finance (e.g. BTC-USD)</option></select></div>
     <div><label>Ticker</label><input name="ticker" value="BTC-USDT"></div>

@@ -100,6 +100,45 @@ def load_kucoin(symbol: str = "BTC-USDT", days: int = config.LOOKBACK_DAYS,
 
 
 # --------------------------------------------------------------------------- #
+# Real data (Coinbase public candles — free, no key, US-friendly, reliable)
+# --------------------------------------------------------------------------- #
+_CB_GRAN = {"1m": 60, "5m": 300, "15m": 900, "1h": 3600, "1hour": 3600,
+            "6h": 21600, "1d": 86400}
+
+
+def load_coinbase(symbol: str = "BTC-USD", days: int = config.LOOKBACK_DAYS,
+                  interval: str = config.INTERVAL) -> list[Bar]:
+    """Fetch candles from Coinbase Exchange public API (no key needed).
+
+    Returns rows as [time, low, high, open, close, volume] (note the order!),
+    newest-first, max 300/request -> paginate. Symbols use a dash, e.g. BTC-USD.
+    Raises if the network is blocked (sandbox)."""
+    import datetime
+    import requests
+    gran = _CB_GRAN.get(interval, 3600)
+    end = int(time.time())
+    start = end - days * 86400
+    ua = {"User-Agent": "Mozilla/5.0 (regime-terminal)"}
+    out, cur = [], start
+    while cur < end:
+        seg_end = min(end, cur + 300 * gran)
+        iso = lambda s: datetime.datetime.utcfromtimestamp(s).isoformat()
+        r = requests.get(f"https://api.exchange.coinbase.com/products/{symbol}/candles",
+                         params={"granularity": gran, "start": iso(cur), "end": iso(seg_end)},
+                         headers=ua, timeout=15)
+        r.raise_for_status()
+        for t, lo, hi, op, cl, vol in (r.json() or []):
+            out.append(Bar(int(t), float(op), float(hi), float(lo), float(cl), float(vol)))
+        cur = seg_end
+    out.sort(key=lambda b: b.ts)
+    seen, uniq = set(), []
+    for b in out:
+        if b.ts not in seen:
+            seen.add(b.ts); uniq.append(b)
+    return uniq
+
+
+# --------------------------------------------------------------------------- #
 # Synthetic (sandbox demo + HMM validation): bars WITH planted regime labels
 # --------------------------------------------------------------------------- #
 # Each planted regime has a distinct (drift, vol) signature the HMM should recover.
@@ -189,8 +228,12 @@ def get_bars(ticker: str = config.TICKER, days: int = config.LOOKBACK_DAYS,
     path = cache_path(ticker, interval, source)
     if use_cache and os.path.exists(path):
         return load_csv(path)
-    bars = load_kucoin(ticker, days, interval) if source == "kucoin" \
-        else load_yfinance(ticker, days, interval)
+    if source == "kucoin":
+        bars = load_kucoin(ticker, days, interval)
+    elif source == "coinbase":
+        bars = load_coinbase(ticker, days, interval)
+    else:
+        bars = load_yfinance(ticker, days, interval)
     if not bars:
         raise RuntimeError(f"no bars from {source} for {ticker}")
     save_csv(bars, path)

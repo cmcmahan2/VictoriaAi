@@ -258,8 +258,8 @@ def main():
     ap.add_argument("--ticker", default=config.TICKER)
     ap.add_argument("--days", type=int, default=240)
     ap.add_argument("--synthetic", action="store_true", help="alias for --source synthetic")
-    ap.add_argument("--source", choices=["synthetic", "yfinance", "kucoin"], default=None,
-                    help="data source (kucoin uses symbols like BTC-USDT)")
+    ap.add_argument("--source", choices=["synthetic", "yfinance", "kucoin", "coinbase"], default=None,
+                    help="data source (kucoin: BTC-USDT, coinbase: BTC-USD)")
     ap.add_argument("--drift-scale", type=float, default=0.2)
     ap.add_argument("--leverage", type=float, default=config.LEVERAGE)
     ap.add_argument("--short", action="store_true", help="also short bear/crash regimes")
