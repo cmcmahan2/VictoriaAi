@@ -47,26 +47,80 @@ def fetch_fear_greed() -> dict:
         return {"value": None, "label": "unavailable", "error": str(exc)}
 
 
-def fetch_news(n: int = 12) -> list[dict]:
-    """CryptoCompare latest BTC headlines — free, no API key required."""
+# Free, no-key BTC news via public RSS. (CryptoCompare's JSON news endpoint now
+# requires an auth key.) Tried in order; results are merged + de-duped by title.
+_NEWS_FEEDS = [
+    ("Google News",   "https://news.google.com/rss/search?q=bitcoin+when:2d&hl=en-US&gl=US&ceid=US:en"),
+    ("CoinDesk",      "https://www.coindesk.com/arc/outboundfeeds/rss/?outputType=xml"),
+    ("CoinTelegraph", "https://cointelegraph.com/rss"),
+]
+
+
+def _parse_rss(xml_bytes: bytes, source_hint: str = "") -> list[dict]:
+    """Pull (title, source, ts, url) from an RSS 2.0 or Atom feed — stdlib only."""
+    import xml.etree.ElementTree as ET
+    from email.utils import parsedate_to_datetime
+    out: list[dict] = []
     try:
-        url = "https://min-api.cryptocompare.com/data/v2/news/?lang=EN&categories=BTC&sortOrder=latest"
-        with urllib.request.urlopen(url, timeout=8) as r:
-            body = json.loads(r.read())
-        articles = body.get("Data", [])
-        if not isinstance(articles, list):
-            return [{"title": "News format changed — no headlines available", "source": "", "ts": 0}]
-        return [
-            {
-                "title":  a.get("title", ""),
-                "source": a.get("source_info", {}).get("name", a.get("source", "")),
-                "ts":     a.get("published_on", 0),
-            }
-            for a in articles[:n]
-            if a.get("title")
-        ]
-    except Exception as exc:
-        return [{"title": f"Headlines unavailable — {type(exc).__name__}: {exc}", "source": "", "ts": 0}]
+        root = ET.fromstring(xml_bytes)
+    except Exception:
+        return out
+    for item in root.iter():
+        if item.tag.split("}")[-1] not in ("item", "entry"):
+            continue
+        title = link = pub = src = ""
+        for ch in item:
+            name = ch.tag.split("}")[-1]
+            if name == "title" and ch.text:
+                title = ch.text.strip()
+            elif name == "link":                       # RSS: text · Atom: href attr
+                link = (ch.text or ch.get("href") or "").strip()
+            elif name in ("pubDate", "published", "updated") and ch.text and not pub:
+                pub = ch.text.strip()
+            elif name == "source" and ch.text:
+                src = ch.text.strip()
+        ts = 0
+        if pub:
+            try:
+                ts = int(parsedate_to_datetime(pub).timestamp())
+            except Exception:
+                try:
+                    from datetime import datetime
+                    ts = int(datetime.fromisoformat(pub.replace("Z", "+00:00")).timestamp())
+                except Exception:
+                    ts = 0
+        if title:
+            out.append({"title": title, "source": src or source_hint, "ts": ts, "url": link})
+    return out
+
+
+def fetch_news(n: int = 12) -> list[dict]:
+    """Latest BTC headlines from free public RSS feeds (no API key required).
+
+    Merges multiple feeds, de-dupes by title, and returns newest-first when
+    timestamps are available. Each item: {title, source, ts, url}.
+    """
+    out: list[dict] = []
+    seen: set[str] = set()
+    for source_name, url in _NEWS_FEEDS:
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (regime-terminal)"})
+            with urllib.request.urlopen(req, timeout=8) as r:
+                items = _parse_rss(r.read(), source_name)
+        except Exception:
+            continue
+        for it in items:
+            key = it["title"].lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(it)
+        if len(out) >= n * 2:        # enough to sort; don't hammer every feed
+            break
+    out.sort(key=lambda a: a.get("ts", 0), reverse=True)
+    if out:
+        return out[:n]
+    return [{"title": "Headlines unavailable — no free feed responded.", "source": "", "ts": 0, "url": ""}]
 
 
 # ─── Price levels ─────────────────────────────────────────────────────────── #
@@ -121,6 +175,131 @@ def analyze_indicators(bars) -> dict:
         "sma_200":   ind.sma_trend[t],
         "above_200": above_200,
         "checks":    checks,
+    }
+
+
+# ─── Entry guidance (deterministic — no API call) ──────────────────────────── #
+
+def entry_guidance(regime: dict, ind: dict, levels: dict, fg: dict) -> dict:
+    """Always-on read of 'what do I watch for, and where would I actually enter?'
+
+    Derives a directional bias, a concrete target-entry zone, a stop hint, and a
+    'what to look for' checklist purely from the regime + indicators + price
+    levels already computed. Never costs an API call, so it complements (not
+    replaces) the Claude plan button.
+    """
+    px        = levels.get("current")
+    rsi       = ind.get("rsi")
+    above_200 = bool(ind.get("above_200"))
+    n_pass    = ind.get("n_pass", 0) or 0
+    n_total   = ind.get("n_total", 0) or 0
+    need      = max(1, round(n_total * 0.6)) if n_total else 0
+    stance    = (regime.get("stance") or "").lower()
+    conf      = regime.get("confidence") or 0.0
+    state     = regime.get("state_name", "?")
+
+    bullish = "long" in stance
+    bearish = "avoid" in stance or "short" in stance
+
+    look_for: list[str] = []
+
+    # Macro trend filter
+    look_for.append(
+        f"Trend filter: price {'ABOVE' if above_200 else 'BELOW'} the 200h SMA — "
+        + ("macro uptrend, longs are with-trend." if above_200
+           else "macro downtrend, longs are counter-trend (be cautious).")
+    )
+    # Momentum confirmations
+    if n_total:
+        look_for.append(
+            f"Confirmations: {n_pass}/{n_total} passing"
+            + (f" — want ≥ {need} before committing." if n_pass < need
+               else " — momentum checklist is onside.")
+        )
+    # RSI posture
+    if rsi is not None:
+        if rsi >= 70:
+            look_for.append(f"RSI {rsi:.0f}: overbought — let it cool toward 50–55 before adding longs.")
+        elif rsi <= 30:
+            look_for.append(f"RSI {rsi:.0f}: oversold — watch for a reclaim / bullish divergence as the trigger.")
+        elif rsi < 45:
+            look_for.append(f"RSI {rsi:.0f}: soft — a dip into the zone with RSI stabilizing is the cue.")
+        else:
+            look_for.append(f"RSI {rsi:.0f}: neutral — room to move either way.")
+    # Sentiment extremes
+    fgv = fg.get("value")
+    if fgv is not None:
+        if fgv >= 75:
+            look_for.append(f"Fear & Greed {fgv} (extreme greed): crowded — tighten risk on new longs.")
+        elif fgv <= 25:
+            look_for.append(f"Fear & Greed {fgv} (extreme fear): contrarian long territory — wait for price to stabilize.")
+        else:
+            look_for.append(f"Fear & Greed {fgv} ({fg.get('label', '')}): no sentiment extreme.")
+
+    # Known levels we can anchor an entry against
+    level_pool = [
+        ind.get("sma_fast"), ind.get("sma_slow"), ind.get("sma_200"),
+        levels.get("low_14d"), levels.get("high_14d"),
+    ]
+
+    def _zone(values: list[float]) -> tuple:
+        vals = sorted(v for v in values if v is not None)
+        if len(vals) >= 2:
+            return vals[0], vals[-1]
+        if len(vals) == 1:
+            return vals[0] * 0.99, vals[0] * 1.005
+        return None, None
+
+    if px is None:
+        return {
+            "bias": "WAIT", "target_entry": "—", "stop_hint": None,
+            "headline": "No price data — cannot form a setup.", "look_for": look_for,
+        }
+
+    directional = conf >= 0.5 and (bullish != bearish)
+    lo = hi = stop = None
+
+    if directional and bullish:
+        bias = "LONG"
+        below = sorted(v for v in level_pool if v is not None and v < px)
+        lo, hi = _zone(below[-2:]) if below else (px * 0.97, px * 0.99)
+        stop = (lo or px) * 0.98
+        headline = f"LONG bias — {state} regime at {conf:.0%} confidence. Buy pullbacks, don't chase."
+        look_for.append("Plan: wait for a pullback into the entry zone; enter on stabilization, not a falling knife.")
+    elif directional and bearish:
+        bias = "SHORT"
+        above = sorted(v for v in level_pool if v is not None and v > px)
+        lo, hi = _zone(above[:2]) if above else (px * 1.01, px * 1.03)
+        stop = (hi or px) * 1.02
+        headline = f"SHORT bias — {state} regime at {conf:.0%} confidence. Sell rallies into resistance."
+        look_for.append("Plan: wait for a bounce into the entry zone; enter on rejection, not breakdown chasing.")
+    else:
+        bias = "WAIT"
+        reason = "regime confidence below 50%" if conf < 0.5 else "regime signals are mixed"
+        headline = f"WAIT — no clean setup ({reason}). Let the market show its hand."
+        look_for.append("Plan: stay flat until bias + confirmations align; protect capital first.")
+
+    direction = {"LONG": "long", "SHORT": "short"}.get(bias)
+    entry_mid = (lo + hi) / 2 if (lo and hi) else None
+
+    # Suggested leverage: keep the (isolated, est.) liquidation beyond the stop,
+    # with a safety buffer, and cap conservatively for swing trades.
+    suggested_leverage = None
+    if direction and entry_mid and stop:
+        stop_dist = abs(entry_mid - stop) / entry_mid     # fraction to stop
+        if stop_dist > 0:
+            suggested_leverage = max(1, min(3, int(0.6 / stop_dist)))
+
+    return {
+        "bias":         bias,
+        "direction":    direction,                        # 'long' | 'short' | None
+        "target_entry": f"${lo:,.0f} – ${hi:,.0f}" if (lo and hi) else "—",
+        "entry":        round(entry_mid) if entry_mid else None,
+        "stop":         round(stop) if stop else None,
+        "stop_hint":    f"${stop:,.0f}" if stop else None,
+        "suggested_leverage": suggested_leverage,
+        "headline":     headline,
+        "look_for":     look_for,
     }
 
 
