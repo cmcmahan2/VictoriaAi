@@ -52,17 +52,21 @@ def fetch_news(n: int = 12) -> list[dict]:
     try:
         url = "https://min-api.cryptocompare.com/data/v2/news/?lang=EN&categories=BTC&sortOrder=latest"
         with urllib.request.urlopen(url, timeout=8) as r:
-            articles = json.loads(r.read())["Data"]
+            body = json.loads(r.read())
+        articles = body.get("Data", [])
+        if not isinstance(articles, list):
+            return [{"title": "News format changed — no headlines available", "source": "", "ts": 0}]
         return [
             {
-                "title":  a["title"],
+                "title":  a.get("title", ""),
                 "source": a.get("source_info", {}).get("name", a.get("source", "")),
-                "ts":     a["published_on"],
+                "ts":     a.get("published_on", 0),
             }
             for a in articles[:n]
+            if a.get("title")
         ]
     except Exception as exc:
-        return [{"title": f"News unavailable ({exc})", "source": "", "ts": 0}]
+        return [{"title": f"Headlines unavailable — {type(exc).__name__}: {exc}", "source": "", "ts": 0}]
 
 
 # ─── Price levels ─────────────────────────────────────────────────────────── #
