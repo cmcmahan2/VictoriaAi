@@ -7,3 +7,5 @@ __pycache__/
 venv/
 .env
 .advisor_state.json
+alerts_state.json
+paper_state.json

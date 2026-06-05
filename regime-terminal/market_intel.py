@@ -295,6 +295,8 @@ def entry_guidance(regime: dict, ind: dict, levels: dict, fg: dict) -> dict:
         "direction":    direction,                        # 'long' | 'short' | None
         "target_entry": f"${lo:,.0f} – ${hi:,.0f}" if (lo and hi) else "—",
         "entry":        round(entry_mid) if entry_mid else None,
+        "entry_lo":     round(lo) if lo else None,
+        "entry_hi":     round(hi) if hi else None,
         "stop":         round(stop) if stop else None,
         "stop_hint":    f"${stop:,.0f}" if stop else None,
         "suggested_leverage": suggested_leverage,

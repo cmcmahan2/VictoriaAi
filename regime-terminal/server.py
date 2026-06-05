@@ -55,6 +55,7 @@ _load_dotenv()
 
 from flask import Flask, jsonify, request
 
+import paper
 from live import load_recent
 from market_intel import (analyze_indicators, analyze_regime, build_prompt,
                           call_claude, entry_guidance, fetch_fear_greed,
@@ -169,6 +170,56 @@ def api_plan():
     return jsonify(data)
 
 
+def _spot_price(source: str):
+    """Latest BTC price only — fast, no regime fit (used by the paper book)."""
+    bars = load_recent(source, "BTC-USDT" if source == "kucoin" else "BTC-USD", 90)
+    return bars[-1].close if bars else None
+
+
+@app.route("/api/portfolio")
+def api_portfolio():
+    source = request.args.get("source", "kucoin")
+    return jsonify(paper.state(_spot_price(source)))
+
+
+@app.route("/api/order", methods=["POST"])
+def api_order():
+    body = request.get_json(force=True, silent=True) or {}
+    side = body.get("side")
+    otype = body.get("type", "market")
+    source = body.get("source", "kucoin")
+    try:
+        qty = float(body.get("qty", 0))
+    except (TypeError, ValueError):
+        qty = 0.0
+    if side not in ("buy", "sell") or qty <= 0:
+        return jsonify({"error": "need side 'buy'/'sell' and qty > 0"}), 400
+    price = _spot_price(source)
+    if not price:
+        return jsonify({"error": "no live price available"}), 502
+    limit_price = body.get("limit_price")
+    if otype == "limit" and not limit_price:
+        return jsonify({"error": "limit order needs limit_price"}), 400
+    result = paper.place_order(side, qty, otype, price,
+                               float(limit_price) if limit_price else None)
+    return jsonify({"result": result, "portfolio": paper.state(price)})
+
+
+@app.route("/api/portfolio/close", methods=["POST"])
+def api_close():
+    source = (request.get_json(force=True, silent=True) or {}).get("source", "kucoin")
+    price = _spot_price(source)
+    paper.close_position(price) if price else None
+    return jsonify(paper.state(price))
+
+
+@app.route("/api/portfolio/cancel", methods=["POST"])
+def api_cancel():
+    paper.cancel_pending()
+    source = (request.get_json(force=True, silent=True) or {}).get("source", "kucoin")
+    return jsonify(paper.state(_spot_price(source)))
+
+
 @app.route("/")
 def index():
     return DASHBOARD_HTML
@@ -242,6 +293,13 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
   .sizer .out .v { font-weight:600; }
   .sizer .warn { font-size:12px; line-height:1.5; margin-top:8px; color:var(--amber); }
   .sizer .warn.danger { color:var(--red); }
+  .trade input { width:90px; background:#0d1117; color:var(--txt); border:1px solid var(--border);
+                 border-radius:6px; padding:6px 8px; font-size:13px; }
+  .trade .btns { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+  .trade .btns button { flex:1; min-width:118px; font-size:12.5px; padding:7px 8px; }
+  .trade button.buy  { background:rgba(63,185,80,.15); color:var(--green); border-color:rgba(63,185,80,.4); }
+  .trade button.sell { background:rgba(248,81,73,.15); color:var(--red);   border-color:rgba(248,81,73,.4); }
+  .pnl-pos { color:var(--green); } .pnl-neg { color:var(--red); }
   pre.plan { white-space:pre-wrap; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
              font-size:13px; line-height:1.5; color:var(--txt); margin:0; }
   .muted { color:var(--muted); font-size:12px; }
@@ -297,6 +355,21 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
       <div class="out" id="szOut"></div>
       <div class="warn" id="szWarn"></div>
     </div>
+    <div class="card trade" id="tradeCard">
+      <h2>Paper Trade <span class="muted" style="text-transform:none;letter-spacing:0">· simulated, no real money</span></h2>
+      <div class="row"><span class="k">Equity</span><span id="pfEquity">—</span></div>
+      <div class="row"><span class="k">Cash (+ realized)</span><span id="pfCash">—</span></div>
+      <div class="row"><span class="k">Position</span><span id="pfPos">flat</span></div>
+      <div class="row"><span class="k">Unrealized P&amp;L</span><span id="pfUnreal">—</span></div>
+      <div class="muted" id="pfPending" style="margin:6px 0 0"></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+        <label class="muted" style="font-size:11px">Qty (BTC)</label>
+        <input id="ordQty" type="number" min="0" step="0.0001" value="0">
+        <span class="muted" id="ordHint" style="font-size:11px"></span>
+      </div>
+      <div class="btns" id="ordBtns"></div>
+      <div class="muted" id="ordMsg" style="margin-top:8px"></div>
+    </div>
     <div class="card" id="planCard">
       <h2>AI Swing Plan</h2>
       <pre class="plan" id="plan">Press “⚡ AI Plan” for a fresh swing-trade read.</pre>
@@ -350,6 +423,8 @@ function szRecalc(){
   const riskUsd=acct*riskPct/100;
   const perUnit=Math.abs(entry-stop);
   const units=perUnit>0 ? riskUsd/perUnit : 0;     // risk-based size: stop-out ≈ risk$
+  const oq=document.getElementById('ordQty');       // prefill paper-trade qty from the sizer
+  if(oq && document.activeElement!==oq) oq.value=units.toFixed(4);
   const notional=units*entry, margin=notional/lev;
   const liq= long ? entry*(1-1/lev) : entry*(1+1/lev);   // isolated, est. (no fees/maint.)
   const t1= long ? entry+1.5*perUnit : entry-1.5*perUnit;
@@ -374,6 +449,76 @@ function szRecalc(){
     w.push('⚠ Est. liquidation ('+money(liq)+') would hit BEFORE your stop — leverage too high.');
   const wd=document.getElementById('szWarn');
   wd.className='warn'+(w.length?' danger':''); wd.innerHTML=w.join('<br>');
+}
+
+function buildOrderButtons(){
+  const S=window.SETUP||{}, box=document.getElementById('ordBtns'), hint=document.getElementById('ordHint');
+  let html='';
+  if(S.direction==='long'){
+    const lp=S.hi||S.entry||0;
+    html+='<button class="buy" onclick="placeOrder(\'buy\',\'limit\','+lp+')">Limit Buy @ '+money(lp)+'</button>'
+         +'<button class="buy" onclick="placeOrder(\'buy\',\'market\')">Market Buy now</button>';
+    hint.textContent='qty from sizer';
+  } else if(S.direction==='short'){
+    const lp=S.lo||S.entry||0;
+    html+='<button class="sell" onclick="placeOrder(\'sell\',\'limit\','+lp+')">Limit Sell @ '+money(lp)+'</button>'
+         +'<button class="sell" onclick="placeOrder(\'sell\',\'market\')">Market Sell now</button>';
+    hint.textContent='qty from sizer';
+  } else {
+    html+='<button class="buy" onclick="placeOrder(\'buy\',\'market\')">Market Buy</button>'
+         +'<button class="sell" onclick="placeOrder(\'sell\',\'market\')">Market Sell</button>';
+    hint.textContent='no setup — manual';
+  }
+  html+='<button onclick="closePos()">Close position</button>'
+       +'<button onclick="cancelLimits()">Cancel limits</button>';
+  box.innerHTML=html;
+}
+function renderPortfolio(p){
+  if(!p) return;
+  document.getElementById('pfEquity').textContent=money(p.equity);
+  document.getElementById('pfCash').textContent=money(p.cash);
+  const pos=p.position, posEl=document.getElementById('pfPos');
+  if(pos && pos.qty){
+    posEl.innerHTML='<span class="pnl-'+(pos.qty>0?'pos':'neg')+'">'+(pos.qty>0?'LONG':'SHORT')
+      +' '+Math.abs(pos.qty).toFixed(4)+' BTC @ '+money(pos.avg)+'</span>';
+  } else posEl.textContent='flat';
+  const u=document.getElementById('pfUnreal');
+  u.textContent=money(p.unrealized); u.className=(p.unrealized>=0?'pnl-pos':'pnl-neg');
+  const pend=p.pending||[];
+  document.getElementById('pfPending').innerHTML = pend.length
+    ? '⏳ Pending: '+pend.map(o=>o.side+' '+(+o.qty).toFixed(4)+' @ '+money(o.limit)).join(' · ') : '';
+}
+async function refreshPortfolio(){
+  try{ const r=await fetch('/api/portfolio?source='+document.getElementById('source').value);
+       renderPortfolio(await r.json()); }catch(e){}
+}
+async function placeOrder(side,type,limit){
+  const qty=parseFloat(document.getElementById('ordQty').value)||0;
+  const msg=document.getElementById('ordMsg');
+  if(qty<=0){ msg.textContent='Enter a quantity > 0.'; return; }
+  msg.textContent='placing…';
+  try{
+    const body={side:side,type:type,qty:qty,source:document.getElementById('source').value};
+    if(type==='limit') body.limit_price=limit;
+    const r=await fetch('/api/order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d=await r.json();
+    if(d.error){ msg.textContent='Error: '+d.error; return; }
+    const res=d.result||{};
+    msg.textContent = res.status==='resting'
+      ? '⏳ limit '+side+' '+qty+' BTC resting @ '+money(res.limit)
+      : '✓ '+side+' '+qty+' BTC filled @ '+money(res.at);
+    renderPortfolio(d.portfolio);
+  }catch(e){ msg.textContent='Order failed.'; }
+}
+async function closePos(){
+  const r=await fetch('/api/portfolio/close',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({source:document.getElementById('source').value})});
+  renderPortfolio(await r.json()); document.getElementById('ordMsg').textContent='position closed.';
+}
+async function cancelLimits(){
+  const r=await fetch('/api/portfolio/cancel',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({source:document.getElementById('source').value})});
+  renderPortfolio(await r.json()); document.getElementById('ordMsg').textContent='pending limits cancelled.';
 }
 
 function render(d){
@@ -406,11 +551,12 @@ function render(d){
     document.getElementById('setupStop').textContent=G.stop_hint?('stop '+G.stop_hint):'';
     document.getElementById('setupHeadline').textContent=G.headline||'';
     document.getElementById('setupLook').innerHTML=(G.look_for||[]).map(s=>'<li>'+s+'</li>').join('');
-    window.SETUP = {direction:G.direction, entry:G.entry, stop:G.stop};
+    window.SETUP = {direction:G.direction, entry:G.entry, stop:G.stop, lo:G.entry_lo, hi:G.entry_hi};
     if(G.direction && G.suggested_leverage && !window.SZ_LEV_TOUCHED)
       document.getElementById('szLev').value=G.suggested_leverage;
     szRecalc();
   }
+  buildOrderButtons();
 
   if(F && F.value!=null){
     document.getElementById('needle').style.left=F.value+'%';
@@ -432,6 +578,7 @@ async function refresh(){
   try{
     const r=await fetch('/api/intel?source='+src+'&days=90');
     render(await r.json());
+    refreshPortfolio();
   }catch(e){ document.getElementById('price').textContent='fetch error'; }
 }
 
@@ -463,6 +610,8 @@ document.getElementById('genplan').onclick=genPlan;
 document.getElementById('symbol').onchange=e=>makeChart(e.target.value);
 
 makeChart(document.getElementById('symbol').value);
+buildOrderButtons();
+refreshPortfolio();
 refresh();
 setInterval(refresh, 300000);   // refresh data panel every 5 min (chart is live on its own)
 </script>

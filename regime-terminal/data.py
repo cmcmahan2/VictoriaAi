@@ -253,6 +253,21 @@ def load_csv(path: str) -> list[Bar]:
     return out
 
 
+_INTERVAL_SECONDS = {"1m": 60, "5m": 300, "15m": 900, "30m": 1800,
+                     "1h": 3600, "2h": 7200, "4h": 14400, "1d": 86400}
+
+
+def _cache_is_fresh(bars: list[Bar], interval: str) -> bool:
+    """True while the newest cached bar is recent enough to still be live data.
+    Refetch once the latest bar is older than one interval (a new bar has closed)."""
+    if not bars:
+        return False
+    last = bars[-1].ts
+    if last > 1e12:                       # tolerate millisecond timestamps
+        last /= 1000
+    return (time.time() - last) < _INTERVAL_SECONDS.get(interval, HOUR)
+
+
 def get_bars(ticker: str = config.TICKER, days: int = config.LOOKBACK_DAYS,
              interval: str = config.INTERVAL, source: str = "yfinance",
              use_cache: bool = True) -> list[Bar]:
@@ -260,7 +275,12 @@ def get_bars(ticker: str = config.TICKER, days: int = config.LOOKBACK_DAYS,
     if the network/package is unavailable (e.g. blocked in this sandbox)."""
     path = cache_path(ticker, interval, source)
     if use_cache and os.path.exists(path):
-        return load_csv(path)
+        cached = load_csv(path)
+        # 'github' is the bundled offline dataset (intentionally historical); for
+        # live sources, only reuse the cache while the latest bar is still fresh.
+        if source == "github" or _cache_is_fresh(cached, interval):
+            return cached
+        # otherwise the cache is stale — fall through and refetch live data.
     if source == "kucoin":
         bars = load_kucoin(ticker, days, interval)
     elif source == "coinbase":
