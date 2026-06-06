@@ -1,0 +1,6 @@
+universe_cache.txt
+picks.json
+*.log
+*.err
+__pycache__/
+*.pyc
