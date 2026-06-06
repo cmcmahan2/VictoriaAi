@@ -9,3 +9,5 @@ venv/
 .advisor_state.json
 alerts_state.json
 paper_state.json
+*.log
+*.err
