@@ -1,24 +1,29 @@
-# start-trading.ps1 — launch the BTC swing dashboard + Telegram watcher (paper).
-# Registered as a Task Scheduler task that runs at logon. Safe to re-run by hand:
-# it stops any existing instances first, then starts fresh. Logs are written to
-# server.log / alerts.log (and .err) next to this script.
+# start-trading.ps1 — launch BOTH dashboards (+ Telegram watchers) at logon.
+#   • BTC swing dashboard      → http://localhost:5000   (regime-terminal)
+#   • Stock Hunter dashboard   → http://localhost:5001   (stock-hunter)
+# Registered as a Startup task. Safe to re-run by hand: it stops any existing
+# instances first, then starts fresh. Logs are written next to each script.
 
-$dir = "C:\Users\cjmcm\btc-dashboard\regime-terminal"
-$py  = "C:\Users\cjmcm\AppData\Local\Python\pythoncore-3.14-64\python.exe"
+$btc   = "C:\Users\cjmcm\btc-dashboard\regime-terminal"
+$stock = "C:\Users\cjmcm\btc-dashboard\stock-hunter"
+$py    = "C:\Users\cjmcm\AppData\Local\Python\pythoncore-3.14-64\python.exe"
 $env:PYTHONUTF8 = "1"
 
-# Stop any running server/watcher so this is idempotent.
+# Stop any running servers/watchers (both projects use server.py / alerts.py).
 Get-CimInstance Win32_Process -Filter "Name='python.exe'" |
   Where-Object { $_.CommandLine -like '*server.py*' -or $_.CommandLine -like '*alerts.py*' } |
   ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 
-# Dashboard server (warms the regime cache on startup).
-Start-Process -FilePath $py -ArgumentList 'server.py' -WorkingDirectory $dir -WindowStyle Hidden `
-  -RedirectStandardOutput "$dir\server.log" -RedirectStandardError "$dir\server.err"
+function Launch($dir, $argList, $log) {
+  Start-Process -FilePath $py -ArgumentList $argList -WorkingDirectory $dir -WindowStyle Hidden `
+    -RedirectStandardOutput "$dir\$log.log" -RedirectStandardError "$dir\$log.err"
+}
 
-# Give the server a head start before the watcher begins polling it.
-Start-Sleep -Seconds 25
+# --- BTC swing dashboard (port 5000) + its 15-min paper alert watcher ---
+Launch $btc 'server.py' 'server'
+Start-Sleep -Seconds 25                        # let the regime cache warm before the watcher polls
+Launch $btc @('alerts.py', '--loop', '15') 'alerts'
 
-# Telegram alert watcher (checks every 15 min).
-Start-Process -FilePath $py -ArgumentList 'alerts.py','--loop','15' -WorkingDirectory $dir -WindowStyle Hidden `
-  -RedirectStandardOutput "$dir\alerts.log" -RedirectStandardError "$dir\alerts.err"
+# --- Stock Hunter dashboard (port 5001) + its daily new-pick alert watcher ---
+Launch $stock 'server.py' 'server'
+Launch $stock @('alerts.py', '--loop', '24') 'alerts'
