@@ -221,8 +221,57 @@ def api_cancel():
 
 
 @app.route("/")
-def index():
+def hub():
+    return HUB_HTML
+
+
+@app.route("/btc")
+def btc_dashboard():
     return DASHBOARD_HTML
+
+
+HUB_HTML = r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Trading Hub</title>
+<style>
+  :root{--bg:#0d1117;--panel:#161b22;--border:#30363d;--txt:#c9d1d9;--muted:#8b949e;--accent:#58a6ff;}
+  *{box-sizing:border-box;} html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;}
+  header{display:flex;align-items:center;gap:10px;height:48px;padding:0 16px;
+    border-bottom:1px solid var(--border);background:var(--panel);}
+  .brand{font-size:14px;font-weight:700;letter-spacing:.5px;margin-right:8px;}
+  .tab{background:#21262d;color:var(--txt);border:1px solid var(--border);border-radius:8px;
+    padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;}
+  .tab.active{background:var(--accent);color:#06121f;border-color:var(--accent);}
+  .frames{position:absolute;top:48px;left:0;right:0;bottom:0;}
+  iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:var(--bg);}
+  iframe.hidden{visibility:hidden;z-index:-1;}
+</style></head><body>
+<header>
+  <span class="brand">⚡ TRADING HUB</span>
+  <button class="tab" id="tabBtc">₿ BTC Swing</button>
+  <button class="tab" id="tabStock">🎯 Stock Hunter</button>
+  <span class="muted" style="margin-left:auto;font-size:12px" id="hint"></span>
+</header>
+<div class="frames">
+  <iframe id="btc" src="/btc"></iframe>
+  <iframe id="stock" src=""></iframe>
+</div>
+<script>
+  document.getElementById('stock').src = location.protocol+'//'+location.hostname+':5001/';
+  const tabs={btc:[document.getElementById('tabBtc'),document.getElementById('btc')],
+              stock:[document.getElementById('tabStock'),document.getElementById('stock')]};
+  function show(which){
+    for(const k in tabs){const t=tabs[k][0],f=tabs[k][1],on=(k===which);
+      t.classList.toggle('active',on); f.classList.toggle('hidden',!on);}
+    localStorage.setItem('hubTab',which);
+    document.getElementById('hint').textContent =
+      which==='btc' ? 'localhost:5000/btc · live BTC' : 'localhost:5001 · stock research';
+  }
+  tabs.btc[0].onclick=function(){show('btc');};
+  tabs.stock[0].onclick=function(){show('stock');};
+  show(localStorage.getItem('hubTab')||'btc');
+</script></body></html>"""
 
 
 DASHBOARD_HTML = r"""<!DOCTYPE html>
