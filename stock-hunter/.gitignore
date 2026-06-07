@@ -1,5 +1,7 @@
 universe_cache.txt
 picks.json
+stock_alerts_state.json
+.env
 *.log
 *.err
 __pycache__/
