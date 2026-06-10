@@ -27,6 +27,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Model used to write site copy. Sonnet gives noticeably better, more tailored
+# copy than Haiku; override via .env if you want to trade quality for cost/speed.
+CONTENT_MODEL = os.getenv("BUILD_CONTENT_MODEL", "claude-sonnet-4-6")
+
 StackType = Literal["static", "nextjs", "nextjs-shopify", "nextjs-cms"]
 
 STACK_BY_CATEGORY: dict[str, StackType] = {
@@ -170,18 +174,24 @@ def build_website(profile_dir: str, output_dir: str = "./output") -> Path:
     business["_theme"] = theme
     print(f"[build] Theme: {theme['name']}")
 
+    # Client customization (real photos, reviews, facts, voice) from the
+    # Customize tab — lives alongside the site so it survives rebuilds.
+    custom = _load_customization(site_dir)
+    if custom:
+        print("[build] Applying client customization from customization.json")
+
     # Generate content via Claude (or fall back to templates)
     print("[build] Generating page content...")
-    content = _generate_content(business, profile)
+    content = _generate_content(business, profile, custom)
 
     print("[build] Building static site...")
     _write_css(site_dir, content, theme)
     _write_js(site_dir)
-    _write_index(business, profile, content, site_dir)
-    _write_services(business, content, site_dir)
+    _write_index(business, profile, content, site_dir, custom)
+    _write_services(business, content, site_dir, custom)
     _write_about(business, content, site_dir)
     _write_contact(business, content, site_dir)
-    _write_reviews(business, profile, content, site_dir)
+    _write_reviews(business, profile, content, site_dir, custom)
     _write_sitemap(business, site_dir)
     _write_robots(site_dir)
     _copy_logo(profile_dir, site_dir)
@@ -207,15 +217,19 @@ def _select_stack(business: dict) -> StackType:
 
 # ── AI content generation ─────────────────────────────────────────────────────
 
-def _generate_content(business: dict, profile: dict) -> dict:
+def _generate_content(business: dict, profile: dict, custom: dict | None = None) -> dict:
     """
     Call Claude API to generate tailored copy for the site.
     Falls back to template content if no API key.
+
+    `custom` carries client-supplied business facts and a voice/priorities
+    note from the Customize tab, which steer the generated copy.
     """
+    custom = custom or {}
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key or api_key == "your_anthropic_api_key_here":
         print("[build] No ANTHROPIC_API_KEY - using template content")
-        return _template_content(business, profile)
+        return _template_content(business, profile, custom)
 
     try:
         import anthropic
@@ -247,6 +261,12 @@ Address: {address or "TBD"}
 Rating: {rating} stars ({reviews} reviews)
 Existing site text snippet: {website_text or "None available"}
 
+Verified business facts (these are real — weave them in naturally, do not invent others):
+{_facts_block(custom)}
+
+Voice & priorities (let this steer tone and what to emphasize):
+{(custom.get("voice") or "").strip() or "No specific preferences — use a warm, professional, trustworthy local tone."}
+
 Generate JSON with these exact keys:
 {{
   "headline": "Short punchy hero headline (max 8 words, no quotes)",
@@ -268,8 +288,8 @@ Generate JSON with these exact keys:
 Return only valid JSON, no markdown, no explanation."""
 
         message = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=1500,
+            model=CONTENT_MODEL,
+            max_tokens=2000,
             messages=[{"role": "user", "content": prompt}]
         )
 
@@ -283,11 +303,14 @@ Return only valid JSON, no markdown, no explanation."""
 
     except Exception as exc:
         print(f"[build] Claude API failed ({exc}) - using template content")
-        return _template_content(business, profile)
+        return _template_content(business, profile, custom)
 
 
-def _template_content(business: dict, profile: dict) -> dict:
-    """Fallback template content when Claude API is unavailable."""
+def _template_content(business: dict, profile: dict, custom: dict | None = None) -> dict:
+    """Fallback template content when Claude API is unavailable. Folds in any
+    client-supplied facts so the copy is still specific without the AI."""
+    custom   = custom or {}
+    facts    = custom.get("facts", {}) or {}
     name     = business.get("name", "Our Business")
     city     = business.get("city", "Victoria")
     cats     = business.get("categories") or [business.get("category", "services")]
@@ -354,18 +377,41 @@ def _template_content(business: dict, profile: dict) -> dict:
                 else f"Trusted {trade} Services in {city}")
 
     service_noun = trade.lower()
+
+    # Fold in real facts where provided.
+    years       = (facts.get("years_in_business") or "").strip()
+    owner       = (facts.get("owner_name") or "").strip()
+    area        = (facts.get("service_area") or "").strip()
+    specialties = (facts.get("specialties") or "").strip()
+    certs       = (facts.get("certifications") or "").strip()
+    served      = area or f"{city} and the surrounding area"
+
+    trust_line = (f"{years}+ years serving {city}, BC" if years
+                  else f"Proudly serving {city}, BC and surrounding areas")
+
+    about = f"{name} proudly serves {served} with top-quality {service_noun}."
+    about += (f" With {years} years in business, our experienced team"
+              if years else " Our experienced team")
+    about += " delivers honest, dependable work at fair prices."
+    if owner:
+        about += f" Owner {owner} stands behind every job personally."
+    if specialties:
+        about += f" We specialize in {specialties}."
+    if certs:
+        about += f" Our team is {certs}."
+
     return {
         "headline": headline,
-        "tagline": f"Professional, reliable {service_noun} serving {city} and the surrounding area.",
-        "about_paragraph": f"{name} proudly serves the {city} community with top-quality {service_noun}. Our experienced team delivers honest, dependable work at fair prices. We treat every customer like a neighbour.",
+        "tagline": f"Professional, reliable {service_noun} serving {served}.",
+        "about_paragraph": about,
         "services": services,
         "cta_text": "Get a Free Quote",
-        "trust_line": f"Proudly serving {city}, BC and surrounding areas",
+        "trust_line": trust_line,
         "faq": [
             {"q": "Do you offer free estimates?", "a": "Yes, we provide free, no-obligation estimates for all projects."},
-            {"q": "Are you licensed and insured?", "a": "Absolutely. We are fully licensed and insured for your peace of mind."},
+            {"q": "Are you licensed and insured?", "a": (f"Absolutely — {certs}." if certs else "Absolutely. We are fully licensed and insured for your peace of mind.")},
             {"q": "How quickly can you respond?", "a": "We offer prompt scheduling and fast response for urgent jobs."},
-            {"q": "What areas do you serve?", "a": f"We serve {city} and the surrounding region. Contact us to confirm service in your area."},
+            {"q": "What areas do you serve?", "a": f"We serve {served}. Contact us to confirm service in your area."},
         ],
         "meta_description": f"{name} - {category.title()} in {city}, BC. Trusted by locals. Call for a free quote today.",
     }
@@ -1447,9 +1493,122 @@ def _img(keywords: str, w: int, h: int, seed: str = "") -> str:
     return base
 
 
+# ── Client customization helpers ──────────────────────────────────────────────
+
+def _load_customization(site_dir: Path) -> dict:
+    """Load customization.json (real photos / reviews / facts / voice) saved
+    for this site via the dashboard Customize tab."""
+    path = site_dir / "customization.json"
+    if path.exists():
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            print(f"[build] Could not read customization.json ({exc}) - ignoring")
+    return {}
+
+
+def _resolve_custom_img(url: str, slug: str) -> str:
+    """A custom image is either an external URL (used as-is) or a dashboard
+    upload served at /preview/{slug}/images/custom/x.jpg. For the static site
+    we rewrite uploads to a relative path so they work once deployed."""
+    url = (url or "").strip()
+    if not url:
+        return ""
+    marker = f"/preview/{slug}/"
+    if url.startswith(marker):
+        return url[len(marker):]
+    if url.startswith("/preview/"):
+        idx = url.find("images/")
+        return url[idx:] if idx != -1 else url
+    return url
+
+
+def _facts_block(custom: dict) -> str:
+    """Format client-supplied business facts for the AI prompt."""
+    facts = (custom or {}).get("facts", {}) or {}
+    labels = [
+        ("years_in_business", "Years in business"),
+        ("owner_name", "Owner / lead"),
+        ("certifications", "Certifications / licenses"),
+        ("service_area", "Service area"),
+        ("specialties", "Specialties"),
+    ]
+    lines = [f"- {label}: {facts[key].strip()}"
+             for key, label in labels if (facts.get(key) or "").strip()]
+    return "\n".join(lines) if lines else "None provided."
+
+
+def _parse_reviews(raw: str) -> list[dict]:
+    """Turn a pasted block of Google reviews into [{author, rating, text}].
+
+    Blocks are separated by blank lines. Within a block we pull a rating from
+    'N stars' / 'N/5' / a run of ⭐, treat a short leading line as the author
+    name, and use the remaining text as the review body. Best-effort.
+    """
+    if not raw or not raw.strip():
+        return []
+    reviews = []
+    for block in re.split(r"\n\s*\n", raw.strip()):
+        lines = [ln.strip() for ln in block.splitlines() if ln.strip()]
+        if not lines:
+            continue
+        rating = 0
+        body_lines = []
+        for ln in lines:
+            stars = ln.count("⭐") or ln.count("★")
+            m = re.search(r"(\d(?:\.\d)?)\s*(?:/\s*5|\s*stars?\b)", ln.lower())
+            if stars and len(ln) <= 12:
+                rating = rating or stars
+                continue
+            if m:
+                rating = rating or int(round(float(m.group(1))))
+                ln = re.sub(r"\d(?:\.\d)?\s*(?:/\s*5|\s*stars?\b)", "", ln, flags=re.I).strip()
+                if not ln:
+                    continue
+            body_lines.append(ln)
+        body_lines = [ln for ln in body_lines if re.search(r"[A-Za-z]", ln)]
+        if not body_lines:
+            continue
+        author = ""
+        if len(body_lines) > 1 and len(body_lines[0]) <= 40 and "." not in body_lines[0]:
+            author = body_lines.pop(0)
+        rating = max(1, min(5, rating or 5))
+        reviews.append({
+            "author": author or "Verified Customer",
+            "rating": rating,
+            "text": " ".join(body_lines),
+        })
+    return reviews
+
+
+def _svc_lookup(custom: dict | None) -> dict:
+    """Case-insensitive {service name: image url} from saved customization."""
+    return {k.strip().lower(): v
+            for k, v in ((custom or {}).get("service_images") or {}).items() if v}
+
+
+def _service_img_url(service: dict, svc_lookup: dict, keywords: str, slug: str) -> str:
+    """Real client photo for a service if provided (matched by name, exact then
+    substring), otherwise a keyword-matched filler image."""
+    sname = (service.get("name", "") or "").strip().lower()
+    url = svc_lookup.get(sname)
+    if not url:
+        for k, v in svc_lookup.items():
+            if k and (k in sname or sname in k):
+                url = v
+                break
+    if url:
+        return _resolve_custom_img(url, slug)
+    return _img(_service_img_keywords(service.get("name", ""), keywords), 400, 260, seed=service.get("name", ""))
+
+
 # ── Pages ─────────────────────────────────────────────────────────────────────
 
-def _write_index(business: dict, profile: dict, content: dict, site_dir: Path) -> None:
+def _write_index(business: dict, profile: dict, content: dict, site_dir: Path, custom: dict | None = None) -> None:
+    custom   = custom or {}
+    cfacts   = custom.get("facts", {}) or {}
+    slug     = site_dir.name
+    svc_lookup = _svc_lookup(custom)
     name     = business.get("name", "Our Business")
     city     = business.get("city", "BC")
     phone    = business.get("phone", "")
@@ -1469,7 +1628,8 @@ def _write_index(business: dict, profile: dict, content: dict, site_dir: Path) -
     cats     = business.get("categories") or [business.get("category", "")]
     category = cats[0] if cats else "service"
     keywords = _img_keywords(category)
-    hero_img = _img(keywords, 1600, 800, seed=name)
+    hero_img = _resolve_custom_img(custom.get("hero_image", ""), slug) \
+        or _img(keywords, 1600, 800, seed=name)
     theme    = business.get("_theme") if isinstance(business.get("_theme"), dict) else THEMES["modern"]
     hero_overlay = theme.get("hero_overlay", THEMES["modern"]["hero_overlay"])
 
@@ -1484,8 +1644,9 @@ def _write_index(business: dict, profile: dict, content: dict, site_dir: Path) -
     hero_eyebrow_label = f"{_esc(city)}'s Trusted {_esc(cat_label)} Specialists"
 
     # --- Stats strip data ---
-    # Years in business (rough heuristic: "10+" unless we can derive it)
-    years_val = "10+"
+    # Years in business: use the real client-supplied figure when available.
+    _years_fact = (cfacts.get("years_in_business") or "").strip()
+    years_val = (f"{_years_fact}+" if _years_fact.isdigit() else _years_fact) or "10+"
     stats_items = [
         {"num": years_val, "label": "Years in Business"},
         {"num": f"{max(reviews, 100)}+" if reviews else "100+", "label": "Happy Customers"},
@@ -1535,7 +1696,7 @@ def _write_index(business: dict, profile: dict, content: dict, site_dir: Path) -
 
     service_cards = "\n".join(
         f"""<div class="service-card">
-  <img class="service-img" src="{_esc(_img(_service_img_keywords(s.get('name',''), keywords), 400, 260, seed=s.get('name','')))}" alt="{_esc(s.get('name','Service'))}" loading="lazy" />
+  <img class="service-img" src="{_esc(_service_img_url(s, svc_lookup, keywords, slug))}" alt="{_esc(s.get('name','Service'))}" loading="lazy" />
   <div class="service-card-body">
     <div class="service-icon">{_esc(s.get("icon","🔧"))}</div>
     <h3>{_esc(s.get("name","Service"))}</h3>
@@ -1554,11 +1715,13 @@ def _write_index(business: dict, profile: dict, content: dict, site_dir: Path) -
         for f in faq
     )
 
-    # --- Testimonials: pull real reviews from profile, else generate placeholders ---
-    real_reviews = []
-    gp = profile.get("google_places", {})
-    if isinstance(gp, dict) and gp.get("reviews"):
-        real_reviews = gp["reviews"][:3]
+    # --- Testimonials: client-pasted reviews first, then scraped, else placeholders ---
+    real_reviews = _parse_reviews(custom.get("reviews_raw", ""))[:3]
+    testimonials_comment = ""
+    if not real_reviews:
+        gp = profile.get("google_places", {})
+        if isinstance(gp, dict) and gp.get("reviews"):
+            real_reviews = gp["reviews"][:3]
 
     if not real_reviews:
         # Placeholder reviews — clearly marked in HTML comment
@@ -1728,19 +1891,30 @@ def _write_index(business: dict, profile: dict, content: dict, site_dir: Path) -
     (site_dir / "index.html").write_text(html, encoding="utf-8")
 
 
-def _write_services(business: dict, content: dict, site_dir: Path) -> None:
+def _write_services(business: dict, content: dict, site_dir: Path, custom: dict | None = None) -> None:
+    custom   = custom or {}
     name     = business.get("name", "Our Business")
     city     = business.get("city", "BC")
     services = content.get("services", [])
     cta      = content.get("cta_text", "Get a Free Quote")
     meta     = f"Services offered by {name} in {city}, BC. Professional, licensed, and insured."
 
+    cats       = business.get("categories") or [business.get("category", "")]
+    keywords   = _img_keywords(cats[0] if cats else "")
+    slug       = site_dir.name
+    svc_lookup = _svc_lookup(custom)
+
+    # Same photo + body structure as the home page so the overlapping icon sits
+    # on the image as designed, and real per-service photos show here too.
     cards = "\n".join(
         f"""<div class="service-card">
-  <div class="service-icon">{_esc(s.get("icon","🔧"))}</div>
-  <h3>{_esc(s.get("name","Service"))}</h3>
-  <p>{_esc(s.get("description",""))}</p>
-  <a href="contact.html" style="color:var(--green);font-weight:600;font-size:0.9rem">Get a Quote →</a>
+  <img class="service-img" src="{_esc(_service_img_url(s, svc_lookup, keywords, slug))}" alt="{_esc(s.get('name','Service'))}" loading="lazy" />
+  <div class="service-card-body">
+    <div class="service-icon">{_esc(s.get("icon","🔧"))}</div>
+    <h3>{_esc(s.get("name","Service"))}</h3>
+    <p>{_esc(s.get("description",""))}</p>
+    <a href="contact.html" style="color:var(--green);font-weight:600;font-size:0.9rem;display:inline-block;margin-top:0.75rem">Get a Quote →</a>
+  </div>
 </div>"""
         for s in services
     )
@@ -1938,20 +2112,26 @@ def _write_contact(business: dict, content: dict, site_dir: Path) -> None:
     (site_dir / "contact.html").write_text(html, encoding="utf-8")
 
 
-def _write_reviews(business: dict, profile: dict, content: dict, site_dir: Path) -> None:
+def _write_reviews(business: dict, profile: dict, content: dict, site_dir: Path, custom: dict | None = None) -> None:
+    custom  = custom or {}
     name    = business.get("name", "Our Business")
     city    = business.get("city", "BC")
     rating  = business.get("rating", "")
     reviews = business.get("review_count", 0)
     meta    = f"Reviews for {name} in {city}, BC. See what our customers say."
 
-    # Pull real reviews from profile if available
-    real_reviews = []
-    gp = profile.get("google_places", {})
-    if isinstance(gp, dict) and gp.get("reviews"):
-        real_reviews = gp["reviews"][:6]
+    # 1) Client-pasted Google reviews take priority.
+    real_reviews = _parse_reviews(custom.get("reviews_raw", ""))[:12]
+    if real_reviews:
+        print(f"[build] Using {len(real_reviews)} pasted client review(s)")
 
-    # Fallback placeholder reviews
+    # 2) Otherwise real reviews scraped in Phase 2.
+    if not real_reviews:
+        gp = profile.get("google_places", {})
+        if isinstance(gp, dict) and gp.get("reviews"):
+            real_reviews = gp["reviews"][:6]
+
+    # 3) Fallback placeholder reviews.
     if not real_reviews:
         real_reviews = [
             {"author": "Sarah M.", "rating": 5, "text": "Excellent service! They were prompt, professional, and did a fantastic job. Would highly recommend to anyone in the area.", "time": "2 months ago"},

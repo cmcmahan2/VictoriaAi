@@ -121,6 +121,30 @@
     .editor-toolbar .close-btn { color:#ff8080; }
     .editor-body { flex:1; display:flex; padding:1rem; overflow:hidden; }
     .editor-body textarea { flex:1; background:#060f18; color:#c8e0f0; border:1px solid var(--border); border-radius:8px; padding:1rem; font-family:'JetBrains Mono',monospace; font-size:0.8rem; line-height:1.6; resize:none; outline:none; }
+    /* ── Customize tab ── */
+    .cz-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 1.25rem; align-items: start; }
+    @media (max-width: 900px) { .cz-grid { grid-template-columns: 1fr; } }
+    .cz-card { background: var(--dark3); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem 1.2rem; margin-bottom: 1.25rem; }
+    .cz-card h3 { font-size: 0.82rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text); margin-bottom: 0.3rem; }
+    .cz-card .hint { font-size: 0.76rem; color: var(--muted); margin-bottom: 0.9rem; line-height: 1.4; }
+    .field textarea { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border2); border-radius: 6px; padding: 0.55rem 0.65rem; color: var(--white); font-family: inherit; font-size: 0.85rem; outline: none; resize: vertical; line-height: 1.5; }
+    .field textarea:focus { border-color: var(--green); }
+    .field textarea::placeholder { color: var(--muted); }
+    .img-input-row { display: flex; gap: 0.5rem; align-items: center; }
+    .img-input-row input[type=text] { flex: 1; }
+    .btn-upload { background: rgba(255,255,255,0.06); color: var(--text); border: 1px solid var(--border2); border-radius: 6px; padding: 0.5rem 0.7rem; font-family: inherit; font-size: 0.8rem; cursor: pointer; white-space: nowrap; }
+    .btn-upload:hover { border-color: var(--green); color: var(--white); }
+    .img-thumb { width: 100%; max-height: 130px; object-fit: cover; border-radius: 6px; margin-top: 0.5rem; border: 1px solid var(--border2); display: none; }
+    .img-thumb.show { display: block; }
+    .svc-row { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
+    .svc-row input { flex: 1; }
+    .svc-row .svc-name { max-width: 38%; }
+    .btn-x { background: none; border: 1px solid var(--border2); color: var(--muted); border-radius: 6px; width: 30px; height: 32px; cursor: pointer; flex-shrink: 0; font-size: 0.9rem; }
+    .btn-x:hover { color: #f87171; border-color: rgba(248,113,113,0.4); }
+    .btn-add { background: none; border: 1px dashed var(--border2); color: var(--green); border-radius: 6px; padding: 0.4rem 0.75rem; font-family: inherit; font-size: 0.8rem; cursor: pointer; margin-top: 0.25rem; }
+    .btn-add:hover { background: var(--green-xl); }
+    .cz-savebar { position: sticky; bottom: 0; background: var(--dark); padding: 1rem 0 0.25rem; display: flex; align-items: center; gap: 1rem; border-top: 1px solid var(--border); margin-top: 0.5rem; }
+    .cz-saved-msg { font-size: 0.78rem; color: var(--muted); }
   </style>
 </head>
 <body>
@@ -129,6 +153,7 @@
   <div class="nav-tabs">
     <button class="tab-btn active" onclick="switchTab('discover')">Discover</button>
     <button class="tab-btn" onclick="switchTab('pipeline')">Pipeline</button>
+    <button class="tab-btn" onclick="switchTab('customize')">Customize</button>
     <button class="tab-btn" onclick="switchTab('clients')">Clients</button>
     <button class="tab-btn" onclick="switchTab('jobs')">Jobs</button>
   </div>
@@ -198,6 +223,83 @@
       </div>
       <div class="results-bar" id="results-bar" style="display:none;"></div>
     </div>
+    <div class="tab-panel" id="tab-customize">
+      <div class="panel-title">Customize a Client Site</div>
+      <p class="panel-sub">Feed in a client's real photos, Google reviews, and business details, then regenerate a tailored site that drops the stock filler.</p>
+      <div class="field" style="max-width:420px;">
+        <label>Client</label>
+        <select id="cz-client" onchange="onClientChange()">
+          <option value="">— Select a client —</option>
+        </select>
+      </div>
+      <div id="cz-empty" class="empty-state" style="display:none;"><p>No clients yet.<br>Run a pipeline first — clients appear here automatically.</p></div>
+      <div id="cz-form" style="display:none;">
+        <div class="cz-grid">
+          <div>
+            <div class="cz-card">
+              <h3>Hero Image</h3>
+              <p class="hint">Paste an image URL or upload a photo for the big banner at the top of the home page.</p>
+              <div class="field">
+                <div class="img-input-row">
+                  <input type="text" id="cz-hero" placeholder="https://… image URL" oninput="previewImg('cz-hero','cz-hero-thumb')" />
+                  <button class="btn-upload" onclick="document.getElementById('cz-hero-file').click()">Upload</button>
+                  <input type="file" id="cz-hero-file" accept="image/*" style="display:none" onchange="uploadImg(this,'cz-hero','cz-hero-thumb')" />
+                </div>
+                <img id="cz-hero-thumb" class="img-thumb" alt="hero preview" />
+              </div>
+            </div>
+            <div class="cz-card">
+              <h3>Service Images</h3>
+              <p class="hint">One image per service. Type the service name (e.g. &ldquo;Lawn Care&rdquo;) so it matches the right card, then paste a URL or upload.</p>
+              <div id="cz-services"></div>
+              <button class="btn-add" onclick="addServiceRow()">+ Add service image</button>
+            </div>
+          </div>
+          <div>
+            <div class="cz-card">
+              <h3>Google Reviews</h3>
+              <p class="hint">Paste reviews straight from the Google listing — raw text is fine. We'll split them into individual review cards (one review per blank-line-separated block).</p>
+              <div class="field">
+                <textarea id="cz-reviews" rows="8" placeholder="Sarah M.&#10;5 stars&#10;Fantastic job, showed up on time…&#10;&#10;David K.&#10;Great service, fair price…"></textarea>
+              </div>
+            </div>
+            <div class="cz-card">
+              <h3>Business Facts</h3>
+              <p class="hint">Real details that make the copy specific and trustworthy.</p>
+              <div class="row2">
+                <div class="field"><label>Years in business</label><input type="text" id="cz-years" placeholder="e.g. 15" /></div>
+                <div class="field"><label>Owner name</label><input type="text" id="cz-owner" placeholder="e.g. Dave Thompson" /></div>
+              </div>
+              <div class="field"><label>Certifications / licenses</label><input type="text" id="cz-certs" placeholder="e.g. Red Seal, ISA certified" /></div>
+              <div class="field"><label>Service area</label><input type="text" id="cz-area" placeholder="e.g. Vancouver & the North Shore" /></div>
+              <div class="field"><label>Specialties</label><input type="text" id="cz-specialties" placeholder="e.g. garden design, retaining walls" /></div>
+            </div>
+            <div class="cz-card">
+              <h3>Voice &amp; Priorities</h3>
+              <p class="hint">A free note that steers the AI copy — tone, what to emphasize, what to avoid.</p>
+              <div class="field">
+                <textarea id="cz-voice" rows="4" placeholder="e.g. Friendly and down-to-earth, family-run. Emphasize reliability and tidy work. Avoid corporate jargon."></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="cz-savebar">
+          <button class="btn-search" id="cz-save-btn" onclick="saveCustomization()" style="width:auto;padding:0.6rem 1.5rem;">Save customization</button>
+          <button class="btn-run" id="cz-regen-btn" onclick="saveAndRegenerate()" style="padding:0.6rem 1.25rem;">Save &amp; Regenerate site</button>
+          <span class="cz-saved-msg" id="cz-saved-msg"></span>
+        </div>
+        <div class="terminal" id="cz-regen-wrap" style="display:none;margin-top:1rem;">
+          <div class="terminal-bar">
+            <div class="terminal-dot" style="background:#ff5f57"></div>
+            <div class="terminal-dot" style="background:#ffbd2e"></div>
+            <div class="terminal-dot" style="background:#28c840"></div>
+            <span>Regenerate log</span>
+          </div>
+          <div class="terminal-body" id="cz-regen-log"></div>
+        </div>
+        <div class="results-bar" id="cz-regen-results" style="display:none;margin-top:0.75rem;"></div>
+      </div>
+    </div>
     <div class="tab-panel" id="tab-clients">
       <div class="panel-title">Clients</div>
       <p class="panel-sub" style="margin-bottom:1rem;">All businesses you&rsquo;ve built sites for. Persists across server restarts.</p>
@@ -231,6 +333,7 @@
     document.querySelectorAll('.tab-btn').forEach(b => { if (b.textContent.toLowerCase().includes(id)) b.classList.add('active'); });
     if (id==='jobs') renderJobsList();
     if (id==='clients') loadClients();
+    if (id==='customize') czLoadClients();
   }
 
   function toast(msg, type='success') {
@@ -502,6 +605,178 @@
     document.getElementById('pv-mobile').classList.toggle('active',mode==='mobile');
   }
   document.addEventListener('keydown',e=>{ if(e.key==='Escape') closePreview(); });
+
+  // ── Customize tab ─────────────────────────────────────────────
+  let czSlug = '';
+  async function czLoadClients() {
+    const sel = document.getElementById('cz-client');
+    const prev = sel.value;
+    try {
+      const res = await api('/api/clients');
+      const { clients } = await res.json();
+      sel.innerHTML = '<option value="">— Select a client —</option>' +
+        clients.map(c => `<option value="${esc(c.slug)}">${esc(c.name||c.slug)}${c.has_site?'':' (no site yet)'}</option>`).join('');
+      document.getElementById('cz-empty').style.display = clients.length ? 'none' : 'block';
+      if (prev && clients.some(c => c.slug === prev)) sel.value = prev;
+    } catch (e) { toast('Could not load clients: ' + e.message, 'error'); }
+  }
+
+  async function onClientChange() {
+    const slug = document.getElementById('cz-client').value;
+    czSlug = slug;
+    const form = document.getElementById('cz-form');
+    if (!slug) { form.style.display = 'none'; return; }
+    form.style.display = 'block';
+    document.getElementById('cz-saved-msg').textContent = '';
+    document.getElementById('cz-regen-wrap').style.display = 'none';
+    document.getElementById('cz-regen-results').style.display = 'none';
+    try {
+      const res = await api(`/api/clients/${slug}/customization`);
+      fillCustomization(await res.json());
+    } catch (e) { toast('Could not load customization: ' + e.message, 'error'); }
+  }
+
+  function czSetVal(id, v){ const el=document.getElementById(id); if(el) el.value=v; }
+
+  function fillCustomization(c) {
+    c = c || {}; const f = c.facts || {};
+    czSetVal('cz-hero', c.hero_image || ''); previewImg('cz-hero', 'cz-hero-thumb');
+    czSetVal('cz-reviews', c.reviews_raw || '');
+    czSetVal('cz-years', f.years_in_business || '');
+    czSetVal('cz-owner', f.owner_name || '');
+    czSetVal('cz-certs', f.certifications || '');
+    czSetVal('cz-area', f.service_area || '');
+    czSetVal('cz-specialties', f.specialties || '');
+    czSetVal('cz-voice', c.voice || '');
+    const wrap = document.getElementById('cz-services'); wrap.innerHTML = '';
+    const imgs = c.service_images || {}; const names = Object.keys(imgs);
+    if (names.length) names.forEach(n => addServiceRow(n, imgs[n])); else addServiceRow('', '');
+  }
+
+  function previewImg(inputId, thumbId) {
+    const url = document.getElementById(inputId).value.trim();
+    const img = document.getElementById(thumbId); if (!img) return;
+    if (url) { img.src = url; img.classList.add('show'); } else { img.classList.remove('show'); img.removeAttribute('src'); }
+  }
+
+  async function uploadImg(fileInput, targetInputId, thumbId) {
+    const file = fileInput.files[0]; if (!file) return;
+    if (!czSlug) { toast('Select a client first', 'error'); fileInput.value=''; return; }
+    const fd = new FormData(); fd.append('file', file);
+    try {
+      const res = await fetch(`/api/clients/${czSlug}/upload`, { method:'POST', headers:{ Authorization:'Bearer '+token }, body: fd });
+      if (!res.ok) { const err = await res.json().catch(()=>({})); throw new Error(err.detail || res.status); }
+      const { url } = await res.json();
+      czSetVal(targetInputId, url); if (thumbId) previewImg(targetInputId, thumbId);
+      toast('Image uploaded');
+    } catch (e) { toast('Upload failed: ' + e.message, 'error'); }
+    finally { fileInput.value = ''; }
+  }
+
+  function addServiceRow(name='', url='') {
+    const wrap = document.getElementById('cz-services');
+    const row = document.createElement('div'); row.className = 'svc-row';
+    row.innerHTML = `
+      <input type="text" class="svc-name" placeholder="Service name" value="${esc(name)}" />
+      <input type="text" class="svc-url" placeholder="https://… image URL" value="${esc(url)}" />
+      <button class="btn-upload" title="Upload image">Upload</button>
+      <input type="file" accept="image/*" style="display:none" />
+      <button class="btn-x" title="Remove">&times;</button>`;
+    const [nameIn, urlIn, upBtn, fileIn, xBtn] = row.children;
+    upBtn.onclick = () => fileIn.click();
+    fileIn.onchange = async () => {
+      const file = fileIn.files[0]; if (!file) return;
+      if (!czSlug) { toast('Select a client first', 'error'); fileIn.value=''; return; }
+      const fd = new FormData(); fd.append('file', file);
+      try {
+        const res = await fetch(`/api/clients/${czSlug}/upload`, { method:'POST', headers:{ Authorization:'Bearer '+token }, body: fd });
+        if (!res.ok) { const err = await res.json().catch(()=>({})); throw new Error(err.detail || res.status); }
+        const { url } = await res.json(); urlIn.value = url; toast('Image uploaded');
+      } catch (e) { toast('Upload failed: ' + e.message, 'error'); } finally { fileIn.value=''; }
+    };
+    xBtn.onclick = () => row.remove();
+    wrap.appendChild(row);
+  }
+
+  function collectServiceImages() {
+    const out = {};
+    document.querySelectorAll('#cz-services .svc-row').forEach(r => {
+      const name = r.querySelector('.svc-name').value.trim();
+      const url = r.querySelector('.svc-url').value.trim();
+      if (name && url) out[name] = url;
+    });
+    return out;
+  }
+
+  function czBody() {
+    return {
+      hero_image: document.getElementById('cz-hero').value.trim(),
+      service_images: collectServiceImages(),
+      reviews_raw: document.getElementById('cz-reviews').value,
+      facts: {
+        years_in_business: document.getElementById('cz-years').value.trim(),
+        certifications: document.getElementById('cz-certs').value.trim(),
+        service_area: document.getElementById('cz-area').value.trim(),
+        owner_name: document.getElementById('cz-owner').value.trim(),
+        specialties: document.getElementById('cz-specialties').value.trim(),
+      },
+      voice: document.getElementById('cz-voice').value,
+    };
+  }
+
+  async function saveCustomization() {
+    if (!czSlug) { toast('Select a client first', 'error'); return; }
+    const btn = document.getElementById('cz-save-btn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      const res = await api(`/api/clients/${czSlug}/customization`, { method:'POST', body: czBody() });
+      if (!res.ok) throw new Error(res.status);
+      const { saved_at } = await res.json();
+      document.getElementById('cz-saved-msg').textContent = 'Saved ' + new Date(saved_at).toLocaleTimeString();
+      toast('Customization saved');
+    } catch (e) { toast('Save failed: ' + e.message, 'error'); }
+    finally { btn.disabled = false; btn.textContent = 'Save customization'; }
+  }
+
+  async function saveAndRegenerate() {
+    if (!czSlug) { toast('Select a client first', 'error'); return; }
+    await saveCustomization();
+    const slug = czSlug;
+    const btn = document.getElementById('cz-regen-btn');
+    btn.disabled = true; btn.textContent = 'Regenerating…';
+    const wrap = document.getElementById('cz-regen-wrap');
+    const log = document.getElementById('cz-regen-log');
+    const results = document.getElementById('cz-regen-results');
+    wrap.style.display = 'block'; log.innerHTML = ''; results.style.display = 'none';
+    try {
+      const res = await api(`/api/clients/${slug}/regenerate`, { method:'POST' });
+      if (!res.ok) { const err = await res.json().catch(()=>({})); throw new Error(err.detail || res.status); }
+      const { job_id } = await res.json();
+      if (typeof addJobToSidebar === 'function') addJobToSidebar(job_id, `Regenerate: ${slug}`);
+      const es = new EventSource(`/api/jobs/${job_id}/stream?token=${token}`);
+      es.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+        if (data.type === 'log') {
+          const m = data.entry.msg;
+          const cls = /error/i.test(m) ? 'error' : /(complete|done|rebuilt|saved)/i.test(m) ? 'success' : '';
+          log.innerHTML += `<div><span class="log-ts">${esc(data.entry.ts)}</span><span class="log-msg ${cls}">${esc(m)}</span></div>`;
+          log.scrollTop = log.scrollHeight;
+        } else if (data.type === 'done') {
+          es.close();
+          btn.disabled = false; btn.textContent = 'Save & Regenerate site';
+          if (data.status === 'done') {
+            toast('Site regenerated');
+            results.innerHTML = `<div class="result-card ready"><span>Updated site</span><button onclick="openPreview('${slug}')">Preview</button></div>`;
+            results.style.display = 'flex';
+          } else { toast('Regenerate failed: ' + (data.error || data.status), 'error'); }
+        }
+      };
+      es.onerror = () => { es.close(); btn.disabled = false; btn.textContent = 'Save & Regenerate site'; };
+    } catch (e) {
+      toast('Regenerate failed: ' + e.message, 'error');
+      btn.disabled = false; btn.textContent = 'Save & Regenerate site';
+    }
+  }
 </script>
 
 <div class="editor-overlay" id="editor-overlay">

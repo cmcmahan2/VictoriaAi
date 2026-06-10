@@ -22,7 +22,7 @@ from pathlib import Path
 
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
@@ -84,6 +84,22 @@ class PipelineRequest(BaseModel):
     phone: str = ""
     rating: float | None = None
     review_count: int = 0
+
+
+class CustomizationFacts(BaseModel):
+    years_in_business: str = ""
+    certifications: str = ""
+    service_area: str = ""
+    owner_name: str = ""
+    specialties: str = ""
+
+
+class Customization(BaseModel):
+    hero_image: str = ""
+    service_images: dict[str, str] = {}
+    reviews_raw: str = ""
+    facts: CustomizationFacts = CustomizationFacts()
+    voice: str = ""
 
 
 def require_auth(request: Request):
@@ -370,6 +386,67 @@ async def export_clients_csv(request: Request, token: str = Query(default="")):
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=clients.csv"},
     )
+
+
+# ── Client customization (real photos / reviews / facts / voice) ──────────────
+
+ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"}
+
+
+def _custom_path(slug: str) -> Path:
+    return OUTPUT_DIR / slug / "customization.json"
+
+
+@app.get("/api/clients/{slug}/customization")
+async def get_customization(slug: str, request: Request):
+    require_auth(request)
+    path = _custom_path(slug)
+    if path.exists():
+        return json.loads(path.read_text(encoding="utf-8"))
+    return Customization().model_dump()
+
+
+@app.post("/api/clients/{slug}/customization")
+async def save_customization(slug: str, data: Customization, request: Request):
+    require_auth(request)
+    (OUTPUT_DIR / slug).mkdir(parents=True, exist_ok=True)
+    payload = data.model_dump()
+    payload["updated_at"] = datetime.now().isoformat()
+    _custom_path(slug).write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return {"ok": True, "saved_at": payload["updated_at"]}
+
+
+@app.post("/api/clients/{slug}/upload")
+async def upload_image(slug: str, request: Request, file: UploadFile = File(...)):
+    require_auth(request)
+    ext = Path(file.filename or "").suffix.lower()
+    if ext not in ALLOWED_IMAGE_EXT:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type '{ext}'. Allowed: {', '.join(sorted(ALLOWED_IMAGE_EXT))}")
+    dest_dir = OUTPUT_DIR / slug / "images" / "custom"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    safe_stem = _slug(Path(file.filename or "image").stem)[:40] or "image"
+    fname = f"{safe_stem}-{secrets.token_hex(4)}{ext}"
+    (dest_dir / fname).write_bytes(await file.read())
+    return {"url": f"/preview/{slug}/images/custom/{fname}", "filename": fname}
+
+
+@app.post("/api/clients/{slug}/regenerate")
+async def regenerate_site(slug: str, request: Request):
+    """Rebuild a client's site (Phase 3) with their saved customization applied."""
+    require_auth(request)
+    profile_dir = RESEARCH_DIR / slug
+    if not (profile_dir / "profile.json").exists():
+        raise HTTPException(status_code=400,
+                            detail="No scraped profile for this client — run the pipeline (Phase 2) first.")
+    job_id = _new_job(f"Regenerate: {slug}")
+    def _go():
+        from build import build_website
+        print(f"[Regenerate] Rebuilding site for {slug} with customization...")
+        site_dir = build_website(str(profile_dir), str(OUTPUT_DIR))
+        print("[Regenerate] Done - site rebuilt")
+        return {"site_dir": str(site_dir), "slug": slug}
+    _run(job_id, _go)
+    return {"job_id": job_id}
 
 
 # ── Site editor ───────────────────────────────────────────────────────────────
