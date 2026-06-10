@@ -111,6 +111,16 @@
     .toast.success { border-left: 3px solid var(--green); }
     .toast.error { border-left: 3px solid #f87171; }
     @keyframes slideIn { from{transform:translateX(20px);opacity:0} to{transform:translateX(0);opacity:1} }
+    .editor-overlay { display:none; position:fixed; inset:0; z-index:600; background:rgba(4,10,18,0.88); backdrop-filter:blur(4px); flex-direction:column; }
+    .editor-overlay.open { display:flex; }
+    .editor-toolbar { display:flex; align-items:center; gap:0.75rem; padding:0.7rem 1rem; background:#0a1828; border-bottom:1px solid var(--border); }
+    .editor-toolbar .ed-title { color:#fff; font-weight:600; font-size:0.9rem; flex:1; }
+    .editor-toolbar .ed-status { font-size:0.78rem; color:var(--muted); }
+    .editor-toolbar button { background:var(--dark3); color:#8ab4cc; border:1px solid var(--border); border-radius:7px; padding:0.45rem 0.9rem; font-family:inherit; font-size:0.8rem; font-weight:600; cursor:pointer; }
+    .editor-toolbar .save-btn { background:var(--green); color:#fff; border-color:var(--green); }
+    .editor-toolbar .close-btn { color:#ff8080; }
+    .editor-body { flex:1; display:flex; padding:1rem; overflow:hidden; }
+    .editor-body textarea { flex:1; background:#060f18; color:#c8e0f0; border:1px solid var(--border); border-radius:8px; padding:1rem; font-family:'JetBrains Mono',monospace; font-size:0.8rem; line-height:1.6; resize:none; outline:none; }
   </style>
 </head>
 <body>
@@ -119,6 +129,7 @@
   <div class="nav-tabs">
     <button class="tab-btn active" onclick="switchTab('discover')">Discover</button>
     <button class="tab-btn" onclick="switchTab('pipeline')">Pipeline</button>
+    <button class="tab-btn" onclick="switchTab('clients')">Clients</button>
     <button class="tab-btn" onclick="switchTab('jobs')">Jobs</button>
   </div>
   <div class="nav-right">
@@ -187,6 +198,14 @@
       </div>
       <div class="results-bar" id="results-bar" style="display:none;"></div>
     </div>
+    <div class="tab-panel" id="tab-clients">
+      <div class="panel-title">Clients</div>
+      <p class="panel-sub" style="margin-bottom:1rem;">All businesses you&rsquo;ve built sites for. Persists across server restarts.</p>
+      <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem;">
+        <a href="/api/clients/export.csv" id="export-csv-link" style="display:none;" class="btn-run">Export CSV</a>
+      </div>
+      <div id="clients-list"><div class="empty-state"><p>No clients yet. Run a pipeline to save your first client.</p></div></div>
+    </div>
     <div class="tab-panel" id="tab-jobs">
       <div class="panel-title">All Jobs</div>
       <p class="panel-sub" style="margin-bottom:1.5rem;">History of all discovery and pipeline runs this session.</p>
@@ -211,6 +230,7 @@
     document.getElementById('tab-'+id).classList.add('active');
     document.querySelectorAll('.tab-btn').forEach(b => { if (b.textContent.toLowerCase().includes(id)) b.classList.add('active'); });
     if (id==='jobs') renderJobsList();
+    if (id==='clients') loadClients();
   }
 
   function toast(msg, type='success') {
@@ -324,8 +344,96 @@
     const bar=document.getElementById('results-bar');
     const liveUrl=result&&result.deployment&&result.deployment.live_url;
     const builtSite=result&&result.site_dir;
-    bar.innerHTML=`${builtSite?`<div class="result-card ready"><span>Website</span><button onclick="openPreview('${slug}')">Preview</button></div>`:''}<div class="result-card ready"><span>PDF Report</span><button onclick="downloadPdf('${slug}')">Download</button></div>${liveUrl?`<div class="result-card ready"><span>Live Site</span><a href="${liveUrl}" target="_blank">${liveUrl}</a></div>`:''}<div class="result-card"><span style="color:var(--muted)">Files saved to output/${slug}/</span></div>`;
+    bar.innerHTML=`
+      ${builtSite?`<div class="result-card ready"><span>Website</span><button onclick="openPreview('${slug}')">Preview</button><button onclick="openEditor('${slug}')" style="margin-left:0.4rem;">Edit Site</button></div>`:''}
+      <div class="result-card ready"><span>PDF Report</span><button onclick="downloadPdf('${slug}')">Download</button></div>
+      ${liveUrl?`<div class="result-card ready"><span>Live Site</span><a href="${liveUrl}" target="_blank">${liveUrl}</a></div>`:''}
+      <div class="result-card ready"><span>Client Link</span><button onclick="copyPortal('${slug}',this)">Copy Share Link</button></div>
+      <div class="result-card"><span style="color:var(--muted)">Saved to output/${slug}/</span></div>`;
     bar.style.display='flex';
+    loadClients();
+  }
+
+  async function copyPortal(slug,btn){
+    // Prefer the public Netlify portal URL; fall back to localhost
+    let url = location.origin+'/portal/'+slug;
+    try {
+      const res = await api('/api/portal/'+slug);
+      if (res.ok) { const d = await res.json(); if (d.share_url) url = d.share_url; }
+    } catch{}
+    const done=()=>{ const t=btn.textContent; btn.textContent='Copied!'; setTimeout(()=>btn.textContent=t,1500); };
+    if(navigator.clipboard){ navigator.clipboard.writeText(url).then(done).catch(()=>{ window.prompt('Copy this client link:',url); done(); }); }
+    else { window.prompt('Copy this client link:',url); }
+  }
+
+  // ── Clients tab ────────────────────────────────────────────────────────────
+  async function loadClients() {
+    try {
+      const res=await api('/api/clients'); const {clients}=await res.json();
+      renderClients(clients);
+    } catch{}
+  }
+  function renderClients(clients) {
+    const el=document.getElementById('clients-list');
+    const exportLink=document.getElementById('export-csv-link');
+    if (!clients||!clients.length){ el.innerHTML='<div class="empty-state"><p>No clients yet. Run a pipeline to save your first client.</p></div>'; exportLink.style.display='none'; return; }
+    exportLink.style.display='inline-block';
+    // Attach token to CSV export URL so server can auth it
+    exportLink.href='/api/clients/export.csv?token='+token;
+    const statusColors={'prospect':'var(--muted)','client':'var(--green)','closed':'#f87171'};
+    const rows=clients.map(c=>{
+      const sc=statusColors[c.status]||'var(--muted)';
+      const liveCell=c.live_url?`<a href="${esc(c.live_url)}" target="_blank" style="color:var(--green)">${esc(c.live_url)}</a>`:'<span style="color:var(--muted)">Not deployed</span>';
+      const portalCell=c.portal_url?`<button class="btn-run" onclick="copyRawUrl('${esc(c.portal_url)}',this)">Copy Link</button>`:'';
+      const editCell=c.has_site?`<button class="btn-run" onclick="openEditor('${esc(c.slug)}')">Edit Site</button>`:'';
+      const statusSel=`<select onchange="updateClientStatus('${esc(c.slug)}',this.value)" style="background:var(--dark2);border:1px solid var(--border2);color:${sc};border-radius:4px;padding:0.2rem 0.4rem;font-family:inherit;font-size:0.78rem;cursor:pointer;">
+        ${['prospect','client','closed'].map(s=>`<option value="${s}" ${c.status===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('')}
+      </select>`;
+      return `<tr>
+        <td style="font-weight:600;color:var(--white)">${esc(c.name||'')}</td>
+        <td style="color:var(--muted)">${esc(c.category||'')}</td>
+        <td>${liveCell}</td>
+        <td>${portalCell}</td>
+        <td>${statusSel}</td>
+        <td>${editCell}</td>
+      </tr>`;
+    }).join('');
+    el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Business</th><th>Type</th><th>Live Site</th><th>Share Link</th><th>Status</th><th>Edit</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }
+  function copyRawUrl(url,btn){
+    const done=()=>{ const t=btn.textContent; btn.textContent='Copied!'; setTimeout(()=>btn.textContent=t,1500); };
+    if(navigator.clipboard){ navigator.clipboard.writeText(url).then(done).catch(()=>{ window.prompt('Copy this client link:',url); done(); }); }
+    else { window.prompt('Copy this client link:',url); }
+  }
+  async function updateClientStatus(slug,status){
+    await api(`/api/clients/${slug}`,{method:'PATCH',body:{status}});
+    loadClients();
+  }
+
+  // ── Site editor ────────────────────────────────────────────────────────────
+  let editorSlug='';
+  async function openEditor(slug){
+    editorSlug=slug;
+    document.getElementById('editor-title').textContent='Edit: '+slug;
+    document.getElementById('editor-status').textContent='Loading...';
+    document.getElementById('editor-overlay').classList.add('open');
+    try {
+      const res=await api(`/api/output/${slug}/site`);
+      if(!res.ok){ document.getElementById('editor-status').textContent='Site not found.'; return; }
+      const {html}=await res.json();
+      document.getElementById('editor-ta').value=html;
+      document.getElementById('editor-status').textContent='';
+    } catch(e){ document.getElementById('editor-status').textContent='Error: '+e.message; }
+  }
+  function closeEditor(){ document.getElementById('editor-overlay').classList.remove('open'); }
+  async function saveEditor(){
+    const html=document.getElementById('editor-ta').value;
+    document.getElementById('editor-status').textContent='Saving...';
+    try {
+      const res=await api(`/api/output/${editorSlug}/site`,{method:'PUT',body:{html}});
+      if(res.ok){ document.getElementById('editor-status').textContent='Saved.'; toast('Site saved'); setTimeout(()=>document.getElementById('editor-status').textContent='',2000); }
+      else document.getElementById('editor-status').textContent='Save failed.';
+    } catch(e){ document.getElementById('editor-status').textContent='Error: '+e.message; }
   }
 
   async function downloadPdf(slug) {
@@ -396,12 +504,24 @@
   document.addEventListener('keydown',e=>{ if(e.key==='Escape') closePreview(); });
 </script>
 
+<div class="editor-overlay" id="editor-overlay">
+  <div class="editor-toolbar">
+    <span class="ed-title" id="editor-title">Edit Site</span>
+    <span class="ed-status" id="editor-status"></span>
+    <button class="save-btn" onclick="saveEditor()">Save Changes</button>
+    <button class="close-btn" onclick="closeEditor()">&#10005; Close</button>
+  </div>
+  <div class="editor-body">
+    <textarea id="editor-ta" spellcheck="false" placeholder="HTML will load here..."></textarea>
+  </div>
+</div>
+
 <div class="preview-overlay" id="preview-overlay">
   <div class="preview-toolbar">
     <span class="pv-title" id="pv-title">Preview</span>
-    <button id="pv-desktop" class="active" onclick="setPreviewMode('desktop')">🖥 Desktop</button>
-    <button id="pv-mobile" onclick="setPreviewMode('mobile')">📱 Mobile</button>
-    <button class="close-btn" onclick="closePreview()">✕ Close</button>
+    <button id="pv-desktop" class="active" onclick="setPreviewMode('desktop')">&#128421; Desktop</button>
+    <button id="pv-mobile" onclick="setPreviewMode('mobile')">&#128241; Mobile</button>
+    <button class="close-btn" onclick="closePreview()">&#10005; Close</button>
   </div>
   <div class="preview-stage">
     <div class="preview-frame-wrap" id="pv-wrap">

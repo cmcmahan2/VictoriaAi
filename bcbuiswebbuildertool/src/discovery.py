@@ -105,8 +105,27 @@ def discover_businesses(
             print(f"[discovery] Demo mode - generating sample leads for {business_type} in {city}, BC")
             businesses = _demo_businesses(city, business_type)
         else:
-            print(f"[discovery] No results found for {business_type} in {city} - try a different city or business type")
+            print(
+                f"[discovery] No real results for '{business_type}' in {city}, BC — "
+                f"try a broader business type or a larger radius (current: {radius_km}km). "
+                f"Returning empty (demo data is disabled; set DEMO_MODE=true to enable it)."
+            )
             return []
+
+    # Dedupe + drop chains/franchises for every real source (demo data is already
+    # curated, so leave it untouched). This guarantees no junk/duplicate leads.
+    if not (demo_mode and businesses and businesses[0].get("_demo")):
+        before = len(businesses)
+        businesses = _dedupe_businesses(businesses)
+        if before != len(businesses):
+            print(f"[discovery] Deduped/filtered {before} -> {len(businesses)} businesses")
+
+    if not businesses:
+        print(
+            f"[discovery] All candidates for '{business_type}' in {city}, BC were "
+            f"duplicates or chains — try a broader business type or a larger radius."
+        )
+        return []
 
     print(f"[discovery] Checking website health for {len(businesses)} businesses...")
     businesses = _check_all_websites(businesses)
@@ -184,15 +203,7 @@ def _discover_via_foursquare(city: str, business_type: str, radius_km: int, max_
     Add FOURSQUARE_API_KEY to .env
     """
     # Geocode city first using Nominatim
-    geo_headers = {"User-Agent": "BCBuisWebBuilderTool/1.0 contact@victoriaai.ca"}
-    geo = requests.get(
-        "https://nominatim.openstreetmap.org/search",
-        params={"q": f"{city}, BC, Canada", "format": "json", "limit": 1},
-        headers=geo_headers, timeout=10,
-    ).json()
-    if not geo:
-        raise RuntimeError(f"Could not geocode {city}")
-    lat, lon = geo[0]["lat"], geo[0]["lon"]
+    lat, lon = _geocode_city(city)
 
     # Try Places API v3 first (standard free developer keys)
     endpoints = [
@@ -267,142 +278,324 @@ def _discover_via_foursquare(city: str, business_type: str, radius_km: int, max_
     return businesses[:max_results]
 
 
-def _discover_via_openstreetmap(city: str, business_type: str, radius_km: int, max_results: int) -> list[dict]:
-    """
-    Tier 3: Real businesses from OpenStreetMap via Overpass API + Nominatim geocoding.
-    Completely free, no API key required, returns real registered businesses.
-    """
-    # Step 1: geocode the city to lat/lon
+def _geocode_city(city: str):
+    """Geocode '<city>, BC, Canada' to (lat, lon) via Nominatim. Raises with a
+    clear message if the city cannot be resolved."""
     geo_headers = {"User-Agent": "BCBuisWebBuilderTool/1.0 contact@victoriaai.ca"}
-    geo_resp = requests.get(
-        "https://nominatim.openstreetmap.org/search",
-        params={"q": f"{city}, BC, Canada", "format": "json", "limit": 1},
-        headers=geo_headers,
-        timeout=10,
-    )
-    geo_resp.raise_for_status()
-    geo_data = geo_resp.json()
+    try:
+        geo_resp = requests.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"q": f"{city}, BC, Canada", "format": "json", "limit": 1},
+            headers=geo_headers,
+            timeout=10,
+        )
+        geo_resp.raise_for_status()
+        geo_data = geo_resp.json()
+    except Exception as exc:
+        raise RuntimeError(
+            f"Geocoding failed for '{city}, BC' (Nominatim error: {exc}). "
+            f"Check the city spelling and network connectivity."
+        )
     if not geo_data:
-        raise RuntimeError(f"Could not geocode {city}, BC")
-    lat = float(geo_data[0]["lat"])
-    lon = float(geo_data[0]["lon"])
+        raise RuntimeError(
+            f"Could not geocode '{city}, BC' — Nominatim returned no match. "
+            f"Check the city spelling (it must be a real BC city/town)."
+        )
+    return float(geo_data[0]["lat"]), float(geo_data[0]["lon"])
 
-    # Step 2: map business_type to OSM tags
-    tag_pairs = _osm_tags_for(business_type)
-    radius_m  = radius_km * 1000
 
-    tag_lines = ""
-    for key, val in tag_pairs:
-        tag_lines += f'  node["{key}"="{val}"](around:{radius_m},{lat},{lon});\n'
-        tag_lines += f'  way["{key}"="{val}"](around:{radius_m},{lat},{lon});\n'
+_OVERPASS_MIRRORS = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    "https://overpass.private.coffee/api/interpreter",
+]
 
-    query = f"[out:json][timeout:30];\n(\n{tag_lines});\nout center tags;"
 
-    # Step 3: query Overpass (try multiple mirrors; some reject requests
-    # without a User-Agent with 406 Not Acceptable)
+def _run_overpass(query: str) -> list:
+    """POST an Overpass QL query, rotating across mirrors with retries/backoff.
+    Returns the list of elements. Raises RuntimeError if ALL mirrors fail."""
     over_headers = {
         "User-Agent": "BCBuisWebBuilderTool/1.0 (contact@victoriaai.ca)",
         "Accept": "application/json",
     }
-    mirrors = [
-        "https://overpass-api.de/api/interpreter",
-        "https://overpass.kumi.systems/api/interpreter",
-        "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
-    ]
-    elements = []
     last_exc = None
-    for mirror in mirrors:
+    for attempt, mirror in enumerate(_OVERPASS_MIRRORS):
         try:
             over_resp = requests.post(
                 mirror, data={"data": query},
-                headers=over_headers, timeout=35,
+                headers=over_headers, timeout=40,
             )
+            # 429 / 504 = rate-limited or overloaded; back off and try next mirror
+            if over_resp.status_code in (429, 502, 503, 504):
+                raise RuntimeError(f"mirror {mirror} returned {over_resp.status_code}")
             over_resp.raise_for_status()
-            elements = over_resp.json().get("elements", [])
-            break
+            return over_resp.json().get("elements", [])
         except Exception as exc:
             last_exc = exc
+            print(f"[discovery] Overpass mirror failed ({mirror.split('/')[2]}): {exc}")
+            time.sleep(min(2 ** attempt, 8))
             continue
-    if not elements and last_exc:
-        raise last_exc
+    raise RuntimeError(
+        f"All {len(_OVERPASS_MIRRORS)} Overpass mirrors failed (last error: {last_exc}). "
+        f"The Overpass API may be rate-limiting or unreachable — retry shortly."
+    )
+
+
+def _osm_element_to_business(el: dict, business_type: str, city: str):
+    """Convert one Overpass element to a business dict, or None if no usable name."""
+    tags = el.get("tags", {})
+    name = tags.get("name", "").strip()
+    if not name:
+        return None
+
+    house  = tags.get("addr:housenumber", "")
+    street = tags.get("addr:street", "")
+    city_t = tags.get("addr:city", city)
+    if house and street:
+        address = f"{house} {street}, {city_t}, BC"
+    elif street:
+        address = f"{street}, {city_t}, BC"
+    else:
+        address = f"{city_t}, BC"
+
+    phone   = tags.get("phone", tags.get("contact:phone", ""))
+    website = tags.get("website", tags.get("contact:website", None))
+    if website and not website.startswith("http"):
+        website = "https://" + website
+
+    return {
+        "name":             name,
+        "address":          address,
+        "phone":            phone,
+        "existing_website": website,
+        "rating":           None,
+        "review_count":     0,
+        "photos_count":     0,
+        "category":         business_type,
+        "city":             city,
+        "source":           "openstreetmap",
+    }
+
+
+def _discover_via_openstreetmap(city: str, business_type: str, radius_km: int, max_results: int) -> list[dict]:
+    """
+    Tier 2: Real businesses from OpenStreetMap via Overpass API + Nominatim geocoding.
+    Completely free, no API key required, returns real registered businesses.
+
+    Strategy: a structured tag search (precise) combined with a name-regex
+    fallback (broad — catches businesses tagged inconsistently in OSM). Results
+    are merged and deduped.
+    """
+    lat, lon = _geocode_city(city)
+    radius_m = radius_km * 1000
+
+    # --- Structured tag search -------------------------------------------------
+    tag_pairs = _osm_tags_for(business_type)
+    tag_lines = ""
+    for key, val in tag_pairs:
+        tag_lines += f'  node["{key}"="{val}"](around:{radius_m},{lat},{lon});\n'
+        tag_lines += f'  way["{key}"="{val}"](around:{radius_m},{lat},{lon});\n'
+    tag_query = f"[out:json][timeout:40];\n(\n{tag_lines});\nout center tags;"
+
+    elements = []
+    try:
+        elements = _run_overpass(tag_query)
+    except RuntimeError as exc:
+        # Surface mirror failures, but still attempt the name fallback below.
+        print(f"[discovery] Structured OSM search failed: {exc}")
 
     businesses = []
-    for el in elements[:max_results]:
-        tags   = el.get("tags", {})
-        name   = tags.get("name", "").strip()
-        if not name:
-            continue
+    for el in elements:
+        b = _osm_element_to_business(el, business_type, city)
+        if b:
+            businesses.append(b)
+    print(f"[discovery] OSM structured search: {len(businesses)} results")
 
-        # Build address from OSM addr tags
-        house  = tags.get("addr:housenumber", "")
-        street = tags.get("addr:street", "")
-        city_t = tags.get("addr:city", city)
-        if house and street:
-            address = f"{house} {street}, {city_t}, BC"
-        elif street:
-            address = f"{street}, {city_t}, BC"
-        else:
-            address = f"{city_t}, BC"
+    # --- Name-based fallback ---------------------------------------------------
+    # When the structured search returns few results, many real businesses are
+    # simply tagged inconsistently. Search by name regex for each keyword.
+    if len(businesses) < max_results:
+        keywords = _osm_name_keywords(business_type)
+        regex = "|".join(keywords)
+        # Limit fallback to plausible business-like objects (shop/craft/office/amenity).
+        name_lines = ""
+        for typ in ("node", "way"):
+            for kv in ("shop", "craft", "office", "amenity", "leisure"):
+                name_lines += (
+                    f'  {typ}["{kv}"]["name"~"{regex}",i]'
+                    f"(around:{radius_m},{lat},{lon});\n"
+                )
+        name_query = f"[out:json][timeout:40];\n(\n{name_lines});\nout center tags;"
+        try:
+            name_elements = _run_overpass(name_query)
+            added = 0
+            for el in name_elements:
+                b = _osm_element_to_business(el, business_type, city)
+                if b:
+                    businesses.append(b)
+                    added += 1
+            print(f"[discovery] OSM name fallback: {added} additional candidates")
+        except RuntimeError as exc:
+            print(f"[discovery] Name fallback search failed: {exc}")
 
-        phone   = tags.get("phone", tags.get("contact:phone", ""))
-        website = tags.get("website", tags.get("contact:website", None))
-        if website and not website.startswith("http"):
-            website = "https://" + website
+    if not businesses:
+        raise RuntimeError(
+            f"No OSM results for '{business_type}' in {city}, BC "
+            f"(radius {radius_km}km). Try a broader business type or a larger radius."
+        )
 
-        businesses.append({
-            "name":             name,
-            "address":          address,
-            "phone":            phone,
-            "existing_website": website,
-            "rating":           None,
-            "review_count":     0,
-            "photos_count":     0,
-            "category":         business_type,
-            "city":             city,
-            "source":           "openstreetmap",
-        })
-
+    businesses = _dedupe_businesses(businesses)
     return businesses
+
+
+# Words that signal a national chain / franchise — these are NOT good leads for a
+# bespoke website build (they already have corporate sites).
+_CHAIN_SIGNALS = {
+    "mcdonald", "starbucks", "tim hortons", "subway", "walmart", "costco",
+    "shoppers drug", "save-on-foods", "safeway", "a&w", "wendy", "kfc",
+    "dairy queen", "boston pizza", "white spot", "7-eleven", "shell", "esso",
+    "petro-canada", "chevron", "canadian tire", "home depot", "rona", "lowe",
+    "best buy", "staples", "dollarama", "london drugs", "jiffy lube",
+    "great clips", "domino", "pizza hut", "dominos",
+}
+
+
+def _norm_name(name: str) -> str:
+    """Normalize a business name for dedupe/chain matching."""
+    n = re.sub(r"[^a-z0-9 ]", " ", (name or "").lower())
+    # Drop common legal/marketing suffixes that vary between listings.
+    n = re.sub(r"\b(ltd|inc|llc|co|corp|company|limited|services|service)\b", " ", n)
+    return re.sub(r"\s+", " ", n).strip()
+
+
+def _is_chain(name: str) -> bool:
+    low = (name or "").lower()
+    return any(sig in low for sig in _CHAIN_SIGNALS)
+
+
+def _dedupe_businesses(businesses: list[dict]) -> list[dict]:
+    """Remove duplicates by normalized name (and same name+address). When two
+    entries collide, keep the one with the most complete data (website/phone)."""
+    def completeness(b: dict) -> int:
+        score = 0
+        if b.get("existing_website"):
+            score += 2
+        if b.get("phone"):
+            score += 1
+        if b.get("address") and not b["address"].strip().startswith(","):
+            score += 1
+        return score
+
+    best: dict[str, dict] = {}
+    for b in businesses:
+        name = b.get("name", "").strip()
+        if not name or _is_chain(name):
+            continue
+        key = _norm_name(name)
+        if not key:
+            continue
+        if key not in best or completeness(b) > completeness(best[key]):
+            best[key] = b
+    return list(best.values())
+
+
+def _osm_name_keywords(business_type: str) -> list:
+    """Keyword stems used for the Overpass name-regex fallback search."""
+    bt = business_type.lower()
+    mapping = [
+        (["plumb"],                         ["plumb"]),
+        (["electr"],                        ["electric", "electrical"]),
+        (["landscap", "garden", "lawn"],    ["landscap", "garden", "lawn", "yard", "nursery"]),
+        (["hvac", "heating", "cooling"],    ["hvac", "heating", "furnace", "air condition"]),
+        (["roof"],                          ["roof"]),
+        (["paint"],                         ["paint"]),
+        (["carpet", "floor"],               ["floor", "carpet", "tile"]),
+        (["window", "glass"],               ["window", "glass", "glaz"]),
+        (["restaurant", "dining"],          ["restaurant", "grill", "bistro", "eatery"]),
+        (["cafe", "coffee"],                ["cafe", "coffee", "espresso"]),
+        (["salon", "hair"],                 ["salon", "hair"]),
+        (["barber"],                        ["barber"]),
+        (["nail"],                          ["nail"]),
+        (["spa", "massage"],                ["spa", "massage", "wellness"]),
+        (["dentist", "dental"],             ["dental", "dentist"]),
+        (["physio"],                        ["physio", "physical therapy"]),
+        (["optician", "optical"],           ["optic", "eyewear", "vision"]),
+        (["mechanic", "auto repair", "car repair"], ["auto", "mechanic", "automotive", "car repair"]),
+        (["tire", "tyre"],                  ["tire", "tyre"]),
+        (["bakery", "baker"],               ["baker", "bread", "pastry"]),
+        (["butcher"],                       ["butcher", "meat"]),
+        (["grocery", "grocer"],             ["grocer", "market", "food"]),
+        (["pharmacy", "drug"],              ["pharmacy", "drug"]),
+        (["gym", "fitness"],                ["gym", "fitness", "crossfit"]),
+        (["yoga"],                          ["yoga"]),
+        (["clean", "laundry"],              ["clean", "laundry", "janitorial", "maid"]),
+        (["accountant", "accounting"],      ["account", "bookkeep", "cpa"]),
+        (["lawyer", "legal"],               ["law", "legal", "attorney", "notary"]),
+        (["real estate", "realtor"],        ["realty", "real estate", "realtor"]),
+        (["insurance"],                     ["insurance"]),
+        (["vet", "veterinar"],              ["vet", "animal"]),
+        (["pet", "dog groom"],              ["pet", "groom", "kennel"]),
+        (["photographer"],                  ["photo"]),
+        (["tattoo"],                        ["tattoo", "ink"]),
+        (["contractor", "construction"],    ["contract", "construction", "renovation", "reno", "build"]),
+        (["handyman", "handy"],             ["handyman", "handy", "repair"]),
+        (["mov", "haul"],                   ["moving", "movers", "haul"]),
+    ]
+    for keywords, stems in mapping:
+        if any(k in bt for k in keywords):
+            return stems
+    # Generic: use the words of the business type itself.
+    words = [w for w in re.split(r"\s+", bt) if len(w) > 2]
+    return words or [bt]
 
 
 def _osm_tags_for(business_type: str) -> list:
     """Map a plain-English business type to OpenStreetMap tag key/value pairs."""
     bt = business_type.lower()
     mapping = [
-        (["plumb"],                         [("craft", "plumber")]),
-        (["electr"],                        [("craft", "electrician")]),
-        (["landscap", "garden", "lawn"],    [("craft", "gardener"), ("shop", "garden_centre")]),
-        (["hvac", "heating", "cooling"],    [("craft", "hvac")]),
-        (["roof"],                          [("craft", "roofer")]),
-        (["paint"],                         [("craft", "painter")]),
-        (["carpet", "floor"],               [("craft", "floorer")]),
-        (["window", "glass"],               [("craft", "glaziery")]),
+        (["plumb"],                         [("craft", "plumber"), ("trade", "plumber"), ("shop", "plumber")]),
+        (["electr"],                        [("craft", "electrician"), ("trade", "electrician")]),
+        (["landscap", "garden", "lawn"],    [("craft", "gardener"), ("shop", "garden_centre"),
+                                             ("landuse", "plant_nursery"), ("shop", "nursery"),
+                                             ("trade", "gardener")]),
+        (["hvac", "heating", "cooling"],    [("craft", "hvac"), ("trade", "hvac"), ("craft", "heating_engineer")]),
+        (["roof"],                          [("craft", "roofer"), ("trade", "roofer")]),
+        (["paint"],                         [("craft", "painter"), ("trade", "painter")]),
+        (["carpet", "floor"],               [("craft", "floorer"), ("trade", "floorer"), ("shop", "flooring")]),
+        (["window", "glass"],               [("craft", "glaziery"), ("craft", "window_construction"), ("shop", "glaziery")]),
         (["restaurant", "dining"],          [("amenity", "restaurant")]),
         (["cafe", "coffee"],                [("amenity", "cafe")]),
-        (["salon", "hair"],                 [("shop", "hairdresser")]),
-        (["barber"],                        [("shop", "barber")]),
-        (["nail"],                          [("shop", "nail_salon")]),
-        (["spa", "massage"],                [("leisure", "spa"), ("amenity", "massage")]),
-        (["dentist", "dental"],             [("amenity", "dentist")]),
-        (["physio"],                        [("amenity", "physiotherapist")]),
+        (["salon", "hair"],                 [("shop", "hairdresser"), ("shop", "beauty")]),
+        (["barber"],                        [("shop", "barber"), ("shop", "hairdresser")]),
+        (["nail"],                          [("shop", "nail_salon"), ("shop", "beauty"), ("beauty", "nails")]),
+        (["spa", "massage"],                [("leisure", "spa"), ("amenity", "massage"),
+                                             ("shop", "massage"), ("healthcare", "physiotherapist")]),
+        (["dentist", "dental"],             [("amenity", "dentist"), ("healthcare", "dentist")]),
+        (["physio"],                        [("amenity", "physiotherapist"), ("healthcare", "physiotherapist")]),
         (["optician", "optical"],           [("shop", "optician")]),
         (["mechanic", "auto repair", "car repair"], [("shop", "car_repair")]),
         (["tire", "tyre"],                  [("shop", "tyres")]),
-        (["bakery", "baker"],               [("shop", "bakery")]),
+        (["bakery", "baker"],               [("shop", "bakery"), ("shop", "pastry"), ("craft", "bakery")]),
         (["butcher"],                       [("shop", "butcher")]),
-        (["grocery", "grocer"],             [("shop", "supermarket"), ("shop", "convenience")]),
+        (["grocery", "grocer"],             [("shop", "supermarket"), ("shop", "convenience"), ("shop", "greengrocer")]),
         (["pharmacy", "drug"],              [("amenity", "pharmacy")]),
-        (["gym", "fitness"],                [("leisure", "fitness_centre")]),
-        (["yoga"],                          [("leisure", "yoga")]),
-        (["clean", "laundry"],              [("shop", "dry_cleaning"), ("shop", "laundry")]),
-        (["accountant", "accounting"],      [("office", "accountant")]),
-        (["lawyer", "legal"],               [("office", "lawyer")]),
+        (["gym", "fitness"],                [("leisure", "fitness_centre"), ("leisure", "sports_centre")]),
+        (["yoga"],                          [("leisure", "yoga"), ("sport", "yoga")]),
+        (["clean", "laundry"],              [("shop", "dry_cleaning"), ("shop", "laundry"),
+                                             ("craft", "cleaning"), ("office", "cleaning")]),
+        (["accountant", "accounting"],      [("office", "accountant"), ("office", "tax_advisor")]),
+        (["lawyer", "legal"],               [("office", "lawyer"), ("office", "notary")]),
         (["real estate", "realtor"],        [("office", "real_estate_agent")]),
         (["insurance"],                     [("office", "insurance")]),
         (["vet", "veterinar"],              [("amenity", "veterinary")]),
         (["pet", "dog groom"],              [("shop", "pet"), ("shop", "pet_grooming")]),
-        (["photographer"],                  [("craft", "photographer")]),
+        (["photographer"],                  [("craft", "photographer"), ("shop", "photo")]),
         (["tattoo"],                        [("shop", "tattoo")]),
+        (["contractor", "construction"],    [("craft", "builder"), ("craft", "carpenter"),
+                                             ("office", "construction_company"), ("trade", "builder")]),
+        (["handyman", "handy"],             [("craft", "handyman"), ("craft", "carpenter")]),
+        (["mov", "haul"],                   [("shop", "moving_company"), ("office", "moving_company")]),
     ]
     for keywords, tags in mapping:
         if any(k in bt for k in keywords):
@@ -529,10 +722,20 @@ def _enrich(businesses):
 
 
 def _score_business(business):
-    """Score 0-10 on web presence weakness. Higher = better lead."""
+    """Score 0-10 on web presence weakness. Higher = better lead.
+
+    A business with a genuinely strong existing site (accessible, SSL,
+    mobile-responsive, recent copyright, booking) should score very low and
+    sink to the bottom. No-website / broken / outdated businesses rise to the
+    top. Photo/review weakness only counts as a tie-breaker when the website
+    itself isn't already a clear weakness, so a strong-site business can't be
+    pushed up the ranking purely by missing photos/reviews.
+    """
     score = 0; flags = []
     health  = business.get("website_health")
     website = business.get("existing_website")
+
+    site_is_strong = False
     if not website:
         score += SCORE_NO_WEBSITE; flags.append("no_website")
     elif health:
@@ -543,10 +746,35 @@ def _score_business(business):
         if not health.get("ssl"):     score += SCORE_NO_SSL;      flags.append("no_ssl")
         if not health.get("mobile_responsive"): score += SCORE_NOT_MOBILE; flags.append("not_mobile_responsive")
         if not health.get("has_booking"): score += SCORE_NO_BOOKING; flags.append("no_booking_form")
-    if business.get("photos_count", 0) == 0:
-        score += SCORE_NO_PHOTOS; flags.append("no_photos")
-    if business.get("review_count", 0) < 10:
-        score += SCORE_FEW_REVIEWS; flags.append("few_reviews")
+
+        # A site is "strong" if it's accessible, secure, mobile-friendly, not
+        # broken/parked/outdated, and ideally has booking + a recent copyright.
+        recent = True
+        cy = health.get("last_copyright_year")
+        if cy is not None:
+            recent = (CURRENT_YEAR - cy) < 3
+        site_is_strong = (
+            health.get("accessible")
+            and health.get("ssl")
+            and health.get("mobile_responsive")
+            and not health.get("broken")
+            and not health.get("parked")
+            and not health.get("outdated")
+            and recent
+        )
+
+    # Photo/review weakness: only a meaningful signal when the website isn't
+    # already strong. For a strong-site business these stay off so it can't be
+    # lifted up the ranking by data we don't even reliably have for OSM leads.
+    if not site_is_strong:
+        if business.get("photos_count", 0) == 0:
+            score += SCORE_NO_PHOTOS; flags.append("no_photos")
+        if business.get("review_count", 0) < 10:
+            score += SCORE_FEW_REVIEWS; flags.append("few_reviews")
+
+    if site_is_strong:
+        flags.append("strong_existing_site")
+
     business["score"]          = min(score, 10)
     business["weakness_flags"] = flags
     business["notes"]          = " - ".join(f.replace("_", " ") for f in flags) or "Minimal issues"

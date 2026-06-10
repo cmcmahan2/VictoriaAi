@@ -328,7 +328,7 @@ def _audit_marketing(business: dict, profile: dict) -> dict:
         "estimated_hours_saved_per_week": round(hours, 1),
         "quick_win": rc < 50,
         "difficulty": "Low" if rc < 50 else "Medium",
-        "estimated_monthly_cost": "$299-$599/mo (ads budget extra)",
+        "estimated_monthly_cost": "$299-$599/mo",
     }
 
 
@@ -444,7 +444,7 @@ def _audit_revenue(business: dict, profile: dict) -> dict:
         "estimated_hours_saved_per_week": round(hours, 1),
         "quick_win": not has_pricing,
         "difficulty": "Low",
-        "estimated_monthly_cost": "Investment-dependent",
+        "estimated_monthly_cost": "Varies",
     }
 
 
@@ -628,6 +628,8 @@ if FPDF_AVAILABLE:
 
         def _cover(self):
             self.add_page()
+            # Disable auto page break — cover intentionally places content near the bottom
+            self.set_auto_page_break(False)
             w, h = self.w, self.h
 
             self._rect(0, 0, w, h * 0.55, self.NAVY)
@@ -649,16 +651,18 @@ if FPDF_AVAILABLE:
             self.set_xy(20, h * 0.22)
             self.multi_cell(w - 40, 12, name, align="C")
 
+            # Track Y manually so subtitle and city don't overlap
+            subtitle_y = self.get_y() + 5
             self._f("", 13)
             self._c(self.LBLUE)
-            self.set_xy(20, self.get_y() + 5)
+            self.set_xy(20, subtitle_y)
             self.cell(w - 40, 8, "AI Opportunity Audit Report", align="C")
 
             today = date.today().strftime("%B %Y")
             city = self.business.get("city", "British Columbia")
             self._f("", 9)
             self._c((140, 180, 210))
-            self.set_xy(20, self.get_y() + 3)
+            self.set_xy(20, subtitle_y + 11)
             self.cell(w - 40, 6, f"{city}  |  {today}", align="C")
 
             self._rect(0, h * 0.58, w, 36, self.LGREY)
@@ -699,6 +703,9 @@ if FPDF_AVAILABLE:
             self._f("", 8)
             self.set_xy(20, h - 12)
             self.cell(w - 40, 5, "victoriaai.ca  |  hello@victoriaai.ca", align="C")
+
+            # Re-enable auto page break for remaining pages
+            self.set_auto_page_break(auto=True, margin=20)
 
         def _exec_summary(self):
             self.add_page()
@@ -770,7 +777,9 @@ if FPDF_AVAILABLE:
                 vc = self.WHITE if is_qw else self.GREEN
                 lc = (220, 240, 220) if is_qw else self.MGREY
                 self._rect(x + 1, y, cw - 2, 20, bg)
-                self._f("B", 11)
+                # Use smaller font for longer values so they fit in the chip
+                vsize = 9 if len(val) > 10 else 11
+                self._f("B", vsize)
                 self._c(vc)
                 self.set_xy(x + 1, y + 2)
                 self.cell(cw - 2, 8, val, align="C")
@@ -863,6 +872,7 @@ if FPDF_AVAILABLE:
 
         def _next_steps(self):
             self.add_page()
+            self.set_auto_page_break(False)
             w, h = self.w, self.h
             self._rect(0, 0, w, h, self.NAVY)
             self._rect(0, 0, w, 8, self.GREEN)
