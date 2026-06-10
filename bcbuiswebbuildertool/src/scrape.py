@@ -459,72 +459,78 @@ def _fetch_google_places_details(business: dict, profile_dir: Path) -> dict:
 
 
 def _places_api_details(api_key: str, place_id: str, profile_dir: Path) -> dict:
-    fields = ",".join([
-        "name", "formatted_address", "formatted_phone_number",
-        "website", "rating", "user_ratings_total", "opening_hours",
-        "photos", "reviews", "editorial_summary", "types",
-        "business_status", "price_level", "url",
+    """Google Places API (New) place details — reviews, photos, hours, etc.
+
+    Returns the same dict shape the rest of the tool expects (author/rating/
+    text/time reviews, downloaded photo paths, weekday hours, ...).
+    """
+    field_mask = ",".join([
+        "displayName", "formattedAddress", "nationalPhoneNumber",
+        "internationalPhoneNumber", "websiteUri", "rating", "userRatingCount",
+        "regularOpeningHours.weekdayDescriptions", "photos", "reviews",
+        "editorialSummary", "types", "businessStatus", "priceLevel",
+        "googleMapsUri",
     ])
-    params = {
-        "place_id": place_id,
-        "fields":   fields,
-        "key":      api_key,
-        "language": "en",
-    }
+    headers = {"X-Goog-Api-Key": api_key, "X-Goog-FieldMask": field_mask}
+    # The new API's place id is the bare id; build the resource name.
+    name = place_id if str(place_id).startswith("places/") else f"places/{place_id}"
     try:
         resp = requests.get(
-            "https://maps.googleapis.com/maps/api/place/details/json",
-            params=params, timeout=10
+            f"https://places.googleapis.com/v1/{name}",
+            headers=headers, params={"languageCode": "en"}, timeout=15,
         )
-        data = resp.json()
-        if data.get("status") != "OK":
-            return {"error": "Places API: " + str(data.get("status"))}
+        if resp.status_code != 200:
+            try:
+                err = resp.json().get("error", {}).get("message", resp.text[:200])
+            except Exception:
+                err = resp.text[:200]
+            return {"error": f"Places API (New): HTTP {resp.status_code} - {err}"}
 
-        place = data.get("result", {})
+        place = resp.json()
 
         photos = []
-        for photo_ref in place.get("photos", [])[:MAX_PHOTOS]:
-            ref   = photo_ref.get("photo_reference")
-            width = photo_ref.get("width", 1600)
-            photo_url = (
-                "https://maps.googleapis.com/maps/api/place/photo"
-                "?maxwidth=" + str(min(width, 1600)) +
-                "&photoreference=" + str(ref) +
-                "&key=" + api_key
+        for ph in (place.get("photos") or [])[:MAX_PHOTOS]:
+            ref = ph.get("name")  # "places/{id}/photos/{photo_id}"
+            if not ref:
+                continue
+            media_url = (
+                f"https://places.googleapis.com/v1/{ref}/media"
+                f"?maxWidthPx=1600&key={api_key}"
             )
             dest = profile_dir / "assets" / ("gmb_photo_" + str(len(photos)+1) + ".jpg")
             try:
-                pr = requests.get(photo_url, timeout=15, stream=True)
+                pr = requests.get(media_url, timeout=15)
                 if pr.status_code == 200:
+                    dest.parent.mkdir(parents=True, exist_ok=True)
                     dest.write_bytes(pr.content)
                     photos.append(str(dest))
             except Exception:
                 pass
 
         reviews = []
-        for rv in place.get("reviews", [])[:MAX_REVIEWS]:
+        for rv in (place.get("reviews") or [])[:MAX_REVIEWS]:
             reviews.append({
-                "author": rv.get("author_name"),
+                "author": (rv.get("authorAttribution") or {}).get("displayName"),
                 "rating": rv.get("rating"),
-                "text":   rv.get("text", "")[:500],
-                "time":   rv.get("relative_time_description"),
+                "text":   ((rv.get("text") or {}).get("text") or "")[:500],
+                "time":   rv.get("relativePublishTimeDescription"),
             })
 
-        hours = place.get("opening_hours", {}).get("weekday_text", [])
+        hours = (place.get("regularOpeningHours") or {}).get("weekdayDescriptions", [])
 
         return {
-            "name":               place.get("name"),
-            "address":            place.get("formatted_address"),
-            "phone":              place.get("formatted_phone_number"),
-            "website":            place.get("website"),
+            "name":               (place.get("displayName") or {}).get("text"),
+            "address":            place.get("formattedAddress"),
+            "phone":              place.get("nationalPhoneNumber") or place.get("internationalPhoneNumber"),
+            "website":            place.get("websiteUri"),
             "rating":             place.get("rating"),
-            "review_count":       place.get("user_ratings_total"),
+            "review_count":       place.get("userRatingCount"),
             "opening_hours":      hours,
             "types":              place.get("types", []),
-            "price_level":        place.get("price_level"),
-            "editorial_summary":  place.get("editorial_summary", {}).get("overview"),
-            "business_status":    place.get("business_status"),
-            "google_maps_url":    place.get("url"),
+            "price_level":        place.get("priceLevel"),
+            "editorial_summary":  (place.get("editorialSummary") or {}).get("text"),
+            "business_status":    place.get("businessStatus"),
+            "google_maps_url":    place.get("googleMapsUri"),
             "photos_downloaded":  photos,
             "reviews":            reviews,
         }

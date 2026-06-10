@@ -142,56 +142,99 @@ def discover_businesses(
     return top
 
 
-def _discover_via_places_api(city, business_type, radius_km, max_results, api_key):
-    """Tier 1: Google Maps Text Search + Place Details."""
-    query      = f"{business_type} in {city}, BC, Canada"
-    search_url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
-    detail_url = "https://maps.googleapis.com/maps/api/place/details/json"
-    fields     = "name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,photos,opening_hours,business_status"
+# Broad categories used to power an "any business" search through Google
+# (one text search per category, merged & deduped). Kept short to limit cost.
+_ANY_GOOGLE_CATEGORIES = [
+    "contractor", "plumber", "electrician", "landscaper", "auto repair",
+    "hair salon", "restaurant", "cafe", "retail store", "dentist",
+]
 
-    place_ids = []
-    params = {"query": query, "key": api_key}
+_PLACES_FIELD_MASK = ",".join([
+    "places.id", "places.displayName", "places.formattedAddress",
+    "places.nationalPhoneNumber", "places.internationalPhoneNumber",
+    "places.websiteUri", "places.rating", "places.userRatingCount",
+    "places.businessStatus", "places.photos", "nextPageToken",
+])
 
-    while len(place_ids) < max_results:
-        resp = requests.get(search_url, params=params, timeout=10)
-        resp.raise_for_status()
+
+def _places_text_search(query, api_key, max_results, city, category):
+    """One Google Places (New) Text Search, paginated, returning business dicts."""
+    url = "https://places.googleapis.com/v1/places:searchText"
+    headers = {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": api_key,
+        "X-Goog-FieldMask": _PLACES_FIELD_MASK,
+    }
+    out: list[dict] = []
+    page_token = None
+    while len(out) < max_results:
+        body = {"textQuery": query, "pageSize": min(20, max_results - len(out))}
+        if page_token:
+            body["pageToken"] = page_token
+        resp = requests.post(url, headers=headers, json=body, timeout=15)
+        if resp.status_code != 200:
+            # Surface the real reason (e.g. API not enabled, bad key, quota)
+            try:
+                err = resp.json().get("error", {}).get("message", resp.text[:200])
+            except Exception:
+                err = resp.text[:200]
+            raise RuntimeError(f"Places API (New): HTTP {resp.status_code} - {err}")
         data = resp.json()
-        status = data.get("status")
-        if status not in ("OK", "ZERO_RESULTS"):
-            raise RuntimeError(f"Places API: {status} - {data.get('error_message', '')}")
-        for r in data.get("results", []):
-            place_ids.append(r["place_id"])
-            if len(place_ids) >= max_results:
-                break
-        token = data.get("next_page_token")
-        if not token or len(place_ids) >= max_results:
-            break
-        time.sleep(2)
-        params = {"pagetoken": token, "key": api_key}
-
-    print(f"[discovery] Fetching details for {len(place_ids)} places...")
-    businesses = []
-    for i, pid in enumerate(place_ids):
-        try:
-            r = requests.get(detail_url, params={"place_id": pid, "fields": fields, "key": api_key}, timeout=10).json().get("result", {})
-            businesses.append({
-                "name":             r.get("name", ""),
-                "address":          r.get("formatted_address", ""),
-                "phone":            r.get("formatted_phone_number", ""),
-                "existing_website": r.get("website"),
-                "rating":           r.get("rating"),
-                "review_count":     r.get("user_ratings_total", 0),
-                "photos_count":     len(r.get("photos", [])),
-                "category":         business_type,
+        for p in data.get("places", []):
+            phone = p.get("nationalPhoneNumber") or p.get("internationalPhoneNumber") or ""
+            out.append({
+                "name":             (p.get("displayName") or {}).get("text", ""),
+                "address":          p.get("formattedAddress", ""),
+                "phone":            phone,
+                "existing_website": p.get("websiteUri"),
+                "rating":           p.get("rating"),
+                "review_count":     p.get("userRatingCount", 0),
+                "photos_count":     len(p.get("photos", []) or []),
+                "category":         category,
                 "city":             city,
+                "place_id":         p.get("id", ""),
                 "source":           "google_places",
             })
-            if (i + 1) % 5 == 0:
-                print(f"[discovery] Place details: {i + 1}/{len(place_ids)}")
-            time.sleep(0.1)
-        except Exception as exc:
-            print(f"[discovery] Detail fetch failed for {pid}: {exc}")
+            if len(out) >= max_results:
+                break
+        page_token = data.get("nextPageToken")
+        if not page_token or len(out) >= max_results:
+            break
+        time.sleep(2)  # next-page token needs a moment to become valid
+    return out
 
+
+def _discover_via_places_api(city, business_type, radius_km, max_results, api_key):
+    """Tier 1: Google Places API (New) Text Search.
+
+    For a specific type, one text search. For an "any" search, runs several
+    broad category searches and merges them — so Google (reliable) powers the
+    all-categories search instead of the flaky free OSM servers.
+    """
+    if business_type.strip().lower() in ANY_BUSINESS_TERMS:
+        per_cat = max(6, max_results // 3)
+        merged, seen = [], set()
+        for cat in _ANY_GOOGLE_CATEGORIES:
+            if len(merged) >= max_results:
+                break
+            try:
+                rows = _places_text_search(f"{cat} in {city}, BC, Canada", api_key, per_cat, city, "business")
+            except RuntimeError:
+                raise  # let caller fall back to OSM if the API is unavailable
+            for b in rows:
+                key = (b["name"].lower(), b["address"].lower())
+                if key in seen or not b["name"]:
+                    continue
+                seen.add(key)
+                merged.append(b)
+                if len(merged) >= max_results:
+                    break
+        print(f"[discovery] Google Places (New): {len(merged)} businesses (any/all categories)")
+        return merged
+
+    businesses = _places_text_search(f"{business_type} in {city}, BC, Canada",
+                                     api_key, max_results, city, business_type)
+    print(f"[discovery] Google Places (New): {len(businesses)} businesses")
     return businesses
 
 
@@ -378,6 +421,37 @@ def _osm_element_to_business(el: dict, business_type: str, city: str):
     }
 
 
+ANY_BUSINESS_TERMS = {"", "any", "all", "any business", "anything", "everything", "*"}
+
+
+def _discover_any_osm(city: str, lat: float, lon: float, radius_m: int, max_results: int) -> list[dict]:
+    """Broad OSM search across ALL business categories (the 'any business'
+    search). Returns every named local business in range so the weakness
+    scoring can surface the ones with no / weak website — ideal for lead-gen.
+    """
+    amenities = ("restaurant|cafe|bar|pub|fast_food|veterinary|dentist|doctors|"
+                 "clinic|pharmacy|car_repair|car_wash|fuel|bank|fitness_centre")
+    parts = []
+    for typ in ("node", "way"):
+        for kv in ("shop", "craft", "office"):
+            parts.append(f'  {typ}["{kv}"]["name"](around:{radius_m},{lat},{lon});')
+        parts.append(f'  {typ}["amenity"~"^({amenities})$"]["name"](around:{radius_m},{lat},{lon});')
+    query = "[out:json][timeout:60];\n(\n" + "\n".join(parts) + "\n);\nout center tags;"
+
+    elements = _run_overpass(query)
+    businesses = []
+    for el in elements:
+        b = _osm_element_to_business(el, "business", city)
+        if b:
+            businesses.append(b)
+    print(f"[discovery] OSM 'any business' search: {len(businesses)} businesses found")
+    if not businesses:
+        raise RuntimeError(
+            f"No OSM businesses found near {city}, BC. Try a larger radius."
+        )
+    return _dedupe_businesses(businesses)
+
+
 def _discover_via_openstreetmap(city: str, business_type: str, radius_km: int, max_results: int) -> list[dict]:
     """
     Tier 2: Real businesses from OpenStreetMap via Overpass API + Nominatim geocoding.
@@ -385,10 +459,14 @@ def _discover_via_openstreetmap(city: str, business_type: str, radius_km: int, m
 
     Strategy: a structured tag search (precise) combined with a name-regex
     fallback (broad — catches businesses tagged inconsistently in OSM). Results
-    are merged and deduped.
+    are merged and deduped. A business_type of "any"/"all"/blank runs a broad
+    search across every category instead.
     """
     lat, lon = _geocode_city(city)
     radius_m = radius_km * 1000
+
+    if business_type.strip().lower() in ANY_BUSINESS_TERMS:
+        return _discover_any_osm(city, lat, lon, radius_m, max_results)
 
     # --- Structured tag search -------------------------------------------------
     tag_pairs = _osm_tags_for(business_type)
