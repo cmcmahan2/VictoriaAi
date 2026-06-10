@@ -62,6 +62,7 @@ THEMES: dict[str, dict] = {
             "--navy": "#1a3a5c", "--dark": "#0a1622", "--dark2": "#0f2236",
             "--light": "#f5f8fb", "--muted": "#64809e",
             "--text": "#16232f", "--border": "#e3eaf2",
+            "--on-accent": "#ffffff",
         },
         "hero_overlay": "linear-gradient(135deg, rgba(15,30,48,0.86) 0%, rgba(26,58,92,0.86) 100%)",
         "css": "",
@@ -78,6 +79,7 @@ THEMES: dict[str, dict] = {
             "--navy": "#1f3d2a", "--dark": "#11271a", "--dark2": "#16331f",
             "--light": "#f2f7ee", "--muted": "#5e7567",
             "--text": "#1b2a20", "--border": "#dde7d8",
+            "--on-accent": "#ffffff",
         },
         # Lighter overlay so the greenery photography shows through.
         "hero_overlay": "linear-gradient(180deg, rgba(17,39,26,0.38) 0%, rgba(17,39,26,0.72) 100%)",
@@ -111,6 +113,7 @@ THEMES: dict[str, dict] = {
             "--navy": "#3a2418", "--dark": "#1c120c", "--dark2": "#261810",
             "--light": "#faf5ef", "--muted": "#8a7565",
             "--text": "#2a1d14", "--border": "#ece2d6",
+            "--on-accent": "#ffffff",
         },
         "hero_overlay": "linear-gradient(180deg, rgba(28,18,12,0.42) 0%, rgba(28,18,12,0.74) 100%)",
         "css": (
@@ -121,14 +124,219 @@ THEMES: dict[str, dict] = {
             ".theme-warm .page-hero::after{background:radial-gradient(420px 260px at 80% 0%, rgba(217,118,60,0.22), transparent 65%);}"
         ),
     },
+    # Coastal: airy Pacific blue. For pools, marine, cleaning, spas.
+    "coastal": {
+        "name": "coastal",
+        "display_font": "'Poppins', system-ui, sans-serif",
+        "radius": "18px",
+        "palette": {
+            "--green": "#2596be", "--green2": "#1b7a9e",
+            "--navy": "#14425a", "--dark": "#0c2c3d", "--dark2": "#103a4f",
+            "--light": "#f3f8fa", "--muted": "#5d7d8a",
+            "--text": "#16323f", "--border": "#d9e8ee",
+            "--on-accent": "#ffffff",
+        },
+        "hero_overlay": "linear-gradient(180deg, rgba(12,44,61,0.55) 0%, rgba(12,44,61,0.82) 100%)",
+        "css": (
+            ".theme-coastal .hero::after{display:none}"
+            ".theme-coastal .hero::before{background:"
+            "radial-gradient(520px 380px at 15% 20%, rgba(37,150,190,0.30), transparent 70%),"
+            "radial-gradient(520px 380px at 85% 30%, rgba(27,122,158,0.22), transparent 70%);}"
+            ".theme-coastal .page-hero::after{background:radial-gradient(420px 260px at 80% 0%, rgba(37,150,190,0.22), transparent 65%);}"
+        ),
+    },
+    # Slate: industrial charcoal + amber. For mechanics, welding, construction.
+    "slate": {
+        "name": "slate",
+        "display_font": "'Barlow Condensed', system-ui, sans-serif",
+        "radius": "6px",
+        "palette": {
+            "--green": "#e8920c", "--green2": "#c8780a",
+            "--navy": "#2a2d31", "--dark": "#16181b", "--dark2": "#202327",
+            "--light": "#f4f4f5", "--muted": "#71757a",
+            "--text": "#1c1e21", "--border": "#dcdee0",
+            "--on-accent": "#1c1e21",
+        },
+        "hero_overlay": "linear-gradient(135deg, rgba(22,24,27,0.84) 0%, rgba(42,45,49,0.84) 100%)",
+        "css": (
+            ".theme-slate .hero::after{display:none}"
+            ".theme-slate .hero::before{background:"
+            "radial-gradient(520px 380px at 15% 20%, rgba(232,146,12,0.24), transparent 70%),"
+            "radial-gradient(520px 380px at 85% 30%, rgba(200,120,10,0.18), transparent 70%);}"
+            ".theme-slate .page-hero::after{background:radial-gradient(420px 260px at 80% 0%, rgba(232,146,12,0.20), transparent 65%);}"
+        ),
+    },
+    # Luxe: elegant black + gold. For salons, med spas, jewellery, luxury.
+    "luxe": {
+        "name": "luxe",
+        "display_font": "'Playfair Display', Georgia, serif",
+        "radius": "4px",
+        "palette": {
+            "--green": "#c9a44c", "--green2": "#a8863a",
+            "--navy": "#1a1a1a", "--dark": "#0a0a0a", "--dark2": "#141414",
+            "--light": "#f7f5f0", "--muted": "#8a8478",
+            "--text": "#1a1813", "--border": "#e6e1d6",
+            "--on-accent": "#1a1813",
+        },
+        "hero_overlay": "linear-gradient(180deg, rgba(10,10,10,0.55) 0%, rgba(10,10,10,0.86) 100%)",
+        "css": (
+            ".theme-luxe .hero::after{display:none}"
+            ".theme-luxe .hero::before{background:"
+            "radial-gradient(520px 380px at 15% 20%, rgba(201,164,76,0.28), transparent 70%),"
+            "radial-gradient(520px 380px at 85% 30%, rgba(168,134,58,0.20), transparent 70%);}"
+            ".theme-luxe .page-hero::after{background:radial-gradient(420px 260px at 80% 0%, rgba(201,164,76,0.22), transparent 65%);}"
+        ),
+    },
+    # Bloom: soft rose + cream. For florists, nail, beauty, boutiques.
+    "bloom": {
+        "name": "bloom",
+        "display_font": "'Cormorant Garamond', Georgia, serif",
+        "radius": "24px",
+        "palette": {
+            "--green": "#d96a8f", "--green2": "#c2517a",
+            "--navy": "#5e2740", "--dark": "#3d182a", "--dark2": "#4a1f33",
+            "--light": "#fdf4f7", "--muted": "#9c7585",
+            "--text": "#3a2230", "--border": "#f3dde5",
+            "--on-accent": "#ffffff",
+        },
+        "hero_overlay": "linear-gradient(180deg, rgba(61,24,42,0.48) 0%, rgba(61,24,42,0.80) 100%)",
+        "css": (
+            ".theme-bloom .hero::after{display:none}"
+            ".theme-bloom .hero::before{background:"
+            "radial-gradient(520px 380px at 15% 20%, rgba(217,106,143,0.28), transparent 70%),"
+            "radial-gradient(520px 380px at 85% 30%, rgba(194,81,122,0.20), transparent 70%);}"
+            ".theme-bloom .page-hero::after{background:radial-gradient(420px 260px at 80% 0%, rgba(217,106,143,0.22), transparent 65%);}"
+        ),
+    },
+    # Trust: corporate blue + white. For lawyers, accountants, dentists, clinics.
+    "trust": {
+        "name": "trust",
+        "display_font": "'Inter', system-ui, sans-serif",
+        "radius": "10px",
+        "palette": {
+            "--green": "#2563c4", "--green2": "#1d4fa3",
+            "--navy": "#16335e", "--dark": "#0d2244", "--dark2": "#11294f",
+            "--light": "#f4f7fb", "--muted": "#5e7390",
+            "--text": "#16243a", "--border": "#dce4ef",
+            "--on-accent": "#ffffff",
+        },
+        "hero_overlay": "linear-gradient(135deg, rgba(13,34,68,0.86) 0%, rgba(22,51,94,0.86) 100%)",
+        "css": (
+            ".theme-trust h1, .theme-trust h2, .theme-trust h3, .theme-trust .nav-logo{letter-spacing:-0.03em;}"
+            ".theme-trust .hero::after{display:none}"
+            ".theme-trust .hero::before{background:"
+            "radial-gradient(520px 380px at 15% 20%, rgba(37,99,196,0.28), transparent 70%),"
+            "radial-gradient(520px 380px at 85% 30%, rgba(29,79,163,0.20), transparent 70%);}"
+            ".theme-trust .page-hero::after{background:radial-gradient(420px 260px at 80% 0%, rgba(37,99,196,0.22), transparent 65%);}"
+        ),
+    },
+    # Bold: high-contrast black/white + electric yellow. For gyms, barbers.
+    "bold": {
+        "name": "bold",
+        "display_font": "'Anton', system-ui, sans-serif",
+        "radius": "0px",
+        "palette": {
+            "--green": "#ffd400", "--green2": "#e6c000",
+            "--navy": "#1a1a1a", "--dark": "#000000", "--dark2": "#111111",
+            "--light": "#f5f5f5", "--muted": "#6b6b6b",
+            "--text": "#111111", "--border": "#e0e0e0",
+            "--on-accent": "#111111",
+        },
+        "hero_overlay": "linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.85) 100%)",
+        "css": (
+            ".theme-bold h1, .theme-bold h2, .theme-bold h3{text-transform:uppercase;letter-spacing:0.01em;}"
+            ".theme-bold .hero::after{display:none}"
+            ".theme-bold .hero::before{background:"
+            "radial-gradient(520px 380px at 15% 20%, rgba(255,212,0,0.26), transparent 70%),"
+            "radial-gradient(520px 380px at 85% 30%, rgba(230,192,0,0.18), transparent 70%);}"
+            ".theme-bold .page-hero::after{background:radial-gradient(420px 260px at 80% 0%, rgba(255,212,0,0.20), transparent 65%);}"
+        ),
+    },
+    # Earth: natural olive/clay. For yoga, wellness, organic, artisan, craft.
+    "earth": {
+        "name": "earth",
+        "display_font": "'Spectral', Georgia, serif",
+        "radius": "14px",
+        "palette": {
+            "--green": "#97864e", "--green2": "#7c6e3d",
+            "--navy": "#3a3528", "--dark": "#211e16", "--dark2": "#2a261c",
+            "--light": "#f6f3ec", "--muted": "#837c6a",
+            "--text": "#2a2619", "--border": "#e5ded0",
+            "--on-accent": "#1a1813",
+        },
+        "hero_overlay": "linear-gradient(180deg, rgba(33,30,22,0.50) 0%, rgba(33,30,22,0.82) 100%)",
+        "css": (
+            ".theme-earth .hero::after{display:none}"
+            ".theme-earth .hero::before{background:"
+            "radial-gradient(520px 380px at 15% 20%, rgba(151,134,78,0.28), transparent 70%),"
+            "radial-gradient(520px 380px at 85% 30%, rgba(124,110,61,0.20), transparent 70%);}"
+            ".theme-earth .page-hero::after{background:radial-gradient(420px 260px at 80% 0%, rgba(151,134,78,0.22), transparent 65%);}"
+        ),
+    },
 }
 
 THEME_BY_CATEGORY: dict[str, str] = {
     "landscap": "fresh", "garden": "fresh", "nursery": "fresh",
-    "lawn": "fresh", "tree": "fresh", "florist": "fresh",
+    "lawn": "fresh", "tree": "fresh",
     "restaurant": "warm", "cafe": "warm", "coffee": "warm",
     "bakery": "warm", "bistro": "warm", "catering": "warm",
+    # Coastal — water / cleaning / spa
+    "pool": "coastal", "marine": "coastal", "boat": "coastal",
+    "cleaning": "coastal", "janitorial": "coastal", "window cleaning": "coastal",
+    "spa": "coastal",
+    # Slate — heavy trades / auto
+    "mechanic": "slate", "auto": "slate", "automotive": "slate",
+    "welding": "slate", "construction": "slate", "contractor": "slate",
+    "concrete": "slate", "excavat": "slate",
+    # Luxe — salons / aesthetics / luxury
+    "salon": "luxe", "med spa": "luxe", "medspa": "luxe", "aesthetic": "luxe",
+    "jewel": "luxe", "luxury": "luxe",
+    # Bloom — florists / beauty / boutiques
+    "florist": "bloom", "flower": "bloom", "nail": "bloom", "beauty": "bloom",
+    "boutique": "bloom", "esthetic": "bloom",
+    # Trust — professional services
+    "lawyer": "trust", "legal": "trust", "accountant": "trust", "accounting": "trust",
+    "dentist": "trust", "dental": "trust", "clinic": "trust", "medical": "trust",
+    "insurance": "trust", "financial": "trust", "notary": "trust",
+    # Bold — fitness / barbers
+    "gym": "bold", "fitness": "bold", "crossfit": "bold", "barber": "bold",
+    "boxing": "bold", "martial": "bold",
+    # Earth — wellness / organic / craft
+    "yoga": "earth", "wellness": "earth", "organic": "earth", "artisan": "earth",
+    "craft": "earth", "pottery": "earth", "holistic": "earth",
 }
+
+
+def _load_customize(site_dir: Path) -> dict:
+    """Load the per-client customization layer if present, else return {}."""
+    path = Path(site_dir) / "customize.json"
+    if path.exists():
+        try:
+            data = json.loads(path.read_text(encoding="utf-8", errors="replace"))
+            return data if isinstance(data, dict) else {}
+        except Exception as exc:
+            print(f"[build] customize.json unreadable ({exc}) - ignoring")
+    return {}
+
+
+def _normalize_review(r: dict, city: str = "BC") -> dict:
+    """Map a customize-layer review {name,rating,text,location} to the internal
+    review shape {author,rating,text,location,time} used by the renderers."""
+    if not isinstance(r, dict):
+        return {"author": "Google Reviewer", "rating": 5, "text": str(r),
+                "location": f"{city}, BC"}
+    try:
+        rating = int(r.get("rating") or 5)
+    except (TypeError, ValueError):
+        rating = 5
+    rating = max(1, min(5, rating))
+    return {
+        "author":   r.get("name") or r.get("author") or "Google Reviewer",
+        "rating":   rating,
+        "text":     r.get("text") or "Great service!",
+        "location": r.get("location") or f"{city}, BC",
+        "time":     r.get("time") or "",
+    }
 
 
 def _select_theme(business: dict) -> dict:
@@ -166,22 +374,34 @@ def build_website(profile_dir: str, output_dir: str = "./output") -> Path:
     stack = _select_stack(business)
     print(f"[build] Stack: {stack} for {business.get('name')}")
 
-    theme = _select_theme(business)
+    # Load optional per-client customization layer (output/{slug}/customize.json)
+    customize = _load_customize(site_dir)
+    if customize:
+        print(f"[build] Customizations found for {slug}")
+
+    # Theme: customize override takes precedence over category-based selection
+    theme = None
+    ctheme = customize.get("theme")
+    if ctheme and ctheme in THEMES:
+        theme = THEMES[ctheme]
+        print(f"[build] Theme overridden by customize: {theme['name']}")
+    if theme is None:
+        theme = _select_theme(business)
     business["_theme"] = theme
     print(f"[build] Theme: {theme['name']}")
 
     # Generate content via Claude (or fall back to templates)
     print("[build] Generating page content...")
-    content = _generate_content(business, profile)
+    content = _generate_content(business, profile, customize)
 
     print("[build] Building static site...")
     _write_css(site_dir, content, theme)
     _write_js(site_dir)
-    _write_index(business, profile, content, site_dir)
+    _write_index(business, profile, content, site_dir, customize)
     _write_services(business, content, site_dir)
     _write_about(business, content, site_dir)
     _write_contact(business, content, site_dir)
-    _write_reviews(business, profile, content, site_dir)
+    _write_reviews(business, profile, content, site_dir, customize)
     _write_sitemap(business, site_dir)
     _write_robots(site_dir)
     _copy_logo(profile_dir, site_dir)
@@ -207,11 +427,12 @@ def _select_stack(business: dict) -> StackType:
 
 # ── AI content generation ─────────────────────────────────────────────────────
 
-def _generate_content(business: dict, profile: dict) -> dict:
+def _generate_content(business: dict, profile: dict, customize: dict | None = None) -> dict:
     """
     Call Claude API to generate tailored copy for the site.
     Falls back to template content if no API key.
     """
+    customize = customize or {}
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key or api_key == "your_anthropic_api_key_here":
         print("[build] No ANTHROPIC_API_KEY - using template content")
@@ -237,6 +458,15 @@ def _generate_content(business: dict, profile: dict) -> dict:
             tc = w["text_content"]
             website_text = tc.get("full_text_preview", "")[:800]
 
+        # Owner-supplied facts and brand voice from the customize layer
+        facts = (customize.get("facts") or "").strip()
+        voice = (customize.get("voice") or "").strip()
+        extra = ""
+        if facts:
+            extra += f"\nOwner-provided facts (use these — they are authoritative):\n{facts[:1200]}\n"
+        if voice:
+            extra += f"\nBrand voice / tone to write in:\n{voice[:600]}\n"
+
         prompt = f"""You are writing website copy for a local BC business.
 
 Business: {name}
@@ -246,7 +476,7 @@ Phone: {phone or "TBD"}
 Address: {address or "TBD"}
 Rating: {rating} stars ({reviews} reviews)
 Existing site text snippet: {website_text or "None available"}
-
+{extra}
 Generate JSON with these exact keys:
 {{
   "headline": "Short punchy hero headline (max 8 words, no quotes)",
@@ -455,8 +685,8 @@ p  { margin-bottom: 1rem; }
   min-height: 52px;
 }
 .btn:hover { transform: translateY(-2px); }
-.btn-primary  { background: var(--green); color: #fff; box-shadow: 0 8px 22px rgba(31,181,116,0.35); }
-.btn-primary:hover { background: var(--green2); box-shadow: 0 12px 30px rgba(31,181,116,0.45); color:#fff; }
+.btn-primary  { background: var(--green); color: var(--on-accent); box-shadow: 0 8px 22px rgba(31,181,116,0.35); }
+.btn-primary:hover { background: var(--green2); box-shadow: 0 12px 30px rgba(31,181,116,0.45); color: var(--on-accent); }
 .btn-outline  { background: rgba(255,255,255,0.04); color: #fff; border: 1.5px solid rgba(255,255,255,0.3); backdrop-filter: blur(6px); }
 .btn-outline:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.6); color:#fff; }
 .btn-white    { background: #fff; color: var(--dark); box-shadow: var(--shadow); }
@@ -704,7 +934,7 @@ nav.scrolled { padding: 0.65rem 0; background: rgba(10,22,34,0.92); }
   bottom: -1.25rem;
   right: -1.25rem;
   background: var(--green);
-  color: #fff;
+  color: var(--on-accent);
   padding: 0.85rem 1.4rem;
   border-radius: var(--radius);
   font-weight: 700;
@@ -1053,7 +1283,9 @@ footer {
 
 def _theme_css(theme: dict) -> str:
     """Build the :root palette block for the selected theme."""
-    palette = "\n".join(f"  {k}: {v};" for k, v in theme["palette"].items())
+    pal = dict(theme["palette"])
+    pal.setdefault("--on-accent", "#ffffff")
+    palette = "\n".join(f"  {k}: {v};" for k, v in pal.items())
     return f""":root {{
 {palette}
   --white:   #ffffff;
@@ -1328,7 +1560,7 @@ def _head(title: str, description: str, business: dict) -> str:
   <meta property="og:type" content="website" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=Fraunces:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=Fraunces:wght@500;600;700&family=Poppins:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Playfair+Display:wght@500;600;700&family=Cormorant+Garamond:wght@500;600;700&family=Anton&family=Spectral:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
   <script type="application/ld+json">{json.dumps(schema)}</script>
   <!-- GA4: replace G-XXXXXXXXXX with your Measurement ID -->
@@ -1449,7 +1681,9 @@ def _img(keywords: str, w: int, h: int, seed: str = "") -> str:
 
 # ── Pages ─────────────────────────────────────────────────────────────────────
 
-def _write_index(business: dict, profile: dict, content: dict, site_dir: Path) -> None:
+def _write_index(business: dict, profile: dict, content: dict, site_dir: Path,
+                 customize: dict | None = None) -> None:
+    customize = customize or {}
     name     = business.get("name", "Our Business")
     city     = business.get("city", "BC")
     phone    = business.get("phone", "")
@@ -1469,7 +1703,8 @@ def _write_index(business: dict, profile: dict, content: dict, site_dir: Path) -
     cats     = business.get("categories") or [business.get("category", "")]
     category = cats[0] if cats else "service"
     keywords = _img_keywords(category)
-    hero_img = _img(keywords, 1600, 800, seed=name)
+    hero_img = customize.get("hero_image") or _img(keywords, 1600, 800, seed=name)
+    service_images = customize.get("service_images") or {}
     theme    = business.get("_theme") if isinstance(business.get("_theme"), dict) else THEMES["modern"]
     hero_overlay = theme.get("hero_overlay", THEMES["modern"]["hero_overlay"])
 
@@ -1533,18 +1768,21 @@ def _write_index(business: dict, profile: dict, content: dict, site_dir: Path) -
     </div>
   </section>"""
 
-    service_cards = "\n".join(
-        f"""<div class="service-card">
-  <img class="service-img" src="{_esc(_img(_service_img_keywords(s.get('name',''), keywords), 400, 260, seed=s.get('name','')))}" alt="{_esc(s.get('name','Service'))}" loading="lazy" />
+    def _service_card(s: dict) -> str:
+        sname = s.get("name", "")
+        img_src = service_images.get(sname) or _img(
+            _service_img_keywords(sname, keywords), 400, 260, seed=sname)
+        return f"""<div class="service-card">
+  <img class="service-img" src="{_esc(img_src)}" alt="{_esc(sname or 'Service')}" loading="lazy" />
   <div class="service-card-body">
     <div class="service-icon">{_esc(s.get("icon","🔧"))}</div>
-    <h3>{_esc(s.get("name","Service"))}</h3>
+    <h3>{_esc(sname or "Service")}</h3>
     <p>{_esc(s.get("description",""))}</p>
     <a href="services.html" class="service-learn-more">Learn more →</a>
   </div>
 </div>"""
-        for s in services
-    )
+
+    service_cards = "\n".join(_service_card(s) for s in services)
 
     faq_items = "\n".join(
         f"""<div class="faq-item">
@@ -1554,11 +1792,16 @@ def _write_index(business: dict, profile: dict, content: dict, site_dir: Path) -
         for f in faq
     )
 
-    # --- Testimonials: pull real reviews from profile, else generate placeholders ---
+    # --- Testimonials: customize reviews > profile reviews > placeholders ---
     real_reviews = []
-    gp = profile.get("google_places", {})
-    if isinstance(gp, dict) and gp.get("reviews"):
-        real_reviews = gp["reviews"][:3]
+    testimonials_comment = ""
+    cust_reviews = customize.get("reviews") or []
+    if cust_reviews:
+        real_reviews = [_normalize_review(r, city) for r in cust_reviews][:3]
+    else:
+        gp = profile.get("google_places", {})
+        if isinstance(gp, dict) and gp.get("reviews"):
+            real_reviews = gp["reviews"][:3]
 
     if not real_reviews:
         # Placeholder reviews — clearly marked in HTML comment
@@ -1938,18 +2181,24 @@ def _write_contact(business: dict, content: dict, site_dir: Path) -> None:
     (site_dir / "contact.html").write_text(html, encoding="utf-8")
 
 
-def _write_reviews(business: dict, profile: dict, content: dict, site_dir: Path) -> None:
+def _write_reviews(business: dict, profile: dict, content: dict, site_dir: Path,
+                   customize: dict | None = None) -> None:
+    customize = customize or {}
     name    = business.get("name", "Our Business")
     city    = business.get("city", "BC")
     rating  = business.get("rating", "")
     reviews = business.get("review_count", 0)
     meta    = f"Reviews for {name} in {city}, BC. See what our customers say."
 
-    # Pull real reviews from profile if available
+    # Customize reviews take precedence, then profile reviews, then placeholders
     real_reviews = []
-    gp = profile.get("google_places", {})
-    if isinstance(gp, dict) and gp.get("reviews"):
-        real_reviews = gp["reviews"][:6]
+    cust_reviews = customize.get("reviews") or []
+    if cust_reviews:
+        real_reviews = [_normalize_review(r, city) for r in cust_reviews][:6]
+    else:
+        gp = profile.get("google_places", {})
+        if isinstance(gp, dict) and gp.get("reviews"):
+            real_reviews = gp["reviews"][:6]
 
     # Fallback placeholder reviews
     if not real_reviews:

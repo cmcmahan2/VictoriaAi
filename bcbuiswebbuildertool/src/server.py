@@ -394,6 +394,156 @@ async def save_site_html(slug: str, request: Request):
     return {"ok": True}
 
 
+# ── Customization layer ─────────────────────────────────────────────────────
+
+def _customize_path(slug: str) -> Path:
+    return OUTPUT_DIR / slug / "customize.json"
+
+
+def _parse_reviews(raw: str) -> list:
+    """Parse pasted Google-reviews text into structured review objects.
+
+    Handles common copy formats: blocks separated by blank lines, star ratings
+    written as '5 stars' / '★★★★★' / 'Rated 5.0', a reviewer-name line often
+    followed by 'a month ago' / '2 reviews', and the longest line as the text.
+    Falls back to one review per blank-line block (rating 5, generic name).
+    """
+    import re as _re
+
+    if not raw or not raw.strip():
+        return []
+
+    text = raw.replace("\r\n", "\n").replace("\r", "\n")
+    # Split into blocks on blank lines
+    blocks = [b for b in _re.split(r"\n\s*\n", text) if b.strip()]
+
+    # If the paste is one big block with no blank-line separators, try to
+    # split on repeated star runs as block boundaries.
+    if len(blocks) == 1 and text.count("★") >= 2:
+        parts = _re.split(r"(?=★)", text)
+        merged, buf = [], ""
+        for p in parts:
+            buf += p
+            if buf.count("★") >= 1 and len(buf.strip()) > 40:
+                merged.append(buf); buf = ""
+        if buf.strip():
+            merged.append(buf)
+        if len(merged) > 1:
+            blocks = merged
+
+    star_word_re = _re.compile(r"\b([1-5])(?:\.0)?\s*stars?\b", _re.I)
+    rated_re     = _re.compile(r"\brated\s+([1-5])(?:\.0)?\b", _re.I)
+    meta_re      = _re.compile(
+        r"(a|\d+)\s+(day|days|week|weeks|month|months|year|years)\s+ago"
+        r"|\d+\s+reviews?|\d+\s+photos?|local guide|\blike\b|\bshare\b",
+        _re.I,
+    )
+    name_re = _re.compile(r"^[A-Z][\w.'-]+(?:\s+[A-Z][\w.'-]+){0,3}$")
+
+    reviews = []
+    for block in blocks:
+        lines = [ln.strip() for ln in block.split("\n") if ln.strip()]
+        if not lines:
+            continue
+
+        # --- rating ---
+        rating = None
+        joined = " ".join(lines)
+        stars = max((ln.count("★") for ln in lines), default=0)
+        if stars and stars <= 5:
+            rating = stars
+        if rating is None:
+            m = star_word_re.search(joined) or rated_re.search(joined)
+            if m:
+                rating = int(m.group(1))
+        if rating is None:
+            rating = 5
+
+        # --- name: first short line that looks like a person's name ---
+        name = None
+        for ln in lines:
+            clean = ln.strip()
+            if "★" in clean or star_word_re.search(clean) or rated_re.search(clean):
+                continue
+            if meta_re.search(clean):
+                continue
+            if len(clean.split()) <= 4 and name_re.match(clean):
+                name = clean
+                break
+        if not name:
+            name = "Google Reviewer"
+
+        # --- text: longest line that isn't the name / rating / meta ---
+        candidates = []
+        for ln in lines:
+            clean = ln.strip()
+            if clean == name:
+                continue
+            stripped = clean.replace("★", "").replace("☆", "").strip()
+            if not stripped:
+                continue
+            if star_word_re.fullmatch(stripped) or rated_re.fullmatch(stripped):
+                continue
+            if meta_re.search(stripped) and len(stripped.split()) <= 4:
+                continue
+            candidates.append(stripped)
+        text_val = max(candidates, key=len) if candidates else block.strip()
+
+        reviews.append({
+            "name": name,
+            "rating": rating,
+            "text": text_val,
+            "location": "",
+        })
+
+    return reviews
+
+
+@app.get("/api/customize/{slug}")
+async def get_customize(slug: str, request: Request):
+    require_auth(request)
+    path = _customize_path(slug)
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8", errors="replace"))
+    except Exception:
+        return {}
+
+
+@app.put("/api/customize/{slug}")
+async def save_customize(slug: str, request: Request):
+    require_auth(request)
+    body = await request.json()
+    site_dir = OUTPUT_DIR / slug
+    site_dir.mkdir(parents=True, exist_ok=True)
+    _customize_path(slug).write_text(
+        json.dumps(body, indent=2, ensure_ascii=False), encoding="utf-8")
+    return {"ok": True, "slug": slug}
+
+
+@app.post("/api/customize/{slug}/parse-reviews")
+async def parse_reviews_endpoint(slug: str, request: Request):
+    require_auth(request)
+    body = await request.json()
+    raw = body.get("raw", "") if isinstance(body, dict) else ""
+    return {"reviews": _parse_reviews(raw)}
+
+
+@app.post("/api/customize/{slug}/rebuild")
+async def rebuild_customize(slug: str, request: Request):
+    require_auth(request)
+    profile_dir = RESEARCH_DIR / slug
+    if not (profile_dir / "profile.json").exists():
+        raise HTTPException(
+            status_code=400,
+            detail=f"No research profile found for '{slug}'. Run Phase 2 first.")
+    from build import build_website
+    site_dir = build_website(str(profile_dir), str(OUTPUT_DIR))
+    return {"ok": True, "site_dir": str(site_dir),
+            "preview_url": f"/preview/{slug}/index.html"}
+
+
 # ── Public client portal (no auth — shareable with prospects) ────────────────
 
 def _portal_business_name(slug: str) -> str:

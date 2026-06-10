@@ -121,6 +121,33 @@
     .editor-toolbar .close-btn { color:#ff8080; }
     .editor-body { flex:1; display:flex; padding:1rem; overflow:hidden; }
     .editor-body textarea { flex:1; background:#060f18; color:#c8e0f0; border:1px solid var(--border); border-radius:8px; padding:1rem; font-family:'JetBrains Mono',monospace; font-size:0.8rem; line-height:1.6; resize:none; outline:none; }
+    /* ── Customize tab ─────────────────────────────────────────────── */
+    .cz-section { margin-bottom: 1.75rem; max-width: 760px; }
+    .cz-section > h3 { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.75rem; }
+    .cz-section textarea, .cz-section input[type=text], .cz-section input[type=url] { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border2); border-radius: 6px; padding: 0.55rem 0.7rem; color: var(--white); font-family: inherit; font-size: 0.85rem; outline: none; }
+    .cz-section textarea:focus, .cz-section input:focus { border-color: var(--green); }
+    .cz-section textarea { resize: vertical; min-height: 90px; line-height: 1.5; }
+    .theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.6rem; }
+    .theme-swatch { background: var(--dark3); border: 1.5px solid var(--border2); border-radius: 8px; padding: 0.7rem; cursor: pointer; transition: all 0.15s; }
+    .theme-swatch:hover { border-color: rgba(255,255,255,0.25); }
+    .theme-swatch.active { border-color: var(--green); box-shadow: 0 0 0 2px var(--green-xl); }
+    .theme-swatch .tw-name { font-size: 0.82rem; font-weight: 600; color: var(--white); margin-bottom: 0.5rem; text-transform: capitalize; }
+    .theme-swatch .tw-chips { display: flex; gap: 0.3rem; }
+    .theme-swatch .tw-chip { width: 22px; height: 22px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.12); }
+    .cz-review-card { background: var(--dark3); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; margin-bottom: 0.6rem; }
+    .cz-review-card .cz-rev-row { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
+    .cz-review-card input, .cz-review-card select, .cz-review-card textarea { background: rgba(255,255,255,0.05); border: 1px solid var(--border2); border-radius: 5px; padding: 0.4rem 0.55rem; color: var(--white); font-family: inherit; font-size: 0.82rem; outline: none; }
+    .cz-review-card .cz-rev-name { flex: 1; }
+    .cz-review-card .cz-rev-text { width: 100%; resize: vertical; min-height: 54px; line-height: 1.45; }
+    .cz-review-card .cz-rev-del { background: rgba(248,113,113,0.12); color: #f87171; border: none; border-radius: 5px; padding: 0.35rem 0.6rem; font-size: 0.75rem; cursor: pointer; font-family: inherit; }
+    .cz-svc-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .cz-svc-row input { flex: 1; }
+    .cz-svc-row .cz-svc-del { background: rgba(248,113,113,0.12); color: #f87171; border: none; border-radius: 5px; padding: 0 0.7rem; cursor: pointer; font-family: inherit; }
+    .cz-btn { background: var(--green-xl); color: var(--green); border: 1px solid rgba(34,162,98,0.25); border-radius: 6px; padding: 0.45rem 0.9rem; font-family: inherit; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+    .cz-btn:hover { background: rgba(34,162,98,0.2); }
+    .cz-btn-primary { background: var(--green); color: #fff; border: none; padding: 0.6rem 1.4rem; font-weight: 700; }
+    .cz-btn-primary:hover { background: #28bb72; }
+    .cz-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; margin-top: 0.5rem; }
   </style>
 </head>
 <body>
@@ -129,6 +156,7 @@
   <div class="nav-tabs">
     <button class="tab-btn active" onclick="switchTab('discover')">Discover</button>
     <button class="tab-btn" onclick="switchTab('pipeline')">Pipeline</button>
+    <button class="tab-btn" onclick="switchTab('customize')">Customize</button>
     <button class="tab-btn" onclick="switchTab('clients')">Clients</button>
     <button class="tab-btn" onclick="switchTab('jobs')">Jobs</button>
   </div>
@@ -198,6 +226,50 @@
       </div>
       <div class="results-bar" id="results-bar" style="display:none;"></div>
     </div>
+    <div class="tab-panel" id="tab-customize">
+      <div class="panel-title">Customize Site</div>
+      <p class="panel-sub">Pick a theme, paste real Google reviews, add real images, and give the AI facts &amp; brand voice. Save then rebuild to apply.</p>
+      <div class="cz-section" style="max-width:420px;">
+        <h3>Client</h3>
+        <select id="cz-client" onchange="onCzClientChange()" style="width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border2);border-radius:6px;padding:0.55rem 0.7rem;color:var(--white);font-family:inherit;font-size:0.85rem;outline:none;">
+          <option value="">Select a client…</option>
+        </select>
+      </div>
+      <div id="cz-form" style="display:none;">
+        <div class="cz-section">
+          <h3>Theme</h3>
+          <div class="theme-grid" id="cz-theme-grid"></div>
+        </div>
+        <div class="cz-section">
+          <h3>Reviews</h3>
+          <textarea id="cz-reviews-raw" placeholder="Paste Google reviews here…"></textarea>
+          <div class="cz-actions"><button class="cz-btn" onclick="parseReviews()">Parse Reviews</button></div>
+          <div id="cz-reviews-list" style="margin-top:0.85rem;"></div>
+        </div>
+        <div class="cz-section">
+          <h3>Images</h3>
+          <div class="field" style="margin-bottom:0.75rem;"><label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:0.3rem;">Hero image URL</label><input type="url" id="cz-hero-image" placeholder="https://…" /></div>
+          <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:0.4rem;">Service images (name → URL)</label>
+          <div id="cz-svc-images"></div>
+          <div class="cz-actions"><button class="cz-btn" onclick="addServiceImageRow()">+ Add service image</button></div>
+        </div>
+        <div class="cz-section">
+          <h3>Business Facts</h3>
+          <textarea id="cz-facts" placeholder="Free text: years in business, certifications, service area, specialties, awards…"></textarea>
+        </div>
+        <div class="cz-section">
+          <h3>Brand Voice</h3>
+          <textarea id="cz-voice" placeholder="Free text: tone &amp; style, e.g. 'friendly and down-to-earth, no jargon'…"></textarea>
+        </div>
+        <div class="cz-section">
+          <div class="cz-actions">
+            <button class="cz-btn cz-btn-primary" onclick="saveCustomize()">Save Customizations</button>
+            <button class="cz-btn cz-btn-primary" onclick="saveAndRebuild()">Save &amp; Rebuild Site</button>
+            <span id="cz-status" style="font-size:0.8rem;color:var(--muted);"></span>
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="tab-panel" id="tab-clients">
       <div class="panel-title">Clients</div>
       <p class="panel-sub" style="margin-bottom:1rem;">All businesses you&rsquo;ve built sites for. Persists across server restarts.</p>
@@ -231,6 +303,7 @@
     document.querySelectorAll('.tab-btn').forEach(b => { if (b.textContent.toLowerCase().includes(id)) b.classList.add('active'); });
     if (id==='jobs') renderJobsList();
     if (id==='clients') loadClients();
+    if (id==='customize') loadCustomizeClients();
   }
 
   function toast(msg, type='success') {
@@ -468,6 +541,184 @@
       if (!jobs.length) { el.innerHTML='<div class="empty-state"><p>No jobs this session.</p></div>'; return; }
       el.innerHTML=jobs.map(j=>`<div class="job-row"><span class="job-status-badge badge-${j.status}">${j.status}</span><span style="flex:1;font-size:0.85rem">${esc(j.description||j.id)}</span><span style="font-size:0.75rem;color:var(--muted)">${j.created_at?new Date(j.created_at).toLocaleTimeString():''}</span></div>`).join('');
     } catch{}
+  }
+
+  // ── Customize tab ──────────────────────────────────────────────────────────
+  const CZ_THEMES = {
+    auto:    { name:'Auto (recommended)', accent:'#22a262', dark:'#0d1b2a', light:'#f5f8fb' },
+    modern:  { name:'modern',  accent:'#1fb574', dark:'#0a1622', light:'#f5f8fb' },
+    fresh:   { name:'fresh',   accent:'#3a9d5d', dark:'#11271a', light:'#f2f7ee' },
+    warm:    { name:'warm',    accent:'#d9763c', dark:'#1c120c', light:'#faf5ef' },
+    coastal: { name:'coastal', accent:'#2596be', dark:'#0c2c3d', light:'#f3f8fa' },
+    slate:   { name:'slate',   accent:'#e8920c', dark:'#16181b', light:'#f4f4f5' },
+    luxe:    { name:'luxe',    accent:'#c9a44c', dark:'#0a0a0a', light:'#f7f5f0' },
+    bloom:   { name:'bloom',   accent:'#d96a8f', dark:'#3d182a', light:'#fdf4f7' },
+    trust:   { name:'trust',   accent:'#2563c4', dark:'#0d2244', light:'#f4f7fb' },
+    bold:    { name:'bold',    accent:'#ffd400', dark:'#000000', light:'#f5f5f5' },
+    earth:   { name:'earth',   accent:'#97864e', dark:'#211e16', light:'#f6f3ec' },
+  };
+  let czSlug='';
+  let czSelectedTheme=null; // null = auto
+
+  function renderThemeGrid() {
+    const grid=document.getElementById('cz-theme-grid');
+    grid.innerHTML=Object.entries(CZ_THEMES).map(([key,t])=>{
+      const tval=(key==='auto')?'':key;
+      const active=(czSelectedTheme||'')===tval ? 'active' : '';
+      return `<div class="theme-swatch ${active}" data-theme="${tval}" onclick="selectTheme('${tval}')">
+        <div class="tw-name">${esc(t.name)}</div>
+        <div class="tw-chips">
+          <span class="tw-chip" style="background:${t.accent}"></span>
+          <span class="tw-chip" style="background:${t.dark}"></span>
+          <span class="tw-chip" style="background:${t.light}"></span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  function selectTheme(tval){
+    czSelectedTheme = tval || null;
+    document.querySelectorAll('#cz-theme-grid .theme-swatch').forEach(s=>{
+      s.classList.toggle('active',(s.getAttribute('data-theme')||'')===(czSelectedTheme||''));
+    });
+  }
+
+  async function loadCustomizeClients() {
+    const sel=document.getElementById('cz-client');
+    let clients=[];
+    try { const res=await api('/api/clients'); clients=(await res.json()).clients||[]; } catch{}
+    const prev=sel.value;
+    sel.innerHTML='<option value="">Select a client…</option>'+
+      clients.map(c=>`<option value="${esc(c.slug)}">${esc(c.name||c.slug)}</option>`).join('');
+    if (prev && clients.some(c=>c.slug===prev)) sel.value=prev;
+  }
+
+  async function onCzClientChange() {
+    czSlug=document.getElementById('cz-client').value;
+    const form=document.getElementById('cz-form');
+    if (!czSlug) { form.style.display='none'; return; }
+    form.style.display='block';
+    document.getElementById('cz-status').textContent='Loading…';
+    // reset
+    czSelectedTheme=null;
+    document.getElementById('cz-reviews-raw').value='';
+    document.getElementById('cz-reviews-list').innerHTML='';
+    document.getElementById('cz-hero-image').value='';
+    document.getElementById('cz-svc-images').innerHTML='';
+    document.getElementById('cz-facts').value='';
+    document.getElementById('cz-voice').value='';
+    try {
+      const res=await api('/api/customize/'+czSlug);
+      const d=res.ok ? await res.json() : {};
+      czSelectedTheme=d.theme||null;
+      (d.reviews||[]).forEach(addReviewCard);
+      document.getElementById('cz-hero-image').value=d.hero_image||'';
+      Object.entries(d.service_images||{}).forEach(([n,u])=>addServiceImageRow(n,u));
+      document.getElementById('cz-facts').value=d.facts||'';
+      document.getElementById('cz-voice').value=d.voice||'';
+    } catch{}
+    renderThemeGrid();
+    document.getElementById('cz-status').textContent='';
+  }
+
+  function addReviewCard(r){
+    r=r||{};
+    const list=document.getElementById('cz-reviews-list');
+    const div=document.createElement('div');
+    div.className='cz-review-card';
+    const rating=parseInt(r.rating)||5;
+    div.innerHTML=`
+      <div class="cz-rev-row">
+        <input class="cz-rev-name" type="text" placeholder="Reviewer name" value="${esc(r.name||r.author||'')}" />
+        <select class="cz-rev-rating">${[1,2,3,4,5].map(n=>`<option value="${n}" ${n===rating?'selected':''}>${n}★</option>`).join('')}</select>
+        <input class="cz-rev-loc" type="text" placeholder="Location" style="width:120px" value="${esc(r.location||'')}" />
+        <button class="cz-rev-del" onclick="this.closest('.cz-review-card').remove()">Remove</button>
+      </div>
+      <textarea class="cz-rev-text" placeholder="Review text">${esc(r.text||'')}</textarea>`;
+    list.appendChild(div);
+  }
+
+  async function parseReviews(){
+    const raw=document.getElementById('cz-reviews-raw').value;
+    if (!raw.trim()) { toast('Paste some reviews first','error'); return; }
+    if (!czSlug) { toast('Select a client first','error'); return; }
+    try {
+      const res=await api('/api/customize/'+czSlug+'/parse-reviews',{method:'POST',body:{raw}});
+      const {reviews}=await res.json();
+      if (!reviews||!reviews.length) { toast('Could not parse any reviews','error'); return; }
+      reviews.forEach(addReviewCard);
+      document.getElementById('cz-reviews-raw').value='';
+      toast(`Parsed ${reviews.length} review(s)`);
+    } catch(e){ toast('Parse failed: '+e.message,'error'); }
+  }
+
+  function collectReviews(){
+    return Array.from(document.querySelectorAll('#cz-reviews-list .cz-review-card')).map(c=>({
+      name: c.querySelector('.cz-rev-name').value.trim()||'Google Reviewer',
+      rating: parseInt(c.querySelector('.cz-rev-rating').value)||5,
+      text: c.querySelector('.cz-rev-text').value.trim(),
+      location: c.querySelector('.cz-rev-loc').value.trim(),
+    })).filter(r=>r.text);
+  }
+
+  function addServiceImageRow(name,url){
+    const wrap=document.getElementById('cz-svc-images');
+    const div=document.createElement('div');
+    div.className='cz-svc-row';
+    div.innerHTML=`
+      <input class="cz-svc-name" type="text" placeholder="Service name" value="${esc(name||'')}" />
+      <input class="cz-svc-url" type="url" placeholder="Image URL" value="${esc(url||'')}" />
+      <button class="cz-svc-del" onclick="this.closest('.cz-svc-row').remove()">&#10005;</button>`;
+    wrap.appendChild(div);
+  }
+
+  function collectServiceImages(){
+    const out={};
+    document.querySelectorAll('#cz-svc-images .cz-svc-row').forEach(r=>{
+      const n=r.querySelector('.cz-svc-name').value.trim();
+      const u=r.querySelector('.cz-svc-url').value.trim();
+      if (n && u) out[n]=u;
+    });
+    return out;
+  }
+
+  function buildCustomizePayload(){
+    return {
+      theme: czSelectedTheme||null,
+      reviews: collectReviews(),
+      hero_image: document.getElementById('cz-hero-image').value.trim()||null,
+      service_images: collectServiceImages(),
+      facts: document.getElementById('cz-facts').value.trim(),
+      voice: document.getElementById('cz-voice').value.trim(),
+    };
+  }
+
+  async function saveCustomize(){
+    if (!czSlug) { toast('Select a client first','error'); return; }
+    document.getElementById('cz-status').textContent='Saving…';
+    try {
+      const res=await api('/api/customize/'+czSlug,{method:'PUT',body:buildCustomizePayload()});
+      if (res.ok) { document.getElementById('cz-status').textContent='Saved.'; toast('Customizations saved'); }
+      else { document.getElementById('cz-status').textContent='Save failed.'; toast('Save failed','error'); }
+    } catch(e){ document.getElementById('cz-status').textContent='Error.'; toast('Error: '+e.message,'error'); }
+  }
+
+  async function saveAndRebuild(){
+    if (!czSlug) { toast('Select a client first','error'); return; }
+    const status=document.getElementById('cz-status');
+    status.textContent='Saving…';
+    try {
+      const put=await api('/api/customize/'+czSlug,{method:'PUT',body:buildCustomizePayload()});
+      if (!put.ok) { status.textContent='Save failed.'; toast('Save failed','error'); return; }
+      status.textContent='Rebuilding site…';
+      const res=await api('/api/customize/'+czSlug+'/rebuild',{method:'POST',body:{}});
+      if (!res.ok) {
+        let msg='Rebuild failed';
+        try { msg=(await res.json()).detail||msg; } catch{}
+        status.textContent=msg; toast(msg,'error'); return;
+      }
+      status.innerHTML=`Rebuilt! <a href="/preview/${esc(czSlug)}/index.html" target="_blank" style="color:var(--green)">Open preview</a>`;
+      toast('Site rebuilt with customizations');
+    } catch(e){ status.textContent='Error.'; toast('Error: '+e.message,'error'); }
   }
 
   function setStatus(msg,active=false) {
