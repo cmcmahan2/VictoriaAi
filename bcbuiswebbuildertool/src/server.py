@@ -333,6 +333,75 @@ async def list_clients(request: Request):
     require_auth(request)
     return {"clients": _load_clients()}
 
+def _load_customize(slug: str) -> dict:
+    """Load output/{slug}/customize.json defensively; {} on any problem."""
+    path = OUTPUT_DIR / slug / "customize.json"
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8", errors="replace"))
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _project_checklist(client: dict) -> dict:
+    """Compute the 8-item client-readiness checklist for one client.
+
+    Inspects the filesystem + customize.json. Any missing file or unreadable
+    JSON => that check is False; never raises.
+    """
+    slug = client.get("slug", "")
+    site_dir = OUTPUT_DIR / slug
+    cz = _load_customize(slug)
+
+    def _truthy(v):
+        return bool(v)
+
+    try:
+        built = (site_dir / "index.html").exists()
+    except Exception:
+        built = False
+    try:
+        pdf = (site_dir / "ai_opportunity_report.pdf").exists()
+    except Exception:
+        pdf = False
+
+    reviews = cz.get("reviews")
+    real_reviews = isinstance(reviews, list) and len(reviews) >= 1
+    service_images = cz.get("service_images")
+    real_photos = _truthy(cz.get("hero_image")) or _truthy(service_images)
+
+    return {
+        "built":        bool(built),
+        "deployed":     _truthy(client.get("live_url")),
+        "pdf":          bool(pdf),
+        "custom_theme": cz.get("theme") is not None,
+        "real_reviews": bool(real_reviews),
+        "real_photos":  bool(real_photos),
+        "details":      _truthy(cz.get("facts")) or _truthy(cz.get("voice")),
+        "share_link":   _truthy(client.get("portal_url")),
+    }
+
+
+@app.get("/api/projects")
+async def list_projects(request: Request):
+    require_auth(request)
+    clients = _load_clients()
+    projects = []
+    for client in clients:
+        checklist = _project_checklist(client)
+        trues = sum(1 for v in checklist.values() if v)
+        ready_pct = round(100 * trues / 8)
+        proj = dict(client)
+        proj["checklist"] = checklist
+        proj["ready_pct"] = ready_pct
+        proj["is_ready"]  = ready_pct == 100
+        projects.append(proj)
+    projects.sort(key=lambda p: p.get("created_at") or "", reverse=True)
+    return {"projects": projects}
+
+
 class ClientPatch(BaseModel):
     status: str | None = None
     notes: str | None = None

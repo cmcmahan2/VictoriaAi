@@ -148,6 +148,35 @@
     .cz-btn-primary { background: var(--green); color: #fff; border: none; padding: 0.6rem 1.4rem; font-weight: 700; }
     .cz-btn-primary:hover { background: #28bb72; }
     .cz-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; margin-top: 0.5rem; }
+    /* ── Projects tab ──────────────────────────────────────────────── */
+    .proj-filters { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+    .proj-filter { background: rgba(255,255,255,0.05); border: 1px solid var(--border2); color: var(--muted); font-family: inherit; font-size: 0.8rem; font-weight: 600; padding: 0.4rem 0.9rem; border-radius: 6px; cursor: pointer; transition: all 0.15s; }
+    .proj-filter:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+    .proj-filter.active { background: var(--green-xl); color: var(--green); border-color: rgba(34,162,98,0.3); }
+    .proj-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1rem; }
+    .project-card { background: var(--dark3); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem 1.2rem; display: flex; flex-direction: column; gap: 0.85rem; }
+    .project-card.ready { border-color: rgba(34,162,98,0.35); }
+    .pc-head { display: flex; align-items: center; gap: 0.6rem; }
+    .pc-name { font-size: 0.95rem; font-weight: 700; color: var(--white); flex: 1; }
+    .pc-badge { font-size: 0.65rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em; flex-shrink: 0; }
+    .pc-badge.live { background: var(--green-xl); color: var(--green); }
+    .pc-badge.progress { background: rgba(251,191,36,0.15); color: #fbbf24; }
+    .readiness-bar { display: flex; align-items: center; gap: 0.6rem; }
+    .readiness-bar .rb-track { flex: 1; height: 8px; background: rgba(255,255,255,0.07); border-radius: 5px; overflow: hidden; }
+    .readiness-bar .rb-fill { height: 100%; border-radius: 5px; transition: width 0.3s; }
+    .readiness-bar .rb-pct { font-size: 0.78rem; font-weight: 700; flex-shrink: 0; min-width: 64px; text-align: right; }
+    .rb-red { background: #f87171; } .rb-red-t { color: #f87171; }
+    .rb-amber { background: #fbbf24; } .rb-amber-t { color: #fbbf24; }
+    .rb-green { background: var(--green); } .rb-green-t { color: var(--green); }
+    .check-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem 0.75rem; }
+    .check-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; }
+    .check-item .ck { width: 16px; text-align: center; font-weight: 700; flex-shrink: 0; }
+    .check-item.on { color: var(--text); } .check-item.on .ck { color: var(--green); }
+    .check-item.off { color: var(--muted); } .check-item.off .ck { color: var(--muted); }
+    .pc-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .pc-actions a, .pc-actions button { color: var(--green); text-decoration: none; font-weight: 600; background: rgba(34,162,98,0.1); border: 1px solid rgba(34,162,98,0.2); border-radius: 6px; padding: 0.3rem 0.65rem; font-family: inherit; font-size: 0.75rem; cursor: pointer; }
+    .pc-actions a:hover, .pc-actions button:hover { background: rgba(34,162,98,0.2); }
+    .pc-ready-banner { background: var(--green-xl); color: var(--green); border: 1px solid rgba(34,162,98,0.3); border-radius: 6px; padding: 0.4rem 0.65rem; font-size: 0.78rem; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -157,6 +186,7 @@
     <button class="tab-btn active" onclick="switchTab('discover')">Discover</button>
     <button class="tab-btn" onclick="switchTab('pipeline')">Pipeline</button>
     <button class="tab-btn" onclick="switchTab('customize')">Customize</button>
+    <button class="tab-btn" onclick="switchTab('projects')">Projects</button>
     <button class="tab-btn" onclick="switchTab('clients')">Clients</button>
     <button class="tab-btn" onclick="switchTab('jobs')">Jobs</button>
   </div>
@@ -270,6 +300,16 @@
         </div>
       </div>
     </div>
+    <div class="tab-panel" id="tab-projects">
+      <div class="panel-title">Projects</div>
+      <p class="panel-sub">Track every build&rsquo;s readiness before you send it to a client.</p>
+      <div class="proj-filters">
+        <button class="proj-filter" id="pf-running" onclick="setProjectFilter('running')">Running</button>
+        <button class="proj-filter" id="pf-finished" onclick="setProjectFilter('finished')">Finished</button>
+        <button class="proj-filter active" id="pf-all" onclick="setProjectFilter('all')">All</button>
+      </div>
+      <div id="projects-list"><div class="empty-state"><p>No projects yet. Run a pipeline to create your first build.</p></div></div>
+    </div>
     <div class="tab-panel" id="tab-clients">
       <div class="panel-title">Clients</div>
       <p class="panel-sub" style="margin-bottom:1rem;">All businesses you&rsquo;ve built sites for. Persists across server restarts.</p>
@@ -304,6 +344,7 @@
     if (id==='jobs') renderJobsList();
     if (id==='clients') loadClients();
     if (id==='customize') loadCustomizeClients();
+    if (id==='projects') loadProjects();
   }
 
   function toast(msg, type='success') {
@@ -541,6 +582,92 @@
       if (!jobs.length) { el.innerHTML='<div class="empty-state"><p>No jobs this session.</p></div>'; return; }
       el.innerHTML=jobs.map(j=>`<div class="job-row"><span class="job-status-badge badge-${j.status}">${j.status}</span><span style="flex:1;font-size:0.85rem">${esc(j.description||j.id)}</span><span style="font-size:0.75rem;color:var(--muted)">${j.created_at?new Date(j.created_at).toLocaleTimeString():''}</span></div>`).join('');
     } catch{}
+  }
+
+  // ── Projects tab ─────────────────────────────────────────────────────────
+  let projectsData = [];
+  let projectFilter = 'all';
+  const CHECK_LABELS = {
+    built:        'Website built',
+    deployed:     'Deployed live',
+    pdf:          'AI audit PDF',
+    custom_theme: 'Custom theme',
+    real_reviews: 'Real Google reviews',
+    real_photos:  'Real photos',
+    details:      'Business details added',
+    share_link:   'Share link ready',
+  };
+
+  async function loadProjects() {
+    try {
+      const res = await api('/api/projects');
+      const { projects } = await res.json();
+      projectsData = projects || [];
+    } catch { projectsData = []; }
+    renderProjects();
+  }
+
+  function setProjectFilter(f) {
+    projectFilter = f;
+    ['running','finished','all'].forEach(k =>
+      document.getElementById('pf-'+k).classList.toggle('active', k===f));
+    renderProjects();
+  }
+
+  function renderProjects() {
+    const el = document.getElementById('projects-list');
+    let list = projectsData;
+    if (projectFilter === 'running')  list = list.filter(p => !(p.checklist && p.checklist.deployed));
+    if (projectFilter === 'finished') list = list.filter(p => p.checklist && p.checklist.deployed);
+    if (!list.length) {
+      el.innerHTML = '<div class="empty-state"><p>No projects match this filter.</p></div>';
+      return;
+    }
+    el.innerHTML = '<div class="proj-grid">' + list.map(renderProjectCard).join('') + '</div>';
+  }
+
+  function renderProjectCard(p) {
+    const ck = p.checklist || {};
+    const deployed = !!ck.deployed;
+    const pct = (typeof p.ready_pct === 'number') ? p.ready_pct : 0;
+    const tone = pct < 50 ? 'red' : (pct < 100 ? 'amber' : 'green');
+    const badge = deployed
+      ? '<span class="pc-badge live">LIVE</span>'
+      : '<span class="pc-badge progress">IN PROGRESS</span>';
+    const checks = Object.keys(CHECK_LABELS).map(key => {
+      const on = !!ck[key];
+      return `<div class="check-item ${on?'on':'off'}"><span class="ck">${on?'✓':'–'}</span>${esc(CHECK_LABELS[key])}</div>`;
+    }).join('');
+    const slug = p.slug || '';
+    const acts = [];
+    if (p.live_url) acts.push(`<a href="${esc(p.live_url)}" target="_blank">View Live</a>`);
+    if (ck.built) acts.push(`<button onclick="openPreview('${esc(slug)}')">Preview</button>`);
+    if (p.portal_url) acts.push(`<button onclick="copyRawUrl('${esc(p.portal_url)}',this)">Portal</button>`);
+    acts.push(`<button onclick="openCustomizeFor('${esc(slug)}')">Customize</button>`);
+    if (ck.pdf) acts.push(`<button onclick="downloadPdf('${esc(slug)}')">Download PDF</button>`);
+    const banner = p.is_ready ? '<div class="pc-ready-banner">✅ Client-ready</div>' : '';
+    return `<div class="project-card ${p.is_ready?'ready':''}">
+      <div class="pc-head"><span class="pc-name">${esc(p.name||slug)}</span>${badge}</div>
+      <div class="readiness-bar">
+        <div class="rb-track"><div class="rb-fill rb-${tone}" style="width:${pct}%"></div></div>
+        <span class="rb-pct rb-${tone}-t">${pct}% ready</span>
+      </div>
+      ${banner}
+      <div class="check-list">${checks}</div>
+      <div class="pc-actions">${acts.join('')}</div>
+    </div>`;
+  }
+
+  function openCustomizeFor(slug) {
+    switchTab('customize');
+    // Preselect this client once the dropdown is populated
+    const trySelect = () => {
+      const sel = document.getElementById('cz-client');
+      if (sel && Array.from(sel.options).some(o => o.value === slug)) {
+        sel.value = slug; onCzClientChange();
+      } else { setTimeout(trySelect, 120); }
+    };
+    setTimeout(trySelect, 120);
   }
 
   // ── Customize tab ──────────────────────────────────────────────────────────
