@@ -60,6 +60,31 @@ _BOOKING_SIGNALS = [
 ]
 
 
+# City input values that mean "search the whole province" instead of one city.
+_PROVINCE_ALIASES = {
+    "bc", "b.c.", "british columbia", "all of bc", "all bc", "province",
+    "province-wide", "province wide", "provincewide", "all", "everywhere",
+}
+
+# BC municipalities swept (largest first) when running a province-wide search
+# against city-based APIs like Google Places.
+BC_CITIES = [
+    "Vancouver", "Surrey", "Burnaby", "Richmond", "Abbotsford", "Coquitlam",
+    "Kelowna", "Langley", "Saanich", "Delta", "Victoria", "Kamloops",
+    "Nanaimo", "Chilliwack", "Maple Ridge", "Prince George", "New Westminster",
+    "Port Coquitlam", "North Vancouver", "Vernon", "Courtenay", "Campbell River",
+    "Penticton", "Mission", "Port Moody", "West Vancouver", "Duncan",
+    "White Rock", "Salmon Arm", "Fort St. John", "Cranbrook", "Squamish",
+    "Parksville", "Port Alberni", "Comox", "Terrace", "Powell River",
+    "Sidney", "Quesnel", "Williams Lake", "Dawson Creek", "Nelson",
+    "Sechelt", "Whistler", "Ladysmith", "Sooke",
+]
+
+
+def is_province_wide(city: str) -> bool:
+    return (city or "").strip().lower() in _PROVINCE_ALIASES
+
+
 def discover_businesses(
     city: str,
     business_type: str,
@@ -69,28 +94,49 @@ def discover_businesses(
     """
     Run the full Phase 1 discovery pipeline for a city + business type.
     Tries each tier in order, scoring and ranking all results.
+
+    Province-wide mode: pass city as "British Columbia" / "All of BC" / "BC"
+    to search the entire province (Google sweeps BC_CITIES city by city;
+    OpenStreetMap runs one query over the BC provincial boundary).
     """
     google_key = os.getenv("GOOGLE_MAPS_API_KEY")
     fsq_key    = os.getenv("FOURSQUARE_API_KEY")
     demo_mode  = os.getenv("DEMO_MODE", "").lower() in ("1", "true", "yes")
+    province   = is_province_wide(city)
 
     businesses: list[dict] = []
 
     if google_key:
-        print(f"[discovery] Tier 1 - Google Places API: {business_type} in {city}, BC")
-        try:
-            businesses = _discover_via_places_api(city, business_type, radius_km, max_results, google_key)
-            print(f"[discovery] Google Places: {len(businesses)} results")
-        except Exception as exc:
-            print(f"[discovery] Google Places failed ({exc}) - trying next tier")
+        if province:
+            print(f"[discovery] Tier 1 - Google Places API: {business_type} province-wide ({len(BC_CITIES)} BC cities)")
+            try:
+                businesses = _discover_province_via_places_api(business_type, max_results, google_key)
+                print(f"[discovery] Google Places (province-wide): {len(businesses)} results")
+            except Exception as exc:
+                print(f"[discovery] Google Places failed ({exc}) - trying next tier")
+        else:
+            print(f"[discovery] Tier 1 - Google Places API: {business_type} in {city}, BC")
+            try:
+                businesses = _discover_via_places_api(city, business_type, radius_km, max_results, google_key)
+                print(f"[discovery] Google Places: {len(businesses)} results")
+            except Exception as exc:
+                print(f"[discovery] Google Places failed ({exc}) - trying next tier")
 
     if not businesses:
-        print(f"[discovery] Tier 2 - OpenStreetMap: {business_type} in {city}, BC")
-        try:
-            businesses = _discover_via_openstreetmap(city, business_type, radius_km, max_results)
-            print(f"[discovery] OpenStreetMap: {len(businesses)} real businesses found")
-        except Exception as exc:
-            print(f"[discovery] OpenStreetMap failed ({exc}) - trying next tier")
+        if province:
+            print(f"[discovery] Tier 2 - OpenStreetMap: {business_type} across all of BC")
+            try:
+                businesses = _discover_province_via_openstreetmap(business_type, max_results)
+                print(f"[discovery] OpenStreetMap (province-wide): {len(businesses)} real businesses found")
+            except Exception as exc:
+                print(f"[discovery] OpenStreetMap failed ({exc}) - trying next tier")
+        else:
+            print(f"[discovery] Tier 2 - OpenStreetMap: {business_type} in {city}, BC")
+            try:
+                businesses = _discover_via_openstreetmap(city, business_type, radius_km, max_results)
+                print(f"[discovery] OpenStreetMap: {len(businesses)} real businesses found")
+            except Exception as exc:
+                print(f"[discovery] OpenStreetMap failed ({exc}) - trying next tier")
 
     if not businesses and fsq_key:
         print(f"[discovery] Tier 3 - Foursquare Places API: {business_type} in {city}, BC")
@@ -194,6 +240,102 @@ def _discover_via_places_api(city, business_type, radius_km, max_results, api_ke
 
     return businesses
 
+
+
+def _discover_province_via_places_api(business_type, max_results, api_key):
+    """Province-wide Tier 1: sweep BC_CITIES with Google Places, city by city,
+    deduping as we go, until max_results unique businesses are collected.
+    Each city costs ~1 text-search call + 1 details call per new business."""
+    collected: dict[str, dict] = {}
+    # Over-collect slightly so chain-filtering/deduping downstream still
+    # leaves a full page of leads.
+    target = int(max_results * 1.3) + 5
+
+    for i, c in enumerate(BC_CITIES, 1):
+        if len(collected) >= target:
+            break
+        remaining = target - len(collected)
+        # Cap per-city pulls so one big city doesn't eat the whole budget and
+        # the sweep still reaches smaller towns (often the weakest web presence).
+        per_city = min(remaining, max(5, max_results // 4))
+        print(f"[discovery] [{i}/{len(BC_CITIES)}] {c}: searching (have {len(collected)}/{target})...")
+        try:
+            found = _discover_via_places_api(c, business_type, 15, per_city, api_key)
+        except Exception as exc:
+            print(f"[discovery] {c} failed ({exc}) - skipping")
+            continue
+        added = 0
+        for b in found:
+            key = _norm_name(b.get("name", ""))
+            if key and key not in collected and not _is_chain(b.get("name", "")):
+                collected[key] = b
+                added += 1
+        if added:
+            print(f"[discovery] {c}: +{added} new businesses")
+
+    return list(collected.values())
+
+
+def _discover_province_via_openstreetmap(business_type, max_results):
+    """Province-wide Tier 2: one Overpass query over the entire BC provincial
+    boundary instead of a radius around a single city. Free, no key."""
+    tag_pairs = _osm_tags_for(business_type)
+    tag_lines = ""
+    for key, val in tag_pairs:
+        tag_lines += f'  node["{key}"="{val}"](area.bc);\n'
+        tag_lines += f'  way["{key}"="{val}"](area.bc);\n'
+    tag_query = (
+        '[out:json][timeout:180];\n'
+        'area["ISO3166-2"="CA-BC"]->.bc;\n'
+        f"(\n{tag_lines});\nout center tags;"
+    )
+
+    elements = []
+    try:
+        elements = _run_overpass(tag_query)
+    except RuntimeError as exc:
+        print(f"[discovery] Province-wide structured OSM search failed: {exc}")
+
+    businesses = []
+    for el in elements:
+        b = _osm_element_to_business(el, business_type, "BC")
+        if b:
+            businesses.append(b)
+    print(f"[discovery] OSM province-wide structured search: {len(businesses)} results")
+
+    # Name-regex fallback across the whole province — only when the structured
+    # search came up short, since this is a heavier query.
+    if len(businesses) < max_results:
+        keywords = _osm_name_keywords(business_type)
+        regex = "|".join(keywords)
+        name_lines = ""
+        for typ in ("node", "way"):
+            for kv in ("shop", "craft", "office", "amenity", "leisure"):
+                name_lines += f'  {typ}["{kv}"]["name"~"{regex}",i](area.bc);\n'
+        name_query = (
+            '[out:json][timeout:180];\n'
+            'area["ISO3166-2"="CA-BC"]->.bc;\n'
+            f"(\n{name_lines});\nout center tags;"
+        )
+        try:
+            name_elements = _run_overpass(name_query)
+            added = 0
+            for el in name_elements:
+                b = _osm_element_to_business(el, business_type, "BC")
+                if b:
+                    businesses.append(b)
+                    added += 1
+            print(f"[discovery] OSM province-wide name fallback: {added} additional candidates")
+        except RuntimeError as exc:
+            print(f"[discovery] Province-wide name fallback failed: {exc}")
+
+    if not businesses:
+        raise RuntimeError(
+            f"No OSM results for '{business_type}' anywhere in BC. "
+            f"Try a broader business type."
+        )
+
+    return _dedupe_businesses(businesses)
 
 
 def _discover_via_foursquare(city: str, business_type: str, radius_km: int, max_results: int, api_key: str) -> list[dict]:

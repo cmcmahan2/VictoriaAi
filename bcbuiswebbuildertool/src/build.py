@@ -15,6 +15,7 @@ SEO included:
 Output: ./output/{business_slug}/
 """
 
+import hashlib
 import json
 import os
 import re
@@ -1860,25 +1861,223 @@ def _service_img_keywords(service_name: str, fallback: str) -> str:
     return fallback
 
 
+# Curated bank of stable Unsplash CDN photo IDs per topic. The old
+# source.unsplash.com keyword service was shut down by Unsplash, so we now
+# hotlink specific photos via images.unsplash.com (officially supported,
+# no API key). Each topic has several photos; _img() picks one
+# deterministically from the seed so the same page always renders the
+# same image, but different sections/services get different photos.
+_IMG_BANK = {
+    "garden": [
+        "photo-1416879595882-3373a0480b5b",  # gardener planting flowers
+        "photo-1466692476868-aef1dfb1e735",  # garden path in bloom
+        "photo-1501004318641-b39e6451bec6",  # greenhouse plants
+        "photo-1585320806297-9794b3e4eeae",  # fresh green lawn
+    ],
+    "plumber": [
+        "photo-1504148455328-c376907d081c",  # pipe wrench / tools
+        "photo-1581578731548-c64695cc6952",  # gloved hands at work
+        "photo-1585704032915-c3400ca199e7",  # plumber under sink
+    ],
+    "electrician": [
+        "photo-1621905251189-08b45d6a269e",  # electrician at panel
+        "photo-1473341304170-971dccb5ac1e",  # solar panels
+        "photo-1504307651254-35680f356dfd",  # industrial worker
+    ],
+    "construction": [
+        "photo-1541888946425-d81bb19240f5",  # construction site
+        "photo-1504307651254-35680f356dfd",  # welder at work
+        "photo-1503387762-592deb58ef4e",     # blueprints
+        "photo-1581094794329-c8112a89af12",  # engineer on site
+    ],
+    "roofing": [
+        "photo-1541888946425-d81bb19240f5",
+        "photo-1504307651254-35680f356dfd",
+        "photo-1564013799919-ab600027ffc6",  # house exterior
+    ],
+    "painting": [
+        "photo-1589939705384-5185137a7f0f",  # painting a wall
+        "photo-1562259949-e8e7689d7828",     # paint roller
+        "photo-1504148455328-c376907d081c",
+    ],
+    "hvac": [
+        "photo-1581092160562-40aa08e78837",  # technician
+        "photo-1504148455328-c376907d081c",
+        "photo-1581578731548-c64695cc6952",
+    ],
+    "restaurant": [
+        "photo-1517248135467-4c7edcad34c4",  # restaurant interior
+        "photo-1414235077428-338989a2e8c0",  # plated dinner
+        "photo-1555396273-367ea4eb4db5",     # bistro table
+        "photo-1552566626-52f8b828add9",     # restaurant dining
+    ],
+    "coffee": [
+        "photo-1495474472287-4d71bcdd2085",  # coffee cup
+        "photo-1501339847302-ac426a4a7cbb",  # cafe counter
+        "photo-1554118811-1e0d58224f24",     # cafe interior
+        "photo-1442512595331-e89e73853f31",  # barista pour
+    ],
+    "bakery": [
+        "photo-1509440159596-0249088772ff",  # fresh bread
+        "photo-1517433670267-08bbd4be890f",  # baguettes
+        "photo-1555507036-ab1f4038808a",     # croissants
+        "photo-1486427944299-d1955d23e34d",  # cupcakes
+    ],
+    "hair": [
+        "photo-1560066984-138dadb4c035",     # salon styling
+        "photo-1522337660859-02fbefca4702",  # salon interior
+        "photo-1562322140-8baeececf3df",     # hairdresser at work
+    ],
+    "barber": [
+        "photo-1503951914875-452162b0f3f1",  # barber chair
+        "photo-1585747860715-2ba37e788b70",  # barbershop
+        "photo-1605497788044-5a32c7078486",  # barber trimming
+    ],
+    "spa": [
+        "photo-1544161515-4ab6ce6db874",     # spa stones
+        "photo-1540555700478-4be289fbecef",  # massage
+        "photo-1600334129128-685c5582fd35",  # spa treatment
+    ],
+    "dental": [
+        "photo-1606811841689-23dfddce3e95",  # dental tools
+        "photo-1629909613654-28e377c37b09",  # dental clinic
+        "photo-1579684385127-1ef15d508118",  # healthcare professional
+    ],
+    "mechanic": [
+        "photo-1486262715619-67b85e0b08d3",  # classic car engine
+        "photo-1487754180451-c456f719a1fc",  # engine bay
+        "photo-1568605117036-5fe5e7bab0b7",  # car on road
+    ],
+    "gym": [
+        "photo-1534438327276-14e5300c3a48",  # gym floor
+        "photo-1571902943202-507ec2618e8f",  # training
+        "photo-1517836357463-d25dfeac3438",  # weights
+    ],
+    "yoga": [
+        "photo-1544367567-0f2fcb009e0b",     # yoga pose
+        "photo-1506126613408-eca07ce68773",  # meditation
+        "photo-1545205597-3d9d02c29597",     # yoga class
+    ],
+    "cleaning": [
+        "photo-1581578731548-c64695cc6952",  # cleaning gloves
+        "photo-1584820927498-cfe5211fd8bf",  # spray bottle
+    ],
+    "pets": [
+        "photo-1450778869180-41d0601e046e",  # dog and owner
+        "photo-1548199973-03cce0bbc87b",     # happy dogs
+        "photo-1583511655857-d19b40a7a54e",  # puppy
+        "photo-1601758228041-f3b2795255f1",  # vet with dog
+    ],
+    "house": [
+        "photo-1564013799919-ab600027ffc6",  # house exterior
+        "photo-1570129477492-45c003edd2be",  # craftsman home
+        "photo-1583608205776-bfd35f0d9f83",  # modern house
+        "photo-1560448204-e02f11c3d0e2",     # bright interior
+    ],
+    "office": [
+        "photo-1497366216548-37526070297c",  # modern office
+        "photo-1556761175-b413da4baf72",     # team meeting
+        "photo-1521737604893-d14cc237f11d",  # collaboration
+        "photo-1522071820081-009f0129c71c",  # team at table
+    ],
+    "accounting": [
+        "photo-1554224155-6726b3ff858f",     # calculator and docs
+        "photo-1450101499163-c8848c66ca85",  # signing documents
+        "photo-1497366216548-37526070297c",
+    ],
+    "law": [
+        "photo-1589829545856-d10d557cf95f",  # scales / gavel
+        "photo-1450101499163-c8848c66ca85",
+        "photo-1497366216548-37526070297c",
+    ],
+    "flowers": [
+        "photo-1490750967868-88aa4486c946",  # flower field
+        "photo-1561181286-d3fee7d55364",     # bouquet
+    ],
+    "grocery": [
+        "photo-1542838132-92c53300491e",     # grocery aisle
+        "photo-1488459716781-31db52582fe9",  # fresh vegetables
+    ],
+    "camera": [
+        "photo-1452587925148-ce544e77e70d",  # camera in hands
+        "photo-1502920917128-1aa500764cbd",  # photographer
+    ],
+    "portrait": [
+        "photo-1472099645785-5658abf4ff4e",  # man portrait
+        "photo-1560250097-0b93528c311a",     # businessman
+        "photo-1573496359142-b8d87734a5a2",  # businesswoman
+        "photo-1438761681033-6461ffad8d80",  # woman portrait
+    ],
+    "tools": [
+        "photo-1504148455328-c376907d081c",
+        "photo-1581092160562-40aa08e78837",
+    ],
+    "scenic": [
+        "photo-1507525428034-b723cf961d3e",  # beach
+        "photo-1519681393784-d120267933ba",  # mountains at night
+        "photo-1506905925346-21bda4d32df4",  # mountain peak
+        "photo-1441974231531-c6227db76b6e",  # forest
+    ],
+}
+
+# Maps keyword substrings (from _IMG_KEYWORDS / _SERVICE_IMG_KEYWORDS values)
+# to a topic in _IMG_BANK. First match wins; order matters.
+_IMG_TOPIC_MAP = [
+    (("portrait", "professional headshot"), "portrait"),
+    (("plumber", "pipes", "drain", "leak", "faucet"), "plumber"),
+    (("electric", "wiring", "panel", "light"), "electrician"),
+    (("landscap", "garden", "lawn", "grass", "hedge", "tree", "plant", "nursery",
+      "sprinkler", "irrigation", "leaves", "yard", "patio", "stones"), "garden"),
+    (("hvac", "heating", "furnace", "air condition"), "hvac"),
+    (("roof", "gutter"), "roofing"),
+    (("paint",), "painting"),
+    (("clean", "laundry", "maid", "janitorial"), "cleaning"),
+    (("barber", "haircut"), "barber"),
+    (("hair", "salon", "nail", "beauty"), "hair"),
+    (("spa", "massage", "wellness", "facial"), "spa"),
+    (("dental", "dentist", "physio", "clinic", "health"), "dental"),
+    (("restaurant", "food", "grill", "bistro"), "restaurant"),
+    (("coffee", "cafe", "espresso"), "coffee"),
+    (("bakery", "bread", "pastry"), "bakery"),
+    (("mechanic", "garage", "auto", "car", "tire"), "mechanic"),
+    (("yoga",), "yoga"),
+    (("gym", "fitness", "crossfit", "workout"), "gym"),
+    (("pet", "dog", "vet", "animal", "groom", "kennel"), "pets"),
+    (("real estate", "house", "home", "property", "realty"), "house"),
+    (("account", "bookkeep", "tax", "cpa"), "accounting"),
+    (("law", "legal", "attorney", "notary", "insurance"), "law"),
+    (("flower", "florist", "bloom"), "flowers"),
+    (("grocer", "market", "produce"), "grocery"),
+    (("photo", "camera"), "camera"),
+    (("construction", "contractor", "building", "renovation", "carpenter",
+      "builder", "moving", "haul"), "construction"),
+    (("tool", "repair", "install", "maintenance", "handyman"), "tools"),
+    (("beach", "mountain", "coast", "nature", "ocean"), "scenic"),
+]
+
+
+def _img_topic(keywords: str) -> str:
+    kw = (keywords or "").lower()
+    for substrings, topic in _IMG_TOPIC_MAP:
+        if any(s in kw for s in substrings):
+            return topic
+    return "office"
+
+
 def _img(keywords: str, w: int, h: int, seed: str = "") -> str:
     """
-    Return a keyword-matched filler image URL. Uses the Unsplash Source API,
-    which serves high-quality curated photos with no API key required.
-    The seed parameter: if short and meaningful (e.g. a service name), it is
-    appended as an extra keyword for specificity. Unsplash Source returns a
-    relevant random photo each time, which is suitable for filler images.
-
-    URL format: https://source.unsplash.com/{w}x{h}/?{keyword1},{keyword2}
-    Example:    https://source.unsplash.com/1600x700/?landscaping,garden
+    Return a keyword-matched filler image URL using stable, curated photos
+    hotlinked from the Unsplash CDN (images.unsplash.com). No API key needed.
+    The seed makes the choice deterministic per page/section while spreading
+    different sections across different photos in the topic's bank.
     """
-    kw = keywords
-    # Append seed as an extra keyword only when it's a short, meaningful word
-    # (not a long hash-like string or full business name)
-    if seed:
-        seed_clean = re.sub(r"[^a-z0-9]+", "", seed.lower())
-        if seed_clean and len(seed_clean) <= 20 and not any(c.isdigit() for c in seed_clean[:3]):
-            kw = f"{keywords},{seed_clean}"
-    return f"https://source.unsplash.com/{w}x{h}/?{kw}"
+    bank = _IMG_BANK[_img_topic(keywords)]
+    digest = hashlib.md5(f"{keywords}|{seed}".encode("utf-8")).hexdigest()
+    pid = bank[int(digest, 16) % len(bank)]
+    return (
+        f"https://images.unsplash.com/{pid}"
+        f"?auto=format&fit=crop&w={w}&h={h}&q=80"
+    )
 
 
 # ── Pages ─────────────────────────────────────────────────────────────────────

@@ -200,7 +200,19 @@
   <aside class="sidebar">
     <div class="sidebar-section">
       <div class="sidebar-label">Search BC Businesses</div>
-      <div class="field"><label>City / Region</label><input type="text" id="s-city" placeholder="e.g. Victoria" /></div>
+      <div class="field">
+        <label>City / Region</label>
+        <input type="text" id="s-city" placeholder="e.g. Victoria — or 'All of BC'" list="city-suggestions" />
+        <datalist id="city-suggestions">
+          <option value="All of BC"><option value="Victoria"><option value="Vancouver">
+          <option value="Surrey"><option value="Burnaby"><option value="Richmond">
+          <option value="Kelowna"><option value="Kamloops"><option value="Nanaimo">
+          <option value="Abbotsford"><option value="Chilliwack"><option value="Prince George">
+          <option value="Vernon"><option value="Courtenay"><option value="Campbell River">
+          <option value="Penticton"><option value="Duncan"><option value="Squamish">
+        </datalist>
+        <div style="font-size:0.7rem;color:var(--muted);margin-top:0.25rem;">Type <strong>All of BC</strong> to search province-wide</div>
+      </div>
       <div class="field">
         <label>Business Type</label>
         <input type="text" id="s-type" placeholder="e.g. plumber" list="type-suggestions" />
@@ -213,7 +225,7 @@
       </div>
       <div class="row2">
         <div class="field"><label>Radius (km)</label><input type="number" id="s-radius" value="15" min="1" max="100" /></div>
-        <div class="field"><label>Max leads</label><input type="number" id="s-max" value="20" min="1" max="50" /></div>
+        <div class="field"><label>Max leads</label><input type="number" id="s-max" value="20" min="1" max="200" /></div>
       </div>
       <button class="btn-search" id="search-btn" onclick="startDiscover()">Search</button>
     </div>

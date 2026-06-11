@@ -197,10 +197,11 @@ async def discover_info(request: Request):
 @app.post("/api/discover")
 async def start_discovery(data: DiscoverRequest, request: Request):
     require_auth(request)
-    from discovery import discover_businesses, save_leads
-    job_id = _new_job(f"Discover: {data.business_type} in {data.city}, BC")
+    from discovery import discover_businesses, is_province_wide, save_leads
+    where = "all of BC (province-wide)" if is_province_wide(data.city) else f"{data.city}, BC"
+    job_id = _new_job(f"Discover: {data.business_type} in {where}")
     def _go():
-        print(f"[Phase 1] Searching: {data.business_type} in {data.city}, BC")
+        print(f"[Phase 1] Searching: {data.business_type} in {where}")
         leads = discover_businesses(data.city, data.business_type, data.radius_km, data.max_results)
         save_leads(leads, str(OUTPUT_DIR))
         print(f"[Phase 1] Complete - {len(leads)} leads found")
