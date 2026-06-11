@@ -1150,6 +1150,7 @@ nav.scrolled { padding: 0.65rem 0; background: rgba(10,22,34,0.92); }
   text-align: center;
   margin-top: 1rem;
 }
+.form-note { font-size:0.85rem; color:var(--muted); margin-top:0.5rem; text-align:center; }
 
 /* ── FAQ ─────────────────────────────────────────────────────────────────── */
 .faq-list { margin-top: 2rem; }
@@ -1201,6 +1202,9 @@ footer {
   flex-wrap: wrap;
   gap: 0.5rem;
 }
+.footer-credit { font-size:0.78rem; color:rgba(255,255,255,0.35); }
+.footer-credit a { color:rgba(255,255,255,0.35); text-decoration:none; transition:color 0.2s; }
+.footer-credit a:hover { color:rgba(255,255,255,0.7); }
 
 /* ── Page header ─────────────────────────────────────────────────────────── */
 .page-hero {
@@ -1384,21 +1388,20 @@ document.querySelectorAll('.faq-q').forEach(q => {
   });
 });
 
-// Contact form
-const form = document.getElementById('contact-form');
-if (form) {
-  form.addEventListener('submit', e => {
-    e.preventDefault();
-    const btn = form.querySelector('button[type=submit]');
-    btn.disabled = true;
-    btn.textContent = 'Sending...';
-    setTimeout(() => {
-      form.style.display = 'none';
-      const success = document.querySelector('.form-success');
-      if (success) success.style.display = 'block';
-    }, 800);
-  });
-}
+// Contact forms — Netlify Forms handles the actual POST submission natively.
+// We only intercept to show a "Sending..." state for 600ms, then let it submit.
+['contact-form', 'contact-form-index'].forEach(id => {
+  const form = document.getElementById(id);
+  if (form) {
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const btn = form.querySelector('button[type=submit]');
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+      setTimeout(() => form.submit(), 600);
+    });
+  }
+});
 
 // Before/After slider
 document.querySelectorAll('.ba-wrap').forEach(wrap => {
@@ -1502,6 +1505,7 @@ def _footer(business: dict) -> str:
     </div>
     <div class="footer-bottom">
       <span>&copy; {year} {_esc(name)}. All rights reserved.</span>
+      <span class="footer-credit">Site by <a href="https://pacificwebbuilder.com" target="_blank" rel="noopener">Pacific Web Builder</a></span>
       <span>Serving {_esc(city)}, BC</span>
     </div>
   </div>
@@ -1957,11 +1961,14 @@ def _write_index(business: dict, profile: dict, content: dict, site_dir: Path,
       <h2>Ready to Get Started?</h2>
       {phone_cta_html}
       <p>Contact us today for a free, no-obligation quote. Serving {_esc(city)} and surrounding area.</p>
-      <div class="cta-actions">
-        <a href="contact.html" class="btn btn-white btn-lg">{_esc(cta)}</a>
-        {f'<a href="tel:{phone}" class="btn btn-outline btn-lg">📞 Call Now</a>' if phone else ""}
-      </div>
-      <p class="cta-trust-note">No obligation &nbsp;·&nbsp; Fast response &nbsp;·&nbsp; Local experts</p>
+      <form id="contact-form-index" name="contact-index" data-netlify="true" method="POST" style="max-width:480px;margin:1.5rem auto 0;display:flex;flex-direction:column;gap:0.75rem;">
+        <input type="hidden" name="form-name" value="contact-index" />
+        <input type="text" name="name" placeholder="Your name" required style="padding:0.8rem 1rem;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;font-size:1rem;backdrop-filter:blur(6px);" />
+        <input type="tel" name="phone" placeholder="Phone number" style="padding:0.8rem 1rem;border-radius:8px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;font-size:1rem;backdrop-filter:blur(6px);" />
+        <button type="submit" class="btn btn-white btn-lg" style="width:100%">{_esc(cta)}</button>
+        <p class="form-note" style="color:rgba(255,255,255,0.55);">We'll respond within 24 hours.</p>
+      </form>
+      <p class="cta-trust-note" style="margin-top:1rem;">No obligation &nbsp;·&nbsp; Fast response &nbsp;·&nbsp; Local experts</p>
     </div>
   </section>
 </main>
@@ -2134,7 +2141,8 @@ def _write_contact(business: dict, content: dict, site_dir: Path) -> None:
         </div>
         <div class="form-card">
           <h3>{_esc(cta)}</h3>
-          <form id="contact-form">
+          <form id="contact-form" name="contact-main" data-netlify="true" method="POST">
+            <input type="hidden" name="form-name" value="contact-main" />
             <div class="form-row">
               <div class="form-group">
                 <label for="fname">First Name</label>
@@ -2168,8 +2176,8 @@ def _write_contact(business: dict, content: dict, site_dir: Path) -> None:
               <textarea id="message" name="message" placeholder="Describe your project or issue..."></textarea>
             </div>
             <button type="submit" class="btn btn-primary" style="width:100%">Send Message</button>
+            <p class="form-note">We'll respond within 24 hours.</p>
           </form>
-          <div class="form-success">✓ Message sent! We'll be in touch within 1 business day.</div>
         </div>
       </div>
     </div>
