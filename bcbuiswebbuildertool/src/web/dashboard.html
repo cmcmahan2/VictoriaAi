@@ -584,7 +584,8 @@
     window.location.href='/';
   }
   function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-  function slugify(s){return s.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');}
+  // Must match server _slug(): strip specials first, THEN collapse spaces/dashes.
+  function slugify(s){return s.toLowerCase().replace(/[^a-z0-9\s_-]/g,'').replace(/[\s_]+/g,'-').replace(/-+/g,'-').replace(/^-+|-+$/g,'').slice(0,60);}
   setInterval(refreshSidebarJobs,3000);
 
   // ── Site preview ──────────────────────────────────────────────
