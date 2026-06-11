@@ -188,6 +188,12 @@ async def logout(request: Request):
     token = request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
     VALID_TOKENS.discard(token); return {"ok": True}
 
+@app.get("/api/discover")
+async def discover_info(request: Request):
+    """Stub — discovery is triggered via POST /api/discover, not GET."""
+    require_auth(request)
+    raise HTTPException(status_code=501, detail="Not Implemented: use POST /api/discover to start a discovery job")
+
 @app.post("/api/discover")
 async def start_discovery(data: DiscoverRequest, request: Request):
     require_auth(request)

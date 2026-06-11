@@ -1726,7 +1726,9 @@ def _head(title: str, description: str, business: dict) -> str:
 
 
 def _esc(s) -> str:
-    if not s:
+    # Explicitly allow 0 / 0.0 / False to pass through as their string form.
+    # Only None and empty-string should collapse to "".
+    if s is None or s == "":
         return ""
     return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
 
