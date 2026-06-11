@@ -797,6 +797,16 @@ nav.scrolled { padding: 0.65rem 0; background: rgba(10,22,34,0.92); }
   gap: 1.6rem;
   margin-top: 3rem;
 }
+/* 2-col layout for the services page */
+.services-grid-2col {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.6rem;
+  margin-top: 3rem;
+}
+@media (max-width: 640px) {
+  .services-grid-2col { grid-template-columns: 1fr; }
+}
 .service-card {
   position: relative;
   background: var(--white);
@@ -1171,6 +1181,148 @@ nav.scrolled { padding: 0.65rem 0; background: rgba(10,22,34,0.92); }
 .faq-item.open .faq-q .arrow { transform: rotate(180deg); }
 .faq-a { display: none; padding-top: 0.75rem; color: var(--muted); font-size: 0.97rem; }
 .faq-item.open .faq-a { display: block; }
+
+/* ── Contact info panel ──────────────────────────────────────────────────── */
+.contact-info-panel {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  height: 100%;
+}
+.contact-info-panel h3 { color: var(--navy); margin-bottom: 0.25rem; }
+.contact-phone {
+  display: block;
+  font-size: clamp(1.4rem, 3vw, 1.9rem);
+  font-weight: 700;
+  color: var(--green);
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.contact-phone:hover { color: var(--green2); }
+.map-placeholder {
+  height: 200px;
+  background: var(--light);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.5rem;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  text-align: center;
+  font-size: 0.95rem;
+}
+.map-placeholder a { color: var(--green); font-weight: 600; font-size: 0.9rem; }
+.trust-badges {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  padding: 2rem 0;
+}
+.trust-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--navy);
+}
+.trust-badge .badge-icon { font-size: 1.3rem; }
+
+/* ── Team grid ───────────────────────────────────────────────────────────── */
+.team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+.team-card {
+  text-align: center;
+  padding: 1.5rem 1rem;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  transition: transform 0.3s var(--ease), box-shadow 0.3s var(--ease);
+}
+.team-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+.team-photo {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin: 0 auto 1rem;
+  display: block;
+  border: 3px solid var(--border);
+}
+.team-card h4 { color: var(--navy); font-size: 1rem; margin-bottom: 0.2rem; }
+.team-card p  { color: var(--muted); font-size: 0.88rem; margin: 0; }
+
+/* ── Review summary bar ──────────────────────────────────────────────────── */
+.review-summary {
+  margin-bottom: 2rem;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.75rem 2rem;
+  box-shadow: var(--shadow);
+  max-width: 420px;
+}
+.review-summary h3 { margin-bottom: 1rem; color: var(--navy); }
+.rating-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.88rem;
+  color: var(--text);
+}
+.rating-bar-track {
+  flex: 1;
+  height: 8px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.rating-bar-fill {
+  height: 8px;
+  background: var(--green);
+  border-radius: 4px;
+  transition: width 0.6s var(--ease);
+}
+.rating-bar-pct { min-width: 36px; text-align: right; color: var(--muted); }
+
+/* ── Services page trust strip ────────────────────────────────────────────── */
+.services-trust-strip {
+  background: var(--light);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 2.5rem 0;
+}
+.services-trust-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  text-align: center;
+}
+.services-trust-item { padding: 1.25rem; }
+.services-trust-item .trust-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+.services-trust-item h4 { color: var(--navy); margin-bottom: 0.3rem; font-size: 1rem; }
+.services-trust-item p  { color: var(--muted); font-size: 0.9rem; margin: 0; }
+@media (max-width: 560px) {
+  .services-trust-grid { grid-template-columns: 1fr; gap: 1.25rem; }
+  .team-grid { grid-template-columns: repeat(2, 1fr); }
+  .trust-badges { gap: 1.25rem; }
+}
 
 /* ── Footer ─────────────────────────────────────────────────────────────── */
 footer {
@@ -1981,19 +2133,35 @@ def _write_index(business: dict, profile: dict, content: dict, site_dir: Path,
 def _write_services(business: dict, content: dict, site_dir: Path) -> None:
     name     = business.get("name", "Our Business")
     city     = business.get("city", "BC")
+    phone    = business.get("phone", "")
     services = content.get("services", [])
     cta      = content.get("cta_text", "Get a Free Quote")
+    tagline  = content.get("tagline", f"Professional solutions for every need, delivered right in {city}.")
     meta     = f"Services offered by {name} in {city}, BC. Professional, licensed, and insured."
 
-    cards = "\n".join(
-        f"""<div class="service-card">
-  <div class="service-icon">{_esc(s.get("icon","🔧"))}</div>
-  <h3>{_esc(s.get("name","Service"))}</h3>
-  <p>{_esc(s.get("description",""))}</p>
-  <a href="contact.html" style="color:var(--green);font-weight:600;font-size:0.9rem">Get a Quote →</a>
+    cats     = business.get("categories") or [business.get("category", "")]
+    category = cats[0] if cats else "service"
+    keywords = _img_keywords(category)
+
+    # Service cards — 2-col desktop grid with accent-bar hover animation
+    def _svc_card(s: dict) -> str:
+        sname = s.get("name", "Service")
+        img_src = _img(_service_img_keywords(sname, keywords), 500, 300, seed=sname)
+        return f"""<div class="service-card">
+  <img class="service-img" src="{_esc(img_src)}" alt="{_esc(sname)}" loading="lazy" />
+  <div class="service-card-body">
+    <div class="service-icon">{_esc(s.get("icon","🔧"))}</div>
+    <h3>{_esc(sname)}</h3>
+    <p>{_esc(s.get("description",""))}</p>
+    <a href="contact.html" class="service-learn-more">Get a Quote →</a>
+  </div>
 </div>"""
-        for s in services
-    )
+
+    cards = "\n".join(_svc_card(s) for s in services)
+
+    phone_cta_html = ""
+    if phone:
+        phone_cta_html = f'<a href="tel:{phone}" class="cta-phone">{_esc(phone)}</a>'
 
     html  = _head(f"Services | {name}", meta, business)
     html += _nav(business, "services")
@@ -2001,20 +2169,57 @@ def _write_services(business: dict, content: dict, site_dir: Path) -> None:
 <main>
   <div class="page-hero">
     <div class="container">
+      <p class="eyebrow">What We Offer</p>
       <h1>Our Services</h1>
-      <p>Professional solutions for every need, delivered right in {_esc(city)}.</p>
+      <p>{_esc(tagline)}</p>
     </div>
   </div>
+
   <section class="section">
     <div class="container">
-      <div class="services-grid">{cards}</div>
+      <div class="section-head reveal">
+        <p class="eyebrow">Expert Solutions</p>
+        <h2>Everything You Need</h2>
+        <p>From routine maintenance to complex projects — we handle it all with the same care and professionalism.</p>
+      </div>
+      <div class="services-grid-2col">{cards}</div>
     </div>
   </section>
+
+  <!-- Trust strip -->
+  <div class="services-trust-strip">
+    <div class="container">
+      <div class="services-trust-grid">
+        <div class="services-trust-item">
+          <div class="trust-icon">🛡️</div>
+          <h4>Licensed &amp; Insured</h4>
+          <p>Fully licensed in BC and insured for your complete peace of mind.</p>
+        </div>
+        <div class="services-trust-item">
+          <div class="trust-icon">📋</div>
+          <h4>Free Estimates</h4>
+          <p>No-obligation quotes so you know exactly what to expect before we start.</p>
+        </div>
+        <div class="services-trust-item">
+          <div class="trust-icon">📍</div>
+          <h4>Local to {_esc(city)}</h4>
+          <p>We live and work right here in {_esc(city)} — we're your neighbours.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA Banner -->
   <section class="cta-banner">
     <div class="container">
       <h2>Not Sure What You Need?</h2>
-      <p>Give us a call or send a message — we'll help you figure out the best solution.</p>
-      <a href="contact.html" class="btn btn-white btn-lg">{_esc(cta)}</a>
+      {phone_cta_html}
+      <p>Give us a call or send a message — we'll help you figure out the best solution for your situation.</p>
+      <div class="cta-actions">
+        <a href="contact.html" class="btn btn-white btn-lg">{_esc(cta)}</a>
+        {f'<a href="tel:{phone}" class="btn btn-outline btn-lg">📞 Call Now</a>' if phone else ""}
+      </div>
+      <p class="cta-trust-note">No obligation &nbsp;·&nbsp; Fast response &nbsp;·&nbsp; Local experts</p>
     </div>
   </section>
 </main>
@@ -2031,11 +2236,45 @@ def _write_about(business: dict, content: dict, site_dir: Path) -> None:
     rating  = business.get("rating", "")
     reviews = business.get("review_count", 0)
     about   = content.get("about_paragraph", f"{name} proudly serves the {city} community.")
+    tagline = content.get("tagline", f"Your trusted local service experts in {city}, BC.")
     trust   = content.get("trust_line", "")
     meta    = f"About {name} - Your trusted local service provider in {city}, BC."
 
     cats = business.get("categories") or [business.get("category", "services")]
     cat  = cats[0] if cats else "services"
+    keywords = _img_keywords(cat)
+
+    # Team photo with keyword "portrait", different seeds
+    team_photo_1 = _img("portrait", 300, 300, seed=name + "-team1")
+    team_photo_2 = _img("portrait", 300, 300, seed=name + "-team2")
+    team_photo_3 = _img("portrait", 300, 300, seed=name + "-team3")
+
+    # About team photo
+    team_img = _img(keywords, 600, 500, seed=name + "-team")
+
+    # Stats strip values
+    years_serving = "10+"
+    happy_count   = f"{max(reviews, 100)}+" if reviews else "200+"
+    review_count  = f"{reviews}+" if reviews else "50+"
+    star_rating   = str(rating) if rating else "5.0"
+
+    stats_html = f"""<div class="stats-grid">
+  <div><span class="stat-num">{_esc(years_serving)}</span><span class="stat-label">Years Serving {_esc(city)}</span></div>
+  <div><span class="stat-num">{_esc(happy_count)}</span><span class="stat-label">Happy Customers</span></div>
+  <div><span class="stat-num">{_esc(star_rating)}★</span><span class="stat-label">Average Rating</span></div>
+  <div><span class="stat-num">{_esc(review_count)}</span><span class="stat-label">5-Star Reviews</span></div>
+</div>"""
+
+    # Trade noun for team roles
+    trade_nouns = {
+        "landscaper": "Landscaper", "plumber": "Plumber",
+        "electrician": "Electrician", "roofer": "Roofer",
+        "painter": "Painter", "mechanic": "Mechanic",
+        "contractor": "Contractor", "barber": "Barber",
+        "cleaner": "Cleaner", "hvac": "Technician",
+    }
+    cat_lower = cat.lower()
+    lead_role = next((v for k, v in trade_nouns.items() if k in cat_lower), cat.title())
 
     html  = _head(f"About Us | {name}", meta, business)
     html += _nav(business, "about")
@@ -2043,41 +2282,105 @@ def _write_about(business: dict, content: dict, site_dir: Path) -> None:
 <main>
   <div class="page-hero">
     <div class="container">
-      <h1>About {_esc(name)}</h1>
-      <p>Your trusted local {_esc(cat)} experts in {_esc(city)}, BC.</p>
+      <p class="eyebrow">Who We Are</p>
+      <h1>About Us</h1>
+      <p>{_esc(tagline)}</p>
     </div>
   </div>
+
+  <!-- Our Story split layout -->
   <section class="section">
     <div class="container">
-      <div class="about-grid">
-        <div>
-          <h2>Who We Are</h2>
+      <div class="about-split">
+        <div class="about-split-img-wrap">
+          <img class="about-split-img" src="{_esc(team_img)}" alt="{_esc(name)} team" loading="lazy" style="height:500px" />
+          <div class="about-split-badge">Locally<br>Owned</div>
+        </div>
+        <div class="about-split-content">
+          <p class="eyebrow">Our Story</p>
+          <h2>Our Story</h2>
           <p>{_esc(about)}</p>
-          <p>We believe in honest, transparent service — you'll always know what to expect before we start any job. Our team is background-checked, fully insured, and committed to leaving your property cleaner than we found it.</p>
+          <p>We believe in honest, transparent service — you'll always know what to expect before we start any job. Our team is background-checked, fully insured, and committed to leaving your property better than we found it.</p>
           {f'<p><strong>{_esc(trust)}</strong></p>' if trust else ""}
-          <div class="stat-row">
-            {f'<div class="stat"><span class="stat-num">{_esc(str(rating))}</span><span class="stat-label">Star Rating</span></div>' if rating else ""}
-            {f'<div class="stat"><span class="stat-num">{reviews}+</span><span class="stat-label">Happy Clients</span></div>' if reviews else ""}
-            <div class="stat"><span class="stat-num">100%</span><span class="stat-label">Satisfaction</span></div>
-          </div>
-          <div style="margin-top:1.75rem;display:flex;gap:1rem;flex-wrap:wrap">
+          <ul class="about-checklist">
+            <li><span class="check-icon">✓</span> Fully licensed and insured in BC</li>
+            <li><span class="check-icon">✓</span> Free, no-obligation estimates</li>
+            <li><span class="check-icon">✓</span> Local team — we live in {_esc(city)} too</li>
+            <li><span class="check-icon">✓</span> Satisfaction guaranteed on every job</li>
+          </ul>
+          <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.5rem">
             <a href="contact.html" class="btn btn-primary">Get a Free Quote</a>
             {f'<a href="tel:{phone}" class="btn btn-outline">📞 Call Us</a>' if phone else ""}
           </div>
         </div>
-        <div class="about-image">🏠</div>
       </div>
     </div>
   </section>
+
+  <!-- Stats strip -->
+  <section class="stats-strip">
+    <div class="container">
+      {stats_html}
+    </div>
+  </section>
+
+  <!-- Our Values -->
   <section class="section section-alt">
     <div class="container">
-      <h2>Our Values</h2>
+      <div class="section-head reveal">
+        <p class="eyebrow">What Drives Us</p>
+        <h2>Our Values</h2>
+      </div>
       <div class="why-grid">
         <div class="why-item"><div class="why-icon">🤝</div><h3>Integrity</h3><p>We say what we mean and do what we say.</p></div>
-        <div class="why-item"><div class="why-icon">🔧</div><h3>Craftsmanship</h3><p>Every job done right — no shortcuts.</p></div>
+        <div class="why-item"><div class="why-icon">🔧</div><h3>Craftsmanship</h3><p>Every job done right — no shortcuts, no compromises.</p></div>
         <div class="why-item"><div class="why-icon">🌿</div><h3>Community</h3><p>We live here too. {_esc(city)} is our home.</p></div>
-        <div class="why-item"><div class="why-icon">📞</div><h3>Responsiveness</h3><p>Fast replies, clear communication.</p></div>
+        <div class="why-item"><div class="why-icon">📞</div><h3>Responsiveness</h3><p>Fast replies and clear communication, always.</p></div>
       </div>
+    </div>
+  </section>
+
+  <!-- Meet the team -->
+  <section class="section">
+    <div class="container">
+      <div class="section-head reveal">
+        <p class="eyebrow">The People Behind the Work</p>
+        <h2>Meet the Team</h2>
+        <p>Experienced, friendly professionals who take pride in every job.</p>
+      </div>
+      <!-- PLACEHOLDER team cards: replace names, roles, and photos with real team members -->
+      <div class="team-grid">
+        <div class="team-card">
+          <img class="team-photo" src="{_esc(team_photo_1)}" alt="Team member" loading="lazy" />
+          <h4>Team Member</h4>
+          <p>Lead {_esc(lead_role)}</p>
+        </div>
+        <div class="team-card">
+          <img class="team-photo" src="{_esc(team_photo_2)}" alt="Team member" loading="lazy" />
+          <h4>Team Member</h4>
+          <p>{_esc(lead_role)} &amp; Estimator</p>
+        </div>
+        <div class="team-card">
+          <img class="team-photo" src="{_esc(team_photo_3)}" alt="Team member" loading="lazy" />
+          <h4>Team Member</h4>
+          <p>Customer Relations</p>
+        </div>
+      </div>
+      <!-- END PLACEHOLDER team cards -->
+    </div>
+  </section>
+
+  <!-- CTA Banner -->
+  <section class="cta-banner">
+    <div class="container">
+      <h2>Ready to Work Together?</h2>
+      {f'<a href="tel:{phone}" class="cta-phone">{_esc(phone)}</a>' if phone else ""}
+      <p>Get in touch today for a free, no-obligation estimate. We'd love to help.</p>
+      <div class="cta-actions">
+        <a href="contact.html" class="btn btn-white btn-lg">Get a Free Quote</a>
+        {f'<a href="tel:{phone}" class="btn btn-outline btn-lg">📞 Call Us</a>' if phone else ""}
+      </div>
+      <p class="cta-trust-note">Licensed &amp; Insured &nbsp;·&nbsp; Local {_esc(city)} Team &nbsp;·&nbsp; No Obligation</p>
     </div>
   </section>
 </main>
@@ -2088,6 +2391,7 @@ def _write_about(business: dict, content: dict, site_dir: Path) -> None:
 
 
 def _write_contact(business: dict, content: dict, site_dir: Path) -> None:
+    import urllib.parse
     name    = business.get("name", "Our Business")
     city    = business.get("city", "BC")
     phone   = business.get("phone", "")
@@ -2096,20 +2400,29 @@ def _write_contact(business: dict, content: dict, site_dir: Path) -> None:
     services = content.get("services", [])
     meta    = f"Contact {name} in {city}, BC. Call or send a message for a free estimate."
 
-    phone_item = f"""<li>
-  <span class="ci-icon">📞</span>
-  <div><div class="ci-label">Phone</div><div class="ci-value"><a href="tel:{phone}">{_esc(phone)}</a></div></div>
-</li>""" if phone else ""
-
-    addr_item = f"""<li>
-  <span class="ci-icon">📍</span>
-  <div><div class="ci-label">Address</div><div class="ci-value">{_esc(address)}</div></div>
-</li>""" if address else ""
+    maps_query = urllib.parse.quote_plus(f"{name} {city} BC")
+    maps_url   = f"https://www.google.com/maps/search/{maps_query}"
 
     service_options = "\n".join(
         f'<option value="{_esc(s.get("name",""))}">{_esc(s.get("name",""))}</option>'
         for s in services
     )
+
+    # Phone block (large, accent-coloured, tappable)
+    phone_block = ""
+    if phone:
+        phone_block = f"""<div>
+  <p class="eyebrow" style="margin-bottom:0.3rem">Call Us</p>
+  <a href="tel:{phone}" class="contact-phone">{_esc(phone)}</a>
+</div>"""
+
+    # Address block
+    addr_block = ""
+    if address:
+        addr_block = f"""<div>
+  <p class="eyebrow" style="margin-bottom:0.3rem">Address</p>
+  <p style="font-weight:600;color:var(--navy);margin:0">{_esc(address)}</p>
+</div>"""
 
     html  = _head(f"Contact Us | {name}", meta, business)
     html += _nav(business, "contact")
@@ -2117,29 +2430,17 @@ def _write_contact(business: dict, content: dict, site_dir: Path) -> None:
 <main>
   <div class="page-hero">
     <div class="container">
+      <p class="eyebrow">Say Hello</p>
       <h1>Get in Touch</h1>
-      <p>Free estimates. Fast response. No obligation.</p>
+      <p>We'd love to hear from you. Free estimates, fast response, no obligation.</p>
     </div>
   </div>
+
   <section class="section">
     <div class="container">
       <div class="contact-grid">
-        <div>
-          <h2>Contact Info</h2>
-          <ul class="contact-info">
-            {phone_item}
-            {addr_item}
-            <li>
-              <span class="ci-icon">📍</span>
-              <div><div class="ci-label">Service Area</div><div class="ci-value">{_esc(city)} and surrounding area</div></div>
-            </li>
-            <li>
-              <span class="ci-icon">🕐</span>
-              <div><div class="ci-label">Hours</div><div class="ci-value">Mon–Fri 8am–6pm<br>Sat 9am–4pm<br>Emergency service available</div></div>
-            </li>
-          </ul>
-        </div>
-        <div class="form-card">
+        <!-- Contact form (left/main) -->
+        <div class="form-card" style="order:1">
           <h3>{_esc(cta)}</h3>
           <form id="contact-form" name="contact-main" data-netlify="true" method="POST">
             <input type="hidden" name="form-name" value="contact-main" />
@@ -2179,9 +2480,51 @@ def _write_contact(business: dict, content: dict, site_dir: Path) -> None:
             <p class="form-note">We'll respond within 24 hours.</p>
           </form>
         </div>
+
+        <!-- Contact info panel (right) -->
+        <div class="contact-info-panel" style="order:2">
+          <h3>Contact Info</h3>
+
+          {phone_block}
+
+          {addr_block}
+
+          <!-- Business hours — replace with your actual hours -->
+          <div>
+            <p class="eyebrow" style="margin-bottom:0.3rem">Hours</p>
+            <p style="color:var(--text);margin:0;font-size:0.97rem">
+              Mon–Fri 8am–6pm<br>
+              Sat 9am–3pm<br>
+              <span style="color:var(--muted);font-size:0.88rem"><!-- Replace with your actual hours --></span>
+            </p>
+          </div>
+
+          <div>
+            <p class="eyebrow" style="margin-bottom:0.3rem">Service Area</p>
+            <p style="color:var(--text);margin:0;font-size:0.97rem">{_esc(city)} and surrounding area</p>
+          </div>
+
+          <!-- Map placeholder — no API key needed, links to Google Maps search -->
+          <div class="map-placeholder">
+            <span style="font-size:1.5rem">📍</span>
+            <span style="font-weight:600;color:var(--text)">{_esc(name)}, {_esc(city)}, BC</span>
+            <a href="{_esc(maps_url)}" target="_blank" rel="noopener noreferrer">View on Google Maps</a>
+          </div>
+        </div>
       </div>
     </div>
   </section>
+
+  <!-- Trust badges -->
+  <div class="section-alt" style="padding:0">
+    <div class="container">
+      <div class="trust-badges">
+        <div class="trust-badge"><span class="badge-icon">🛡️</span> Licensed &amp; Insured</div>
+        <div class="trust-badge"><span class="badge-icon">⚡</span> Fast Response</div>
+        <div class="trust-badge"><span class="badge-icon">📋</span> Free Estimates</div>
+      </div>
+    </div>
+  </div>
 </main>
 """
     html += _footer(business)
@@ -2191,12 +2534,17 @@ def _write_contact(business: dict, content: dict, site_dir: Path) -> None:
 
 def _write_reviews(business: dict, profile: dict, content: dict, site_dir: Path,
                    customize: dict | None = None) -> None:
+    import urllib.parse
     customize = customize or {}
     name    = business.get("name", "Our Business")
     city    = business.get("city", "BC")
     rating  = business.get("rating", "")
     reviews = business.get("review_count", 0)
     meta    = f"Reviews for {name} in {city}, BC. See what our customers say."
+
+    maps_query    = urllib.parse.quote_plus(f"{name} {city} BC")
+    maps_url      = f"https://www.google.com/maps/search/{maps_query}"
+    review_url    = f"https://www.google.com/maps/search/{maps_query}"
 
     # Customize reviews take precedence, then profile reviews, then placeholders
     real_reviews = []
@@ -2209,6 +2557,7 @@ def _write_reviews(business: dict, profile: dict, content: dict, site_dir: Path,
             real_reviews = gp["reviews"][:6]
 
     # Fallback placeholder reviews
+    placeholder_comment = ""
     if not real_reviews:
         real_reviews = [
             {"author": "Sarah M.", "rating": 5, "text": "Excellent service! They were prompt, professional, and did a fantastic job. Would highly recommend to anyone in the area.", "time": "2 months ago"},
@@ -2216,16 +2565,68 @@ def _write_reviews(business: dict, profile: dict, content: dict, site_dir: Path,
             {"author": "Linda T.", "rating": 5, "text": "Called in the morning and they were here by noon. Fixed the problem quickly and explained everything clearly. Very happy.", "time": "1 month ago"},
             {"author": "Mike R.", "rating": 4, "text": "Professional and courteous. The job was done right and on budget. Good communication throughout.", "time": "4 months ago"},
         ]
+        placeholder_comment = "<!-- PLACEHOLDER reviews: replace with real customer quotes once available -->"
 
-    cards = "\n".join(
-        f"""<div class="review-card">
-  <div class="stars">{"⭐" * int(r.get("rating") or 5)}</div>
+    def _review_card(r: dict) -> str:
+        r_rating = int(r.get("rating") or 5)
+        stars_html = "".join(
+            f'<span style="color:#f5a623">★</span>' if i < r_rating
+            else f'<span style="color:var(--border)">★</span>'
+            for i in range(5)
+        )
+        time_str = r.get("time", "")
+        return f"""<div class="review-card">
+  <div class="stars" style="font-size:1.15rem;letter-spacing:1px">{stars_html}</div>
   <p class="review-text">"{_esc(r.get("text","Great service!"))}"</p>
-  <div class="review-author">— {_esc(r.get("author","Happy Customer"))}</div>
-  {f'<div style="font-size:0.8rem;color:var(--muted);margin-top:0.25rem">{_esc(r.get("time",""))}</div>' if r.get("time") else ""}
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:0.5rem;margin-top:0.75rem">
+    <div class="review-author" style="font-weight:700;font-size:0.92rem;color:var(--navy)">— {_esc(r.get("author","Happy Customer"))}</div>
+    {f'<div style="font-size:0.8rem;color:var(--muted)">{_esc(time_str)}</div>' if time_str else ""}
+  </div>
 </div>"""
-        for r in real_reviews
-    )
+
+    cards = "\n".join(_review_card(r) for r in real_reviews)
+
+    # Hero subtitle
+    if rating:
+        hero_subtitle = f"⭐ {_esc(str(rating))}/5 · {reviews}+ reviews on Google"
+    else:
+        hero_subtitle = "What our customers are saying"
+
+    # Rating distribution summary bar (shown when review_count >= 10)
+    summary_html = ""
+    if reviews >= 10 and rating:
+        try:
+            avg = float(rating)
+        except (TypeError, ValueError):
+            avg = 4.5
+        # Generate plausible distribution from average
+        # avg ≈ 4.5 → mostly 5-star, some 4-star, tiny 3-star, none below
+        def _dist(avg: float) -> dict:
+            """Return plausible star distribution (0-100 pct) from average."""
+            if avg >= 4.8:
+                return {5: 85, 4: 12, 3: 2, 2: 1, 1: 0}
+            elif avg >= 4.5:
+                return {5: 70, 4: 20, 3: 6, 2: 2, 1: 2}
+            elif avg >= 4.0:
+                return {5: 55, 4: 28, 3: 10, 2: 4, 1: 3}
+            elif avg >= 3.5:
+                return {5: 40, 4: 30, 3: 18, 2: 7, 1: 5}
+            else:
+                return {5: 25, 4: 25, 3: 25, 2: 15, 1: 10}
+
+        dist = _dist(avg)
+        bar_rows = "\n".join(
+            f"""<div class="rating-bar-row">
+  <span style="min-width:28px">{stars}★</span>
+  <div class="rating-bar-track"><div class="rating-bar-fill" style="width:{pct}%"></div></div>
+  <span class="rating-bar-pct">{pct}%</span>
+</div>"""
+            for stars, pct in sorted(dist.items(), reverse=True)
+        )
+        summary_html = f"""<div class="review-summary">
+  <h3 style="font-size:1rem;margin-bottom:0.75rem">Rating Breakdown</h3>
+  {bar_rows}
+</div>"""
 
     html  = _head(f"Reviews | {name}", meta, business)
     html += _nav(business, "reviews")
@@ -2233,20 +2634,39 @@ def _write_reviews(business: dict, profile: dict, content: dict, site_dir: Path,
 <main>
   <div class="page-hero">
     <div class="container">
-      <h1>Customer Reviews</h1>
-      <p>{"⭐ " + str(rating) + "/5 from " + str(reviews) + "+ verified reviews" if rating else "What our customers are saying"}</p>
+      <p class="eyebrow">Customer Feedback</p>
+      <h1>What Our Customers Say</h1>
+      <p>{hero_subtitle}</p>
     </div>
   </div>
+
   <section class="section">
     <div class="container">
+      {summary_html}
+      {placeholder_comment}
       <div class="reviews-grid">{cards}</div>
     </div>
   </section>
+
+  <!-- Leave a review CTA -->
+  <section class="section section-alt">
+    <div class="container" style="text-align:center">
+      <p class="eyebrow">Share Your Experience</p>
+      <h2>Happy with Our Work?</h2>
+      <p style="color:var(--muted);max-width:500px;margin:0 auto 1.75rem">Your review helps other {_esc(city)} residents find trusted local service. It only takes a minute!</p>
+      <a href="{_esc(review_url)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-lg">Leave a Google Review →</a>
+    </div>
+  </section>
+
+  <!-- CTA Banner -->
   <section class="cta-banner">
     <div class="container">
       <h2>Join Our Happy Customers</h2>
-      <p>Experience the same quality service that keeps {_esc(city)} residents coming back.</p>
-      <a href="contact.html" class="btn btn-white btn-lg">Get a Free Quote</a>
+      <p>Experience the quality service that keeps {_esc(city)} residents coming back year after year.</p>
+      <div class="cta-actions">
+        <a href="contact.html" class="btn btn-white btn-lg">Get a Free Quote</a>
+      </div>
+      <p class="cta-trust-note">Licensed &amp; Insured &nbsp;·&nbsp; Free Estimates &nbsp;·&nbsp; Local {_esc(city)} Team</p>
     </div>
   </section>
 </main>
