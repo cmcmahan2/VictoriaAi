@@ -463,7 +463,7 @@ def _places_api_details(api_key: str, place_id: str, profile_dir: Path) -> dict:
         "name", "formatted_address", "formatted_phone_number",
         "website", "rating", "user_ratings_total", "opening_hours",
         "photos", "reviews", "editorial_summary", "types",
-        "business_status", "price_level", "url",
+        "business_status", "price_level", "url", "place_id",
     ])
     params = {
         "place_id": place_id,
@@ -482,32 +482,44 @@ def _places_api_details(api_key: str, place_id: str, profile_dir: Path) -> dict:
 
         place = data.get("result", {})
 
-        photos = []
+        # Build photo URLs using the Places Photo API (maxwidth=800) and also
+        # attempt to download local copies. Both the public URL and local path
+        # are stored so build.py can use the URL directly without serving files.
+        photos_urls = []
+        photos_downloaded = []
         for photo_ref in place.get("photos", [])[:MAX_PHOTOS]:
-            ref   = photo_ref.get("photo_reference")
-            width = photo_ref.get("width", 1600)
+            ref = photo_ref.get("photo_reference")
+            if not ref:
+                continue
             photo_url = (
                 "https://maps.googleapis.com/maps/api/place/photo"
-                "?maxwidth=" + str(min(width, 1600)) +
-                "&photoreference=" + str(ref) +
+                "?maxwidth=800"
+                "&photo_reference=" + str(ref) +
                 "&key=" + api_key
             )
-            dest = profile_dir / "assets" / ("gmb_photo_" + str(len(photos)+1) + ".jpg")
+            photos_urls.append(photo_url)
+            dest = profile_dir / "assets" / ("gmb_photo_" + str(len(photos_downloaded)+1) + ".jpg")
             try:
                 pr = requests.get(photo_url, timeout=15, stream=True)
                 if pr.status_code == 200:
                     dest.write_bytes(pr.content)
-                    photos.append(str(dest))
+                    photos_downloaded.append(str(dest))
             except Exception:
                 pass
 
+        # Store up to 5 reviews in the shape expected by build.py:
+        # {author_name, rating, text, relative_time_description}
+        # build.py also normalises using _normalize_review which reads
+        # "author" or "name" and "time" — we store both keys for compat.
         reviews = []
-        for rv in place.get("reviews", [])[:MAX_REVIEWS]:
+        for rv in place.get("reviews", [])[:5]:
             reviews.append({
-                "author": rv.get("author_name"),
-                "rating": rv.get("rating"),
-                "text":   rv.get("text", "")[:500],
-                "time":   rv.get("relative_time_description"),
+                "author_name":              rv.get("author_name"),
+                "author":                   rv.get("author_name"),
+                "rating":                   rv.get("rating"),
+                "text":                     rv.get("text", "")[:500],
+                "relative_time_description": rv.get("relative_time_description"),
+                "time":                     rv.get("relative_time_description"),
             })
 
         hours = place.get("opening_hours", {}).get("weekday_text", [])
@@ -525,7 +537,12 @@ def _places_api_details(api_key: str, place_id: str, profile_dir: Path) -> dict:
             "editorial_summary":  place.get("editorial_summary", {}).get("overview"),
             "business_status":    place.get("business_status"),
             "google_maps_url":    place.get("url"),
-            "photos_downloaded":  photos,
+            "place_id":           place.get("place_id") or place_id,
+            # Public Google Places photo URLs (up to 5) — used directly in HTML
+            "photos":             photos_urls[:5],
+            # Local downloaded copies (may be fewer if downloads failed)
+            "photos_downloaded":  photos_downloaded,
+            # Top 5 real reviews from Google (pre-sorted by relevance)
             "reviews":            reviews,
         }
     except Exception as exc:

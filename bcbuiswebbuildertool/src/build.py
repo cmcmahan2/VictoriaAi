@@ -390,6 +390,43 @@ def build_website(profile_dir: str, output_dir: str = "./output") -> Path:
     business["_theme"] = theme
     print(f"[build] Theme: {theme['name']}")
 
+    # ── Google Places enrichment ──────────────────────────────────────────────
+    # If Phase 2 captured real Google Places photos and reviews, inject them
+    # into customize so the rest of build_website() picks them up automatically
+    # (customize layer takes precedence, so explicit customize.json overrides
+    # these defaults without any extra logic).
+    gp = profile.get("google_places", {})
+    if isinstance(gp, dict):
+        gp_photos  = gp.get("photos") or []   # list of public photo URLs
+        gp_reviews = gp.get("reviews") or []  # list of review dicts
+
+        # Use first Google Places photo as hero background unless the operator
+        # has already set one in customize.json.
+        if gp_photos and not customize.get("hero_image"):
+            customize.setdefault("hero_image", gp_photos[0])
+            print(f"[build] Using Google Places photo as hero: {gp_photos[0][:60]}…")
+
+        # Use subsequent photos as per-service images (photos[1], photos[2]…)
+        # keyed by index so they're available as fallback pool.  Only inject
+        # if the operator hasn't already set service_images.
+        if len(gp_photos) > 1 and not customize.get("service_images"):
+            customize.setdefault("_gp_extra_photos", gp_photos[1:5])
+
+        # Use real Google reviews unless the operator has supplied their own.
+        if gp_reviews and not customize.get("reviews"):
+            # Normalise to the shape _normalize_review / _testimonial_card expect
+            normalized = []
+            for rv in gp_reviews[:5]:
+                normalized.append({
+                    "name":     rv.get("author_name") or rv.get("author") or "Google Reviewer",
+                    "rating":   rv.get("rating") or 5,
+                    "text":     rv.get("text") or "Great service!",
+                    "location": "Google Review",
+                    "time":     rv.get("relative_time_description") or rv.get("time") or "",
+                })
+            customize["reviews"] = normalized
+            print(f"[build] Using {len(normalized)} real Google reviews from Places API")
+
     # Generate content via Claude (or fall back to templates)
     print("[build] Generating page content...")
     content = _generate_content(business, profile, customize)
@@ -1735,73 +1772,74 @@ def _esc(s) -> str:
 
 # ── Filler images ───────────────────────────────────────────────────────────
 
-# Maps a business category to good stock-photo search keywords so the filler
-# images actually match the type of business.
-# A single strong tag per business category. loremflickr matches photos far
-# more reliably with one specific tag than with several OR'd together.
+# Maps a business category to good Unsplash-friendly search keywords so the
+# filler images actually match the type of business.
+# Uses comma-separated multi-keyword strings for more relevant Unsplash results.
 _IMG_KEYWORDS = {
-    "plumber":      "plumbing",
-    "plumbing":     "plumbing",
-    "electrician":  "electrician",
-    "electrical":   "electrician",
-    "landscaper":   "landscaping",
-    "landscaping":  "landscaping",
-    "garden":       "garden",
-    "nursery":      "plant-nursery",
-    "hvac":         "hvac",
-    "heating":      "hvac",
-    "roofer":       "roofing",
-    "roofing":      "roofing",
-    "painter":      "house-painting",
-    "painting":     "house-painting",
-    "cleaning":     "house-cleaning",
-    "salon":        "hair-salon",
-    "barber":       "barbershop",
-    "spa":          "day-spa",
-    "dentist":      "dentist",
-    "restaurant":   "restaurant",
-    "cafe":         "coffee-shop",
-    "bakery":       "bakery",
-    "mechanic":     "auto-repair",
-    "auto":         "auto-repair",
-    "fitness":      "gym",
-    "construction": "construction-site",
-    "contractor":   "construction-site",
+    "plumber":      "plumber,pipes",
+    "plumbing":     "plumber,pipes",
+    "electrician":  "electrician,wiring",
+    "electrical":   "electrician,wiring",
+    "landscaper":   "garden,landscaping",
+    "landscaping":  "garden,landscaping",
+    "garden":       "garden,flowers",
+    "nursery":      "plant,nursery",
+    "hvac":         "hvac,heating",
+    "heating":      "hvac,heating",
+    "roofer":       "roofing,roof",
+    "roofing":      "roofing,roof",
+    "painter":      "painting,house",
+    "painting":     "painting,house",
+    "cleaning":     "cleaning,home",
+    "salon":        "hair,salon",
+    "barber":       "barber,haircut",
+    "spa":          "spa,wellness",
+    "dentist":      "dental,dentist",
+    "restaurant":   "restaurant,food",
+    "cafe":         "coffee,cafe",
+    "bakery":       "bakery,bread",
+    "mechanic":     "mechanic,garage",
+    "auto":         "mechanic,garage",
+    "fitness":      "gym,fitness",
+    "gym":          "gym,fitness",
+    "construction": "construction,building",
+    "contractor":   "construction,building",
 }
 
-# Maps words found in a SERVICE name to a specific photo tag, so each card gets
-# a relevant image instead of all cards sharing the business category.
+# Maps words found in a SERVICE name to specific Unsplash-friendly keywords,
+# so each card gets a relevant image instead of all cards sharing the
+# business category photo.
 _SERVICE_IMG_KEYWORDS = {
-    "lawn":        "lawn-mowing",
-    "mowing":      "lawn-mowing",
-    "garden":      "flower-garden",
-    "planting":    "flower-garden",
-    "hardscap":    "stone-patio",
-    "patio":       "stone-patio",
-    "paving":      "stone-patio",
-    "tree":        "tree-pruning",
-    "shrub":       "garden-hedge",
-    "hedge":       "garden-hedge",
-    "irrigation":  "garden-sprinkler",
-    "sprinkler":   "garden-sprinkler",
-    "cleanup":     "raking-leaves",
-    "seasonal":    "raking-leaves",
-    "drain":       "plumbing",
-    "pipe":        "plumbing",
-    "leak":        "plumbing",
-    "wiring":      "electrician",
-    "lighting":    "light-fixture",
-    "panel":       "electrician",
-    "roof":        "roofing",
-    "gutter":      "roofing",
-    "paint":       "house-painting",
-    "haircut":     "haircut",
-    "color":       "hair-salon",
-    "massage":     "massage",
-    "facial":      "day-spa",
-    "repair":      "repair-tools",
-    "install":     "repair-tools",
-    "maintenance": "repair-tools",
+    "lawn":        "lawn,grass",
+    "mowing":      "lawn,grass",
+    "garden":      "garden,flowers",
+    "planting":    "garden,planting",
+    "hardscap":    "patio,stones",
+    "patio":       "patio,stones",
+    "paving":      "patio,stones",
+    "tree":        "tree,pruning",
+    "shrub":       "hedge,garden",
+    "hedge":       "hedge,garden",
+    "irrigation":  "sprinkler,irrigation",
+    "sprinkler":   "sprinkler,irrigation",
+    "cleanup":     "leaves,yard",
+    "seasonal":    "leaves,yard",
+    "drain":       "plumber,pipes",
+    "pipe":        "plumber,pipes",
+    "leak":        "plumber,pipes",
+    "wiring":      "electrician,wiring",
+    "lighting":    "light,fixture",
+    "panel":       "electrician,panel",
+    "roof":        "roofing,roof",
+    "gutter":      "roofing,gutter",
+    "paint":       "painting,house",
+    "haircut":     "barber,haircut",
+    "color":       "hair,salon",
+    "massage":     "massage,spa",
+    "facial":      "spa,wellness",
+    "repair":      "tools,repair",
+    "install":     "tools,installation",
+    "maintenance": "tools,maintenance",
 }
 
 
@@ -1811,7 +1849,7 @@ def _img_keywords(category: str) -> str:
         if key in cat:
             return kw
     word = re.sub(r"[^a-z]+", "", cat.split()[0]) if cat.strip() else ""
-    return word or "local-business"
+    return (word + ",business") if word else "business,professional"
 
 
 def _service_img_keywords(service_name: str, fallback: str) -> str:
@@ -1824,17 +1862,23 @@ def _service_img_keywords(service_name: str, fallback: str) -> str:
 
 def _img(keywords: str, w: int, h: int, seed: str = "") -> str:
     """
-    Return a keyword-matched filler image URL. Uses loremflickr.com, which
-    serves Creative-Commons photos matching the tag with no API key. A stable
-    seed (e.g. service name) keeps the same image across rebuilds. The /all
-    path segment forces every comma-separated tag to match, cutting down on
-    unrelated results.
+    Return a keyword-matched filler image URL. Uses the Unsplash Source API,
+    which serves high-quality curated photos with no API key required.
+    The seed parameter: if short and meaningful (e.g. a service name), it is
+    appended as an extra keyword for specificity. Unsplash Source returns a
+    relevant random photo each time, which is suitable for filler images.
+
+    URL format: https://source.unsplash.com/{w}x{h}/?{keyword1},{keyword2}
+    Example:    https://source.unsplash.com/1600x700/?landscaping,garden
     """
-    base = f"https://loremflickr.com/{w}/{h}/{keywords}/all"
+    kw = keywords
+    # Append seed as an extra keyword only when it's a short, meaningful word
+    # (not a long hash-like string or full business name)
     if seed:
-        lock = abs(hash(seed)) % 9999
-        return f"{base}?lock={lock}"
-    return base
+        seed_clean = re.sub(r"[^a-z0-9]+", "", seed.lower())
+        if seed_clean and len(seed_clean) <= 20 and not any(c.isdigit() for c in seed_clean[:3]):
+            kw = f"{keywords},{seed_clean}"
+    return f"https://source.unsplash.com/{w}x{h}/?{kw}"
 
 
 # ── Pages ─────────────────────────────────────────────────────────────────────
@@ -1863,6 +1907,8 @@ def _write_index(business: dict, profile: dict, content: dict, site_dir: Path,
     keywords = _img_keywords(category)
     hero_img = customize.get("hero_image") or _img(keywords, 1600, 800, seed=name)
     service_images = customize.get("service_images") or {}
+    # Extra Google Places photos (photos[1..4]) used as a pool for service cards
+    gp_extra_photos = list(customize.get("_gp_extra_photos") or [])
     theme    = business.get("_theme") if isinstance(business.get("_theme"), dict) else THEMES["modern"]
     hero_overlay = theme.get("hero_overlay", THEMES["modern"]["hero_overlay"])
 
@@ -1926,10 +1972,18 @@ def _write_index(business: dict, profile: dict, content: dict, site_dir: Path,
     </div>
   </section>"""
 
+    _gp_photo_pool = list(gp_extra_photos)  # mutable copy consumed per service card
+
     def _service_card(s: dict) -> str:
         sname = s.get("name", "")
-        img_src = service_images.get(sname) or _img(
-            _service_img_keywords(sname, keywords), 400, 260, seed=sname)
+        # Priority: explicit customize service_images > Google Places extra photos
+        # (consumed in order) > Unsplash filler
+        if service_images.get(sname):
+            img_src = service_images[sname]
+        elif _gp_photo_pool:
+            img_src = _gp_photo_pool.pop(0)
+        else:
+            img_src = _img(_service_img_keywords(sname, keywords), 400, 260, seed=sname)
         return f"""<div class="service-card">
   <img class="service-img" src="{_esc(img_src)}" alt="{_esc(sname or 'Service')}" loading="lazy" />
   <div class="service-card-body">
@@ -2246,10 +2300,10 @@ def _write_about(business: dict, content: dict, site_dir: Path) -> None:
     cat  = cats[0] if cats else "services"
     keywords = _img_keywords(cat)
 
-    # Team photo with keyword "portrait", different seeds
-    team_photo_1 = _img("portrait", 300, 300, seed=name + "-team1")
-    team_photo_2 = _img("portrait", 300, 300, seed=name + "-team2")
-    team_photo_3 = _img("portrait", 300, 300, seed=name + "-team3")
+    # Team photo with keyword "portrait,professional", different seeds
+    team_photo_1 = _img("portrait,professional", 300, 300, seed=name + "-team1")
+    team_photo_2 = _img("portrait,professional", 300, 300, seed=name + "-team2")
+    team_photo_3 = _img("portrait,professional", 300, 300, seed=name + "-team3")
 
     # About team photo
     team_img = _img(keywords, 600, 500, seed=name + "-team")
