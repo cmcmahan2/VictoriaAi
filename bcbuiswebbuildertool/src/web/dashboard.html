@@ -325,6 +325,33 @@
     <div class="tab-panel" id="tab-clients">
       <div class="panel-title">Clients</div>
       <p class="panel-sub" style="margin-bottom:1rem;">All businesses you&rsquo;ve built sites for. Persists across server restarts.</p>
+      <!-- Value Ladder quick-reference card -->
+      <div style="background:var(--dark3);border:1px solid var(--border);border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.5rem;">
+        <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem;">Value Ladder — Upsell Reference</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:0.6rem;">
+          <div style="background:rgba(255,255,255,0.04);border-radius:7px;padding:0.65rem 0.8rem;">
+            <div style="font-size:0.68rem;color:var(--muted);margin-bottom:0.2rem;">Tier 1 &mdash; Entry</div>
+            <div style="font-size:1.05rem;font-weight:700;color:var(--white);">$99<span style="font-size:0.7rem;font-weight:400;color:var(--muted)">/mo</span></div>
+            <div style="font-size:0.72rem;color:var(--muted);margin-top:0.25rem;">Website hosting + maintenance</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border-radius:7px;padding:0.65rem 0.8rem;">
+            <div style="font-size:0.68rem;color:var(--muted);margin-bottom:0.2rem;">Tier 2 &mdash; Growth</div>
+            <div style="font-size:1.05rem;font-weight:700;color:#5dd49a;">$299<span style="font-size:0.7rem;font-weight:400;color:var(--muted)">/mo</span></div>
+            <div style="font-size:0.72rem;color:var(--muted);margin-top:0.25rem;">+ Google Business + reviews</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border-radius:7px;padding:0.65rem 0.8rem;">
+            <div style="font-size:0.68rem;color:var(--muted);margin-bottom:0.2rem;">Tier 3 &mdash; Pro</div>
+            <div style="font-size:1.05rem;font-weight:700;color:#5dd49a;">$599<span style="font-size:0.7rem;font-weight:400;color:var(--muted)">/mo</span></div>
+            <div style="font-size:0.72rem;color:var(--muted);margin-top:0.25rem;">+ social posts + SEO blog</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.04);border-radius:7px;padding:0.65rem 0.8rem;">
+            <div style="font-size:0.68rem;color:var(--muted);margin-bottom:0.2rem;">Tier 4 &mdash; Premium</div>
+            <div style="font-size:1.05rem;font-weight:700;color:#f0a940;">$1,500<span style="font-size:0.7rem;font-weight:400;color:var(--muted)">/mo</span></div>
+            <div style="font-size:0.72rem;color:var(--muted);margin-top:0.25rem;">+ Google Ads + strategy calls</div>
+          </div>
+        </div>
+        <div style="font-size:0.72rem;color:var(--muted);margin-top:0.75rem;">Lead offer: <strong style="color:var(--white);">$0 setup &bull; $99/mo hosting</strong> &mdash; site already built, no risk to them.</div>
+      </div>
       <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem;">
         <a href="/api/clients/export.csv" id="export-csv-link" style="display:none;" class="btn-run">Export CSV</a>
       </div>
@@ -544,29 +571,45 @@
    * personalise their generated site with real content.
    */
   function openOnboardEmail(businessName) {
-    const subject = encodeURIComponent(`Your Pacific Web Builder Onboarding — ${businessName}`);
+    const subject = encodeURIComponent(`Your website is ready — ${businessName}`);
     const body = encodeURIComponent(
 `Hi there,
 
-We're excited to be building your new website! To make it look its best, we need a few things from you:
+Your new website is live and ready to view. We built it specifically for ${businessName} — no templates, no generic stock copy.
 
-1. PHOTOS — Please share 3–5 photos of your work, team, or storefront.
-   (Google Drive link or email attachments both work great)
+Here's your preview link:
+[Paste their portal.html URL here before sending]
 
-2. GOOGLE REVIEWS — Please go to your Google Business listing, find your top 3–5 reviews, and copy/paste them here. We'll feature them on your site.
+---
 
-3. BUSINESS HOURS — What are your regular hours of operation?
+HOW IT WORKS
+• $0 setup fee — no upfront cost
+• $99/month covers hosting + maintenance (same as GoDaddy, but we handle everything)
+• No contract — cancel anytime
+• Domain pointing included (we'll connect your own domain if you have one)
+
+---
+
+TO GET STARTED, we just need a few things from you:
+
+1. PHOTOS — 3–5 photos of your work, team, or storefront
+   (Google Drive link or email attachments both work)
+
+2. GOOGLE REVIEWS — Copy/paste your top 3–5 Google reviews
+   (We'll feature them on your site to build trust with visitors)
+
+3. BUSINESS HOURS — Your regular hours of operation
 
 4. YEARS IN BUSINESS — How long have you been serving the community?
 
-5. OWNER FIRST NAME — What should we call you on the site?
+5. ANY SPECIAL OFFERS or certifications you'd like highlighted
 
-6. SPECIAL OFFERS / CERTIFICATIONS — Any active promotions, trade certifications, or awards you'd like to highlight?
+Just reply to this email and we'll have your site polished and live at your domain within 48 hours.
 
-Just reply to this email with the above info and we'll get your site polished up right away!
+Questions? Call or text: [YOUR PHONE NUMBER]
 
-Best,
-Pacific Web Builder Team`
+— Pacific Web Builder
+hello@pacificwebbuilder.ca`
     );
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   }
