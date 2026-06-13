@@ -25,6 +25,8 @@ from urllib.parse import quote_plus
 import requests
 from dotenv import load_dotenv
 
+import cache
+
 load_dotenv()
 
 # Scoring weights
@@ -189,6 +191,23 @@ def discover_businesses(
 
 
 def _discover_via_places_api(city, business_type, radius_km, max_results, api_key):
+    """Cached Tier 1 wrapper. Serves from the SQLite cache when a previous run
+    for the same city/type/radius requested at least as many results (so we know
+    we already pulled everything available up to that count). The province sweep
+    benefits automatically since it calls this per city."""
+    key = f"{city.strip().lower()}|{business_type.strip().lower()}|{radius_km}"
+    cached = cache.get("places", key)
+    if cached and cached.get("requested", 0) >= max_results:
+        results = cached.get("results", [])
+        print(f"[discovery] Google Places: cache hit for {business_type} in {city} ({len(results)} cached)")
+        return results[:max_results]
+    results = _discover_via_places_api_live(city, business_type, radius_km, max_results, api_key)
+    if results:
+        cache.set("places", key, {"requested": max_results, "results": results})
+    return results
+
+
+def _discover_via_places_api_live(city, business_type, radius_km, max_results, api_key):
     """Tier 1: Google Maps Text Search + Place Details."""
     query      = f"{business_type} in {city}, BC, Canada"
     search_url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
@@ -277,6 +296,21 @@ def _discover_province_via_places_api(business_type, max_results, api_key):
 
 
 def _discover_province_via_openstreetmap(business_type, max_results):
+    """Cached province-wide Tier 2 wrapper. The underlying Overpass query can take
+    up to 180s, so caching it is a big win for repeat BC-wide sweeps."""
+    key = business_type.strip().lower()
+    cached = cache.get("osm_province", key)
+    if cached and cached.get("requested", 0) >= max_results:
+        results = cached.get("results", [])
+        print(f"[discovery] OSM province-wide: cache hit ({len(results)} cached)")
+        return results[:max_results]
+    results = _discover_province_via_openstreetmap_live(business_type, max_results)
+    if results:
+        cache.set("osm_province", key, {"requested": max_results, "results": results})
+    return results
+
+
+def _discover_province_via_openstreetmap_live(business_type, max_results):
     """Province-wide Tier 2: one Overpass query over the entire BC provincial
     boundary instead of a radius around a single city. Free, no key."""
     tag_pairs = _osm_tags_for(business_type)
@@ -521,6 +555,20 @@ def _osm_element_to_business(el: dict, business_type: str, city: str):
 
 
 def _discover_via_openstreetmap(city: str, business_type: str, radius_km: int, max_results: int) -> list[dict]:
+    """Cached Tier 2 wrapper around the live OSM/Overpass search (see below)."""
+    key = f"{city.strip().lower()}|{business_type.strip().lower()}|{radius_km}"
+    cached = cache.get("osm", key)
+    if cached and cached.get("requested", 0) >= max_results:
+        results = cached.get("results", [])
+        print(f"[discovery] OpenStreetMap: cache hit for {business_type} in {city} ({len(results)} cached)")
+        return results[:max_results]
+    results = _discover_via_openstreetmap_live(city, business_type, radius_km, max_results)
+    if results:
+        cache.set("osm", key, {"requested": max_results, "results": results})
+    return results
+
+
+def _discover_via_openstreetmap_live(city: str, business_type: str, radius_km: int, max_results: int) -> list[dict]:
     """
     Tier 2: Real businesses from OpenStreetMap via Overpass API + Nominatim geocoding.
     Completely free, no API key required, returns real registered businesses.
@@ -815,6 +863,23 @@ def _check_all_websites(businesses):
 
 
 def _check_website_health(url):
+    """Cached HTTP health check. Results are cached for the default TTL keyed by
+    URL, so the same site is never re-fetched across discovery runs. Only "real"
+    results (we actually reached the site) are cached - transient failures
+    (timeout/DNS) are left uncached so they get retried next time."""
+    if not url:
+        return _check_website_health_uncached(url)
+    key = url.strip().lower().rstrip("/")
+    cached = cache.get("health", key)
+    if cached is not None:
+        return cached
+    health = _check_website_health_uncached(url)
+    if health.get("status_code") is not None or health.get("accessible"):
+        cache.set("health", key, health)
+    return health
+
+
+def _check_website_health_uncached(url):
     """HTTP-level health check: SSL, broken, parked, outdated, mobile, booking."""
     health = {"accessible": False, "ssl": False, "broken": True, "parked": False,
               "outdated": False, "mobile_responsive": False, "has_booking": False,
