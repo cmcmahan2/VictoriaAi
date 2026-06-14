@@ -254,6 +254,65 @@ async def logout(request: Request):
     token = request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
     VALID_TOKENS.discard(token); return {"ok": True}
 
+@app.get("/api/health")
+async def health_check(request: Request):
+    """Report which API keys are configured and the readiness of each pipeline
+    phase. Safe to call on startup to confirm the env before a live run."""
+    require_auth(request)
+    from pathlib import Path as _P
+
+    def _key(name: str) -> dict:
+        val = os.getenv(name, "")
+        present = bool(val.strip())
+        # Show a redacted suffix so the user can spot a copy-paste mistake
+        preview = (val[-6:] if len(val) >= 6 else "…") if present else None
+        return {"present": present, "preview": f"…{preview}" if preview else None}
+
+    google  = _key("GOOGLE_MAPS_API_KEY")
+    anthro  = _key("ANTHROPIC_API_KEY")
+    netlify = _key("NETLIFY_AUTH_TOKEN")
+    fsq     = _key("FOURSQUARE_API_KEY")
+
+    phases = {
+        "1_discover": {
+            "ready": google["present"],
+            "note": "Google Places (Tier 1)" if google["present"] else "OSM only — no GOOGLE_MAPS_API_KEY",
+        },
+        "2_scrape": {
+            "ready": True,
+            "note": "No key required",
+        },
+        "3_build": {
+            "ready": anthro["present"],
+            "note": "Claude AI copy" if anthro["present"] else "Template fallback — no ANTHROPIC_API_KEY",
+        },
+        "4_audit": {
+            "ready": anthro["present"],
+            "note": "Claude AI report" if anthro["present"] else "Template fallback — no ANTHROPIC_API_KEY",
+        },
+        "5_deploy": {
+            "ready": netlify["present"],
+            "note": "Netlify auto-deploy" if netlify["present"] else "Manual deploy — no NETLIFY_AUTH_TOKEN",
+        },
+    }
+    all_core = google["present"] and anthro["present"] and netlify["present"]
+    return {
+        "ready":    all_core,
+        "summary":  "All systems go" if all_core else "Some API keys missing — check phases",
+        "keys": {
+            "GOOGLE_MAPS_API_KEY": google,
+            "ANTHROPIC_API_KEY":   anthro,
+            "NETLIFY_AUTH_TOKEN":  netlify,
+            "FOURSQUARE_API_KEY":  fsq,
+        },
+        "phases":   phases,
+        "db": {
+            "jobs_db":   str(OUTPUT_DIR / "jobs.db"),
+            "cache_db":  os.getenv("CACHE_DB", "./output/cache.db"),
+            "log_file":  str(log_path()),
+        },
+    }
+
 @app.get("/api/discover")
 async def discover_info(request: Request):
     """Stub — discovery is triggered via POST /api/discover, not GET."""

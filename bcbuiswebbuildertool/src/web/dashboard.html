@@ -195,6 +195,7 @@
   <div class="nav-right">
     <div class="status-dot" id="status-dot"></div>
     <span style="font-size:0.75rem;color:var(--muted)" id="status-text">Ready</span>
+    <span id="health-badge" onclick="showHealth()" title="Click to see API key status" style="font-size:0.7rem;font-weight:700;padding:0.18rem 0.5rem;border-radius:4px;cursor:pointer;display:none;"></span>
     <button class="logout-btn" onclick="logout()">Logout</button>
   </div>
 </nav>
@@ -428,6 +429,18 @@
   </div>
 </div>
 <div class="toast-wrap" id="toasts"></div>
+
+<!-- Health check modal -->
+<div id="health-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:500;align-items:center;justify-content:center;">
+  <div style="background:var(--dark2);border:1px solid var(--border2);border-radius:12px;padding:1.5rem;min-width:340px;max-width:480px;width:90%;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+      <span style="font-weight:700;font-size:1rem;">System Health</span>
+      <button onclick="document.getElementById('health-modal').style.display='none'" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;">✕</button>
+    </div>
+    <div id="health-body" style="font-size:0.82rem;line-height:1.8;color:var(--text);"></div>
+  </div>
+</div>
+
 <script>
   const token = localStorage.getItem('bcbui_token');
   if (!token) window.location.href = '/';
@@ -436,7 +449,54 @@
     headers: {'Content-Type':'application/json', Authorization:'Bearer '+token, ...(opts.headers||{})},
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
-  api('/auth/check').then(r => { if (!r.ok) window.location.href = '/'; });
+  api('/auth/check').then(r => { if (!r.ok) window.location.href = '/'; else loadHealth(); });
+
+  // ── System health badge ───────────────────────────────────────────────────
+  let _healthData = null;
+  async function loadHealth() {
+    try {
+      const res = await api('/api/health');
+      if (!res.ok) return;
+      _healthData = await res.json();
+      const badge = document.getElementById('health-badge');
+      badge.style.display = 'inline-block';
+      if (_healthData.ready) {
+        badge.textContent = '● All systems go';
+        badge.style.background = 'rgba(52,211,153,0.12)';
+        badge.style.color = 'var(--green)';
+      } else {
+        const missing = Object.entries(_healthData.keys)
+          .filter(([k,v]) => !v.present && k !== 'FOURSQUARE_API_KEY')
+          .map(([k]) => k.replace('_API_KEY','').replace('_AUTH_TOKEN',''));
+        badge.textContent = `⚠ ${missing.join(', ')} missing`;
+        badge.style.background = 'rgba(251,191,36,0.12)';
+        badge.style.color = '#fbbf24';
+      }
+    } catch(_) {}
+  }
+
+  function showHealth() {
+    if (!_healthData) return;
+    const d = _healthData;
+    const tick = ok => ok ? '<span style="color:var(--green)">✓</span>' : '<span style="color:#f87171">✗</span>';
+    let html = `<div style="margin-bottom:0.75rem;font-weight:600;color:${d.ready?'var(--green)':'#fbbf24'}">${d.summary}</div>`;
+    html += '<div style="margin-bottom:0.5rem;font-weight:600;color:var(--muted);font-size:0.7rem;letter-spacing:0.07em;text-transform:uppercase;">API Keys</div>';
+    for (const [k, v] of Object.entries(d.keys)) {
+      html += `<div style="display:flex;justify-content:space-between;margin-bottom:0.25rem;">${tick(v.present)} <span style="flex:1;margin:0 0.5rem">${k}</span><span style="color:var(--muted)">${v.present ? v.preview : 'not set'}</span></div>`;
+    }
+    html += '<div style="margin:0.75rem 0 0.5rem;font-weight:600;color:var(--muted);font-size:0.7rem;letter-spacing:0.07em;text-transform:uppercase;">Pipeline Phases</div>';
+    for (const [phase, info] of Object.entries(d.phases)) {
+      html += `<div style="display:flex;gap:0.5rem;margin-bottom:0.25rem;">${tick(info.ready)}<span>${phase.replace(/^\d_/,'Phase ').replace('_',' ')} — ${info.note}</span></div>`;
+    }
+    html += `<div style="margin-top:0.75rem;font-size:0.72rem;color:var(--muted);">Logs: ${d.db.log_file}</div>`;
+    document.getElementById('health-body').innerHTML = html;
+    document.getElementById('health-modal').style.display = 'flex';
+  }
+
+  // Close health modal on backdrop click
+  document.getElementById('health-modal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) e.currentTarget.style.display = 'none';
+  });
 
   function switchTab(id) {
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
