@@ -35,6 +35,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from logging_config import get_logger
+
+log = get_logger("scrape")
+
 MAX_PHOTOS    = 10
 MAX_REVIEWS   = 20
 MAX_COMPETITORS = 3
@@ -59,8 +63,8 @@ def build_profile(business: dict, output_dir: str = "./research") -> Path:
     (profile_dir / "assets").mkdir(exist_ok=True)
     (profile_dir / "competitors").mkdir(exist_ok=True)
 
-    print(f"[Phase 2] Building intelligence profile for: {business.get('name')}")
-    print(f"[Phase 2] Output directory: {profile_dir}")
+    log.info(f"[Phase 2] Building intelligence profile for: {business.get('name')}")
+    log.info(f"[Phase 2] Output directory: {profile_dir}")
 
     profile = {
         "business": business,
@@ -81,16 +85,16 @@ def build_profile(business: dict, output_dir: str = "./research") -> Path:
             try:
                 result = future.result()
                 profile[key] = result
-                print(f"[Phase 2] done: {key}")
+                log.info(f"[Phase 2] done: {key}")
             except Exception as exc:
-                print(f"[Phase 2] warning: {key} - {exc}")
+                log.warning(f"[Phase 2] warning: {key} - {exc}")
                 profile[key] = {"error": str(exc)}
 
     profile["summary"] = _build_summary(profile)
 
     path = profile_dir / "profile.json"
     path.write_text(json.dumps(profile, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(f"[Phase 2] Profile complete: {path}")
+    log.info(f"[Phase 2] Profile complete: {path}")
     return profile_dir
 
 
@@ -648,7 +652,7 @@ def _find_competitors(business: dict, profile_dir: Path) -> list:
     business_type = business.get("business_type") or (business.get("categories") or [""])[0]
     own_name      = business.get("name", "").lower()
 
-    print("[Phase 2] Finding competitors: " + str(business_type) + " in " + str(city) + "...")
+    log.info("[Phase 2] Finding competitors: " + str(business_type) + " in " + str(city) + "...")
 
     try:
         leads = discover_businesses(city, business_type, radius_km=10, max_results=10)

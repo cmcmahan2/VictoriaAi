@@ -27,8 +27,11 @@ from dotenv import load_dotenv
 
 import cache
 import regions
+from logging_config import get_logger
 
 load_dotenv()
+
+log = get_logger("discovery")
 
 # Scoring weights
 SCORE_NO_WEBSITE      = 4
@@ -109,50 +112,50 @@ def discover_businesses(
     if google_key:
         if region:
             cities = region["cities"]
-            print(f"[discovery] Tier 1 - Google Places API: {business_type} across {region['label']} ({len(cities)} cities, tier<= {max_tier})")
+            log.info(f"[discovery] Tier 1 - Google Places API: {business_type} across {region['label']} ({len(cities)} cities, tier<= {max_tier})")
             try:
                 businesses = _sweep_cities_via_places_api(cities, business_type, max_results, google_key)
-                print(f"[discovery] Google Places ({region['label']}): {len(businesses)} results")
+                log.info(f"[discovery] Google Places ({region['label']}): {len(businesses)} results")
             except Exception as exc:
-                print(f"[discovery] Google Places failed ({exc}) - trying next tier")
+                log.warning(f"[discovery] Google Places failed ({exc}) - trying next tier")
         else:
-            print(f"[discovery] Tier 1 - Google Places API: {business_type} in {city}, BC")
+            log.info(f"[discovery] Tier 1 - Google Places API: {business_type} in {city}, BC")
             try:
                 businesses = _discover_via_places_api(city, business_type, radius_km, max_results, google_key)
-                print(f"[discovery] Google Places: {len(businesses)} results")
+                log.info(f"[discovery] Google Places: {len(businesses)} results")
             except Exception as exc:
-                print(f"[discovery] Google Places failed ({exc}) - trying next tier")
+                log.warning(f"[discovery] Google Places failed ({exc}) - trying next tier")
 
     if not businesses:
         if region:
-            print(f"[discovery] Tier 2 - OpenStreetMap: {business_type} across {region['label']} ({len(region['provinces'])} province area(s))")
+            log.info(f"[discovery] Tier 2 - OpenStreetMap: {business_type} across {region['label']} ({len(region['provinces'])} province area(s))")
             try:
                 businesses = _sweep_region_via_openstreetmap(region, business_type, max_results)
-                print(f"[discovery] OpenStreetMap ({region['label']}): {len(businesses)} real businesses found")
+                log.info(f"[discovery] OpenStreetMap ({region['label']}): {len(businesses)} real businesses found")
             except Exception as exc:
-                print(f"[discovery] OpenStreetMap failed ({exc}) - trying next tier")
+                log.warning(f"[discovery] OpenStreetMap failed ({exc}) - trying next tier")
         else:
-            print(f"[discovery] Tier 2 - OpenStreetMap: {business_type} in {city}, BC")
+            log.info(f"[discovery] Tier 2 - OpenStreetMap: {business_type} in {city}, BC")
             try:
                 businesses = _discover_via_openstreetmap(city, business_type, radius_km, max_results)
-                print(f"[discovery] OpenStreetMap: {len(businesses)} real businesses found")
+                log.info(f"[discovery] OpenStreetMap: {len(businesses)} real businesses found")
             except Exception as exc:
-                print(f"[discovery] OpenStreetMap failed ({exc}) - trying next tier")
+                log.warning(f"[discovery] OpenStreetMap failed ({exc}) - trying next tier")
 
     if not businesses and fsq_key:
-        print(f"[discovery] Tier 3 - Foursquare Places API: {business_type} in {city}, BC")
+        log.info(f"[discovery] Tier 3 - Foursquare Places API: {business_type} in {city}, BC")
         try:
             businesses = _discover_via_foursquare(city, business_type, radius_km, max_results, fsq_key)
-            print(f"[discovery] Foursquare: {len(businesses)} results")
+            log.info(f"[discovery] Foursquare: {len(businesses)} results")
         except Exception as exc:
-            print(f"[discovery] Foursquare failed ({exc}) - no more tiers")
+            log.warning(f"[discovery] Foursquare failed ({exc}) - no more tiers")
 
     if not businesses:
         if demo_mode:
-            print(f"[discovery] Demo mode - generating sample leads for {business_type} in {city}, BC")
+            log.info(f"[discovery] Demo mode - generating sample leads for {business_type} in {city}, BC")
             businesses = _demo_businesses(city, business_type)
         else:
-            print(
+            log.info(
                 f"[discovery] No real results for '{business_type}' in {city}, BC — "
                 f"try a broader business type or a larger radius (current: {radius_km}km). "
                 f"Returning empty (demo data is disabled; set DEMO_MODE=true to enable it)."
@@ -165,10 +168,10 @@ def discover_businesses(
         before = len(businesses)
         businesses = _dedupe_businesses(businesses)
         if before != len(businesses):
-            print(f"[discovery] Deduped/filtered {before} -> {len(businesses)} businesses")
+            log.info(f"[discovery] Deduped/filtered {before} -> {len(businesses)} businesses")
 
     if not businesses:
-        print(
+        log.info(
             f"[discovery] All candidates for '{business_type}' in {city}, BC were "
             f"duplicates or chains — try a broader business type or a larger radius."
         )
@@ -187,7 +190,7 @@ def discover_businesses(
                 if b.get("existing_website") and b["_prescore"] >= PRESCORE_HTTP_THRESHOLD
                 and b.get("website_health") is None]
     skipped = len(businesses) - len(to_check)
-    print(f"[discovery] Pre-scored {len(businesses)} leads - {len(to_check)} qualify for website check, "
+    log.info(f"[discovery] Pre-scored {len(businesses)} leads - {len(to_check)} qualify for website check, "
           f"{skipped} skipped (no URL or below threshold {PRESCORE_HTTP_THRESHOLD})")
     if to_check:
         _check_all_websites(to_check)  # mutates each dict in place with website_health
@@ -199,7 +202,7 @@ def discover_businesses(
 
     top = ranked[:max_results]
     if top:
-        print(f"[discovery] Done - {len(top)} leads ranked. Top score: {top[0]['score']}/10 ({top[0]['name']})")
+        log.info(f"[discovery] Done - {len(top)} leads ranked. Top score: {top[0]['score']}/10 ({top[0]['name']})")
     return top
 
 
@@ -212,7 +215,7 @@ def _discover_via_places_api(city, business_type, radius_km, max_results, api_ke
     cached = cache.get("places", key)
     if cached and cached.get("requested", 0) >= max_results:
         results = cached.get("results", [])
-        print(f"[discovery] Google Places: cache hit for {business_type} in {city} ({len(results)} cached)")
+        log.info(f"[discovery] Google Places: cache hit for {business_type} in {city} ({len(results)} cached)")
         return results[:max_results]
     results = _discover_via_places_api_live(city, business_type, radius_km, max_results, api_key)
     if results:
@@ -251,7 +254,7 @@ def _discover_via_places_api_live(city, business_type, radius_km, max_results, a
         time.sleep(2)
         params = {"pagetoken": token, "key": api_key}
 
-    print(f"[discovery] Fetching details for {len(place_ids)} places...")
+    log.info(f"[discovery] Fetching details for {len(place_ids)} places...")
     businesses = []
     for i, pid in enumerate(place_ids):
         try:
@@ -270,10 +273,10 @@ def _discover_via_places_api_live(city, business_type, radius_km, max_results, a
                 "source":           "google_places",
             })
             if (i + 1) % 5 == 0:
-                print(f"[discovery] Place details: {i + 1}/{len(place_ids)}")
+                log.info(f"[discovery] Place details: {i + 1}/{len(place_ids)}")
             time.sleep(0.1)
         except Exception as exc:
-            print(f"[discovery] Detail fetch failed for {pid}: {exc}")
+            log.warning(f"[discovery] Detail fetch failed for {pid}: {exc}")
 
     return businesses
 
@@ -298,11 +301,11 @@ def _sweep_cities_via_places_api(cities, business_type, max_results, api_key):
         # Cap per-city pulls so one big city doesn't eat the whole budget and
         # the sweep still reaches smaller towns (often the weakest web presence).
         per_city = min(remaining, max(5, max_results // 4))
-        print(f"[discovery] [{i}/{total}] {c}: searching (have {len(collected)}/{target})...")
+        log.info(f"[discovery] [{i}/{total}] {c}: searching (have {len(collected)}/{target})...")
         try:
             found = _discover_via_places_api(c, business_type, 15, per_city, api_key)
         except Exception as exc:
-            print(f"[discovery] {c} failed ({exc}) - skipping")
+            log.warning(f"[discovery] {c} failed ({exc}) - skipping")
             continue
         added = 0
         for b in found:
@@ -311,7 +314,7 @@ def _sweep_cities_via_places_api(cities, business_type, max_results, api_key):
                 collected[key] = b
                 added += 1
         if added:
-            print(f"[discovery] {c}: +{added} new businesses")
+            log.info(f"[discovery] {c}: +{added} new businesses")
 
     return list(collected.values())
 
@@ -329,7 +332,7 @@ def _sweep_region_via_openstreetmap(region, business_type, max_results):
         try:
             found = _discover_area_via_openstreetmap(prov["iso"], business_type, max_results)
         except RuntimeError as exc:
-            print(f"[discovery] OSM area {prov['label']} failed ({exc}) - skipping")
+            log.warning(f"[discovery] OSM area {prov['label']} failed ({exc}) - skipping")
             continue
         added = 0
         for b in found:
@@ -339,7 +342,7 @@ def _sweep_region_via_openstreetmap(region, business_type, max_results):
                 collected.append(b)
                 added += 1
         if added:
-            print(f"[discovery] OSM {prov['label']}: +{added} businesses")
+            log.info(f"[discovery] OSM {prov['label']}: +{added} businesses")
 
     if not collected:
         raise RuntimeError(
@@ -357,7 +360,7 @@ def _discover_area_via_openstreetmap(iso, business_type, max_results):
     cached = cache.get("osm_area", key)
     if cached and cached.get("requested", 0) >= max_results:
         results = cached.get("results", [])
-        print(f"[discovery] OSM {iso}: cache hit ({len(results)} cached)")
+        log.info(f"[discovery] OSM {iso}: cache hit ({len(results)} cached)")
         return results[:max_results]
     results = _discover_area_via_openstreetmap_live(iso, business_type, max_results)
     if results:
@@ -383,14 +386,14 @@ def _discover_area_via_openstreetmap_live(iso, business_type, max_results):
     try:
         elements = _run_overpass(tag_query)
     except RuntimeError as exc:
-        print(f"[discovery] Area ({iso}) structured OSM search failed: {exc}")
+        log.warning(f"[discovery] Area ({iso}) structured OSM search failed: {exc}")
 
     businesses = []
     for el in elements:
         b = _osm_element_to_business(el, business_type, iso.split("-")[-1])
         if b:
             businesses.append(b)
-    print(f"[discovery] OSM area ({iso}) structured search: {len(businesses)} results")
+    log.info(f"[discovery] OSM area ({iso}) structured search: {len(businesses)} results")
 
     # Name-regex fallback across the whole area — only when the structured
     # search came up short, since this is a heavier query.
@@ -414,9 +417,9 @@ def _discover_area_via_openstreetmap_live(iso, business_type, max_results):
                 if b:
                     businesses.append(b)
                     added += 1
-            print(f"[discovery] OSM area ({iso}) name fallback: {added} additional candidates")
+            log.info(f"[discovery] OSM area ({iso}) name fallback: {added} additional candidates")
         except RuntimeError as exc:
-            print(f"[discovery] Area ({iso}) name fallback failed: {exc}")
+            log.warning(f"[discovery] Area ({iso}) name fallback failed: {exc}")
 
     if not businesses:
         raise RuntimeError(
@@ -470,7 +473,7 @@ def _discover_via_foursquare(city: str, business_type: str, radius_km: int, max_
     for ep in endpoints:
         try:
             r = requests.get(ep["url"], headers=ep["headers"], params=params, timeout=12)
-            print(f"[discovery] Foursquare status: {r.status_code} ({ep['url'].split('/')[2]})")
+            log.info(f"[discovery] Foursquare status: {r.status_code} ({ep['url'].split('/')[2]})")
             if r.status_code == 200:
                 resp = r
                 results = r.json().get(ep["result_key"], [])
@@ -564,7 +567,7 @@ def _run_overpass(query: str) -> list:
             return over_resp.json().get("elements", [])
         except Exception as exc:
             last_exc = exc
-            print(f"[discovery] Overpass mirror failed ({mirror.split('/')[2]}): {exc}")
+            log.warning(f"[discovery] Overpass mirror failed ({mirror.split('/')[2]}): {exc}")
             time.sleep(min(2 ** attempt, 8))
             continue
     raise RuntimeError(
@@ -615,7 +618,7 @@ def _discover_via_openstreetmap(city: str, business_type: str, radius_km: int, m
     cached = cache.get("osm", key)
     if cached and cached.get("requested", 0) >= max_results:
         results = cached.get("results", [])
-        print(f"[discovery] OpenStreetMap: cache hit for {business_type} in {city} ({len(results)} cached)")
+        log.info(f"[discovery] OpenStreetMap: cache hit for {business_type} in {city} ({len(results)} cached)")
         return results[:max_results]
     results = _discover_via_openstreetmap_live(city, business_type, radius_km, max_results)
     if results:
@@ -648,14 +651,14 @@ def _discover_via_openstreetmap_live(city: str, business_type: str, radius_km: i
         elements = _run_overpass(tag_query)
     except RuntimeError as exc:
         # Surface mirror failures, but still attempt the name fallback below.
-        print(f"[discovery] Structured OSM search failed: {exc}")
+        log.warning(f"[discovery] Structured OSM search failed: {exc}")
 
     businesses = []
     for el in elements:
         b = _osm_element_to_business(el, business_type, city)
         if b:
             businesses.append(b)
-    print(f"[discovery] OSM structured search: {len(businesses)} results")
+    log.info(f"[discovery] OSM structured search: {len(businesses)} results")
 
     # --- Name-based fallback ---------------------------------------------------
     # When the structured search returns few results, many real businesses are
@@ -680,9 +683,9 @@ def _discover_via_openstreetmap_live(city: str, business_type: str, radius_km: i
                 if b:
                     businesses.append(b)
                     added += 1
-            print(f"[discovery] OSM name fallback: {added} additional candidates")
+            log.info(f"[discovery] OSM name fallback: {added} additional candidates")
         except RuntimeError as exc:
-            print(f"[discovery] Name fallback search failed: {exc}")
+            log.warning(f"[discovery] Name fallback search failed: {exc}")
 
     if not businesses:
         raise RuntimeError(
@@ -913,7 +916,7 @@ def _check_all_websites(businesses):
                 except Exception:
                     checked.append(futures[f])
                 if i % 5 == 0:
-                    print(f"[discovery] Website checks: {i}/{len(to_check)}")
+                    log.info(f"[discovery] Website checks: {i}/{len(to_check)}")
     return checked + already
 
 
@@ -1127,5 +1130,5 @@ def save_leads(leads, output_dir="./output"):
     out.mkdir(parents=True, exist_ok=True)
     path = out / "leads.json"
     path.write_text(json.dumps(leads, indent=2, ensure_ascii=False))
-    print(f"[discovery] Saved {len(leads)} leads -> {path}")
+    log.info(f"[discovery] Saved {len(leads)} leads -> {path}")
     return path

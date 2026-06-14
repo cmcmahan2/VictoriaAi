@@ -30,6 +30,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from logging_config import get_logger
+
+log = get_logger("deploy")
+
 API = "https://api.netlify.com/api/v1"
 
 
@@ -37,12 +41,12 @@ def deploy_site(site_dir: str, business: dict) -> dict:
     """Entry point for Phase 5."""
     auth_token = os.getenv("NETLIFY_AUTH_TOKEN", "").strip()
     if not auth_token or auth_token.startswith("your_"):
-        print("[deploy] NETLIFY_AUTH_TOKEN not set - skipping auto-deploy")
+        log.info("[deploy] NETLIFY_AUTH_TOKEN not set - skipping auto-deploy")
         return _manual_instructions(site_dir, business)
 
     site_path = Path(site_dir)
     if not (site_path / "index.html").exists():
-        print(f"[deploy] No index.html in {site_dir} - run Phase 3 first")
+        log.warning(f"[deploy] No index.html in {site_dir} - run Phase 3 first")
         return _manual_instructions(site_dir, business)
 
     # Build static portal page into the site folder before zipping
@@ -62,8 +66,8 @@ def deploy_site(site_dir: str, business: dict) -> dict:
     live_url = deployment["live_url"]
     deployment["portal_url"] = f"{live_url}/portal.html"
     (site_path / "deployment.json").write_text(json.dumps(deployment, indent=2))
-    print(f"[deploy] Live at:   {live_url}")
-    print(f"[deploy] Portal at: {live_url}/portal.html")
+    log.info(f"[deploy] Live at:   {live_url}")
+    log.info(f"[deploy] Portal at: {live_url}/portal.html")
     _print_summary(business, site_path, deployment)
     return deployment
 
@@ -75,19 +79,19 @@ def _create_site(slug, headers):
     for attempt in range(3):
         name = f"{slug}-bcbuiswebbuildertool" if attempt == 0 else \
                f"{slug}-{''.join(random.choices(string.ascii_lowercase + string.digits, k=4))}"
-        print(f"[deploy] Creating site '{name}'...")
+        log.info(f"[deploy] Creating site '{name}'...")
         try:
             r = requests.post(base, headers=headers, json={"name": name}, timeout=30)
         except requests.RequestException as e:
-            print(f"[deploy] Network error creating site: {e}")
+            log.error(f"[deploy] Network error creating site: {e}")
             return None
         if r.status_code in (200, 201):
             return r.json()
         if r.status_code == 422:  # name taken
             continue
-        print(f"[deploy] Site create failed ({r.status_code}): {r.text[:200]}")
+        log.error(f"[deploy] Site create failed ({r.status_code}): {r.text[:200]}")
         return None
-    print("[deploy] Could not find an available site name")
+    log.error("[deploy] Could not find an available site name")
     return None
 
 
@@ -101,7 +105,7 @@ def _deploy_zip(site, site_path, headers):
     buf.seek(0)
 
     site_id = site["id"]
-    print("[deploy] Uploading site bundle...")
+    log.info("[deploy] Uploading site bundle...")
     try:
         r = requests.post(
             f"{API}/sites/{site_id}/deploys",
@@ -109,10 +113,10 @@ def _deploy_zip(site, site_path, headers):
             data=buf.getvalue(), timeout=120,
         )
     except requests.RequestException as e:
-        print(f"[deploy] Upload failed: {e}")
+        log.error(f"[deploy] Upload failed: {e}")
         return {"live_url": None}
     if r.status_code not in (200, 201):
-        print(f"[deploy] Deploy failed ({r.status_code}): {r.text[:200]}")
+        log.error(f"[deploy] Deploy failed ({r.status_code}): {r.text[:200]}")
         return {"live_url": None}
 
     deploy = r.json()
@@ -122,7 +126,7 @@ def _deploy_zip(site, site_path, headers):
         if state == "ready":
             break
         if state == "error":
-            print("[deploy] Netlify reported a build error")
+            log.error("[deploy] Netlify reported a build error")
             return {"live_url": None}
         time.sleep(2)
         try:
@@ -252,11 +256,11 @@ def _write_portal_html(site_path: Path, business: dict):
 </script>
 </body></html>"""
     (site_path / "portal.html").write_text(html, encoding="utf-8")
-    print("[deploy] portal.html written to site folder")
+    log.info("[deploy] portal.html written to site folder")
 
 
 def _manual_instructions(site_dir, business):
-    print(f"""
+    log.info(f"""
 [deploy] To deploy manually:
   1. Get a token: https://app.netlify.com/user/applications  (Personal access token)
   2. Put it in .env as NETLIFY_AUTH_TOKEN=... then re-run Phase 5
@@ -272,7 +276,7 @@ def _manual_instructions(site_dir, business):
 
 
 def _print_summary(business, site_dir, deployment):
-    print(f"""
+    log.info(f"""
 ====================================================
   BCBUISWEBBUILDERTOOL - JOB COMPLETE
 ====================================================

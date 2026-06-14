@@ -28,6 +28,10 @@ from datetime import date
 from pathlib import Path
 from typing import Optional
 
+from logging_config import get_logger
+
+log = get_logger("audit")
+
 try:
     from fpdf import FPDF
     FPDF_AVAILABLE = True
@@ -82,7 +86,7 @@ def run_audit(profile_dir: str, output_dir: str = "./output") -> Path:
     findings = _analyse_all_dimensions(business, profile)
     pdf_path = _generate_pdf(business, findings, site_dir)
 
-    print(f"[audit] PDF report saved to {pdf_path}")
+    log.info(f"[audit] PDF report saved to {pdf_path}")
     return pdf_path
 
 
@@ -487,7 +491,7 @@ def _generate_pdf(business: dict, findings: dict, site_dir: Path) -> Path:
     if not FPDF_AVAILABLE:
         txt_path = site_dir / "ai_opportunity_report.txt"
         _write_text_report(business, findings, executive, txt_path)
-        print("[audit] fpdf2 not installed - wrote text report. Run: pip install fpdf2")
+        log.warning("[audit] fpdf2 not installed - wrote text report. Run: pip install fpdf2")
         return txt_path
 
     live_url = None

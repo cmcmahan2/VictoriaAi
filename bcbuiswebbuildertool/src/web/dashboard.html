@@ -413,9 +413,17 @@
       <div id="clients-list"><div class="empty-state"><p>No clients yet. Run a pipeline to save your first client.</p></div></div>
     </div>
     <div class="tab-panel" id="tab-jobs">
-      <div class="panel-title">All Jobs</div>
-      <p class="panel-sub" style="margin-bottom:1.5rem;">History of all discovery and pipeline runs this session.</p>
-      <div id="jobs-list"><div class="empty-state"><p>No jobs this session.</p></div></div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div class="panel-title">All Jobs</div>
+          <p class="panel-sub" style="margin-bottom:1.5rem;">History of all discovery, sweep, and pipeline runs. Jobs persist across server restarts.</p>
+        </div>
+        <button onclick="toggleServerLogs()" id="logs-toggle-btn" style="background:var(--dark3);border:1px solid var(--border2);border-radius:6px;padding:0.45rem 0.8rem;cursor:pointer;color:var(--text);font-size:0.8rem;white-space:nowrap;">View server logs</button>
+      </div>
+      <div id="server-logs" style="display:none;margin-bottom:1.5rem;">
+        <pre id="server-logs-pre" style="background:#0b1220;border:1px solid var(--border2);border-radius:8px;padding:0.9rem 1rem;font-size:0.72rem;line-height:1.45;color:#a5b4c4;max-height:340px;overflow:auto;white-space:pre-wrap;word-break:break-word;margin:0;">Loading…</pre>
+      </div>
+      <div id="jobs-list"><div class="empty-state"><p>No jobs yet.</p></div></div>
     </div>
   </div>
 </div>
@@ -876,6 +884,29 @@ hello@pacificwebbuilder.ca`
         return `<div class="job-row"><span class="job-status-badge badge-${j.status}">${j.status}</span><span style="flex:1;font-size:0.85rem">${esc(j.description||j.id)}</span><span style="font-size:0.75rem;color:var(--muted);text-align:right">${label}${logCount?' · '+logCount+' log lines':''}</span></div>`;
       }).join('');
     } catch{}
+  }
+
+  async function toggleServerLogs() {
+    const box = document.getElementById('server-logs');
+    const btn = document.getElementById('logs-toggle-btn');
+    if (box.style.display === 'none') {
+      box.style.display = 'block';
+      btn.textContent = 'Hide server logs';
+      await loadServerLogs();
+    } else {
+      box.style.display = 'none';
+      btn.textContent = 'View server logs';
+    }
+  }
+  async function loadServerLogs() {
+    const pre = document.getElementById('server-logs-pre');
+    try {
+      const res = await api('/api/logs?lines=300');
+      const data = await res.json();
+      const lines = data.lines || [];
+      pre.textContent = lines.length ? lines.join('\n') : (data.note || 'Log file is empty.');
+      pre.scrollTop = pre.scrollHeight;
+    } catch(e) { pre.textContent = 'Failed to load logs: ' + e.message; }
   }
 
   // ── Projects tab ─────────────────────────────────────────────────────────

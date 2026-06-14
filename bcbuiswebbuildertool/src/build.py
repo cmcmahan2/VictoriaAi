@@ -28,6 +28,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from logging_config import get_logger
+
+log = get_logger("build")
+
 StackType = Literal["static", "nextjs", "nextjs-shopify", "nextjs-cms"]
 
 STACK_BY_CATEGORY: dict[str, StackType] = {
@@ -316,7 +320,7 @@ def _load_customize(site_dir: Path) -> dict:
             data = json.loads(path.read_text(encoding="utf-8", errors="replace"))
             return data if isinstance(data, dict) else {}
         except Exception as exc:
-            print(f"[build] customize.json unreadable ({exc}) - ignoring")
+            log.warning(f"[build] customize.json unreadable ({exc}) - ignoring")
     return {}
 
 
@@ -373,23 +377,23 @@ def build_website(profile_dir: str, output_dir: str = "./output") -> Path:
     (site_dir / "images").mkdir(exist_ok=True)
 
     stack = _select_stack(business)
-    print(f"[build] Stack: {stack} for {business.get('name')}")
+    log.info(f"[build] Stack: {stack} for {business.get('name')}")
 
     # Load optional per-client customization layer (output/{slug}/customize.json)
     customize = _load_customize(site_dir)
     if customize:
-        print(f"[build] Customizations found for {slug}")
+        log.info(f"[build] Customizations found for {slug}")
 
     # Theme: customize override takes precedence over category-based selection
     theme = None
     ctheme = customize.get("theme")
     if ctheme and ctheme in THEMES:
         theme = THEMES[ctheme]
-        print(f"[build] Theme overridden by customize: {theme['name']}")
+        log.info(f"[build] Theme overridden by customize: {theme['name']}")
     if theme is None:
         theme = _select_theme(business)
     business["_theme"] = theme
-    print(f"[build] Theme: {theme['name']}")
+    log.info(f"[build] Theme: {theme['name']}")
 
     # ── Google Places enrichment ──────────────────────────────────────────────
     # If Phase 2 captured real Google Places photos and reviews, inject them
@@ -405,7 +409,7 @@ def build_website(profile_dir: str, output_dir: str = "./output") -> Path:
         # has already set one in customize.json.
         if gp_photos and not customize.get("hero_image"):
             customize.setdefault("hero_image", gp_photos[0])
-            print(f"[build] Using Google Places photo as hero: {gp_photos[0][:60]}…")
+            log.info(f"[build] Using Google Places photo as hero: {gp_photos[0][:60]}…")
 
         # Use subsequent photos as per-service images (photos[1], photos[2]…)
         # keyed by index so they're available as fallback pool.  Only inject
@@ -426,13 +430,13 @@ def build_website(profile_dir: str, output_dir: str = "./output") -> Path:
                     "time":     rv.get("relative_time_description") or rv.get("time") or "",
                 })
             customize["reviews"] = normalized
-            print(f"[build] Using {len(normalized)} real Google reviews from Places API")
+            log.info(f"[build] Using {len(normalized)} real Google reviews from Places API")
 
     # Generate content via Claude (or fall back to templates)
-    print("[build] Generating page content...")
+    log.info("[build] Generating page content...")
     content = _generate_content(business, profile, customize)
 
-    print("[build] Building static site...")
+    log.info("[build] Building static site...")
     _write_css(site_dir, content, theme)
     _write_js(site_dir)
     _write_index(business, profile, content, site_dir, customize)
@@ -444,8 +448,8 @@ def build_website(profile_dir: str, output_dir: str = "./output") -> Path:
     _write_robots(site_dir)
     _copy_logo(profile_dir, site_dir)
 
-    print(f"[build] Site complete: {site_dir}")
-    print(f"[build] Pages: index, services, about, contact, reviews")
+    log.info(f"[build] Site complete: {site_dir}")
+    log.info(f"[build] Pages: index, services, about, contact, reviews")
     return site_dir
 
 
@@ -473,7 +477,7 @@ def _generate_content(business: dict, profile: dict, customize: dict | None = No
     customize = customize or {}
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key or api_key == "your_anthropic_api_key_here":
-        print("[build] No ANTHROPIC_API_KEY - using template content")
+        log.info("[build] No ANTHROPIC_API_KEY - using template content")
         return _template_content(business, profile)
 
     try:
@@ -546,11 +550,11 @@ Return only valid JSON, no markdown, no explanation."""
         raw = re.sub(r"^```[a-z]*\n?", "", raw)
         raw = re.sub(r"\n?```$", "", raw)
         data = json.loads(raw)
-        print("[build] Claude content generated successfully")
+        log.info("[build] Claude content generated successfully")
         return data
 
     except Exception as exc:
-        print(f"[build] Claude API failed ({exc}) - using template content")
+        log.warning(f"[build] Claude API failed ({exc}) - using template content")
         return _template_content(business, profile)
 
 
@@ -2966,7 +2970,7 @@ def _copy_logo(profile_dir: str, site_dir: Path) -> None:
         if src.exists():
             import shutil
             shutil.copy2(src, site_dir / "images" / ext)
-            print(f"[build] Logo copied: {ext}")
+            log.info(f"[build] Logo copied: {ext}")
             return
 
 

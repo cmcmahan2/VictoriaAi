@@ -30,6 +30,9 @@ sys.path.insert(0, str(Path(__file__).parent))
 load_dotenv()
 
 import jobs_db
+from logging_config import get_logger, log_path, setup_logging
+
+log = get_logger("server")
 
 OUTPUT_DIR   = Path("./output")
 RESEARCH_DIR = Path("./research")
@@ -44,6 +47,7 @@ JOBS: dict[str, dict]  = {}
 async def lifespan(_app: FastAPI):
     OUTPUT_DIR.mkdir(exist_ok=True)
     RESEARCH_DIR.mkdir(exist_ok=True)
+    setup_logging()
     jobs_db.configure(OUTPUT_DIR / "jobs.db")
     jobs_db.init()
     for job in jobs_db.load_all():
@@ -264,10 +268,10 @@ async def start_discovery(data: DiscoverRequest, request: Request):
     where = regions.region_label(data.city, data.max_tier)
     job_id = _new_job(f"Discover: {data.business_type} in {where}")
     def _go():
-        print(f"[Phase 1] Searching: {data.business_type} in {where}")
+        log.info(f"[Phase 1] Searching: {data.business_type} in {where}")
         leads = discover_businesses(data.city, data.business_type, data.radius_km, data.max_results, data.max_tier)
         save_leads(leads, str(OUTPUT_DIR))
-        print(f"[Phase 1] Complete - {len(leads)} leads found")
+        log.info(f"[Phase 1] Complete - {len(leads)} leads found")
         return {"leads_count": len(leads), "leads": leads}
     _run(job_id, _go)
     return {"job_id": job_id}
@@ -305,7 +309,7 @@ async def start_sweep(data: SweepRequest, request: Request):
         prev = JOBS[job_id].get("result") or {}
         completed: set[str] = set(prev.get("completed_pairs", []))
         if completed:
-            print(f"[sweep] Resuming — {len(completed)}/{total} pairs already done")
+            log.info(f"[sweep] Resuming — {len(completed)}/{total} pairs already done")
 
         def _checkpoint(current: str = ""):
             JOBS[job_id]["result"] = {
@@ -321,7 +325,7 @@ async def start_sweep(data: SweepRequest, request: Request):
             jobs_db.upsert(JOBS[job_id])
 
         _checkpoint("Starting…")
-        print(f"[sweep] {len(btypes)} type(s) × {len(cities)} cities = {total} search pairs")
+        log.info(f"[sweep] {len(btypes)} type(s) × {len(cities)} cities = {total} search pairs")
 
         for bt in btypes:
             for city in cities:
@@ -334,23 +338,23 @@ async def start_sweep(data: SweepRequest, request: Request):
                 if JOBS[job_id].get("pause_requested"):
                     JOBS[job_id]["status"] = "paused"
                     _checkpoint(f"Paused before: {bt} in {city}")
-                    print(f"[sweep] Paused. POST /api/jobs/{job_id}/resume to continue.")
+                    log.info(f"[sweep] Paused. POST /api/jobs/{job_id}/resume to continue.")
                     while JOBS[job_id].get("pause_requested"):
                         _time.sleep(1)
                     JOBS[job_id]["status"] = "running"
                     jobs_db.upsert(JOBS[job_id])
-                    print(f"[sweep] Resumed.")
+                    log.info(f"[sweep] Resumed.")
 
                 current = f"{bt} in {city}"
-                print(f"[sweep] [{done + 1}/{total}] {current}")
+                log.info(f"[sweep] [{done + 1}/{total}] {current}")
                 _checkpoint(current)
 
                 try:
                     leads = discover_businesses(city, bt, 15, data.max_results, data.max_tier)
                     all_leads.extend(leads)
-                    print(f"[sweep] +{len(leads)} leads (total {len(all_leads)})")
+                    log.info(f"[sweep] +{len(leads)} leads (total {len(all_leads)})")
                 except Exception as exc:
-                    print(f"[sweep] Error for {current}: {exc}")
+                    log.info(f"[sweep] Error for {current}: {exc}")
 
                 completed.add(pair_key)
                 done += 1
@@ -362,7 +366,7 @@ async def start_sweep(data: SweepRequest, request: Request):
                     pass
 
         _checkpoint("Complete")
-        print(f"[sweep] Done — {len(all_leads)} total leads across {done} pairs.")
+        log.info(f"[sweep] Done — {len(all_leads)} total leads across {done} pairs.")
         return {
             "total_leads":   len(all_leads),
             "pairs_run":     done,
@@ -419,21 +423,21 @@ async def run_pipeline(slug: str, data: PipelineRequest, request: Request):
         site_dir    = str(OUTPUT_DIR   / _slug(data.name))
         if 2 in data.phases:
             from scrape import build_profile
-            print(f"[Phase 2] Scraping profile for {data.name}...")
+            log.info(f"[Phase 2] Scraping profile for {data.name}...")
             profile_dir = str(build_profile(business, str(RESEARCH_DIR)))
             results["profile_dir"] = profile_dir
         if 3 in data.phases:
             from build import build_website
-            print(f"[Phase 3] Building website for {data.name}...")
+            log.info(f"[Phase 3] Building website for {data.name}...")
             site_dir = str(build_website(profile_dir, str(OUTPUT_DIR)))
             results["site_dir"] = site_dir
         if 4 in data.phases:
             from audit import run_audit
-            print(f"[Phase 4] Generating audit PDF for {data.name}...")
+            log.info(f"[Phase 4] Generating audit PDF for {data.name}...")
             results["pdf_path"] = str(run_audit(profile_dir, str(OUTPUT_DIR)))
         if 5 in data.phases:
             from deploy import deploy_site
-            print(f"[Phase 5] Deploying {data.name}...")
+            log.info(f"[Phase 5] Deploying {data.name}...")
             results["deployment"] = deploy_site(site_dir, business)
         # Persist client record
         deployment = results.get("deployment") or {}
@@ -460,6 +464,25 @@ async def run_pipeline(slug: str, data: PipelineRequest, request: Request):
 async def list_jobs(request: Request):
     require_auth(request)
     return {"jobs": sorted(JOBS.values(), key=lambda j: j["created_at"], reverse=True)}
+
+@app.get("/api/logs")
+async def tail_logs(request: Request, lines: int = Query(default=200, ge=1, le=5000)):
+    """Tail the rotating server log file. Reads only the last chunk so a large
+    log doesn't have to be loaded into memory."""
+    require_auth(request)
+    path = log_path()
+    if not path.exists():
+        return {"path": str(path), "lines": [], "note": "No log file yet."}
+    # Read the tail efficiently: seek back a bounded number of bytes.
+    max_bytes = lines * 400  # generous per-line budget
+    size = path.stat().st_size
+    with path.open("rb") as f:
+        if size > max_bytes:
+            f.seek(-max_bytes, os.SEEK_END)
+            f.readline()  # discard a partial first line
+        tail = f.read().decode("utf-8", errors="replace")
+    out = tail.splitlines()[-lines:]
+    return {"path": str(path), "lines": out}
 
 @app.get("/api/jobs/{job_id}")
 async def get_job(job_id: str, request: Request):
@@ -860,8 +883,9 @@ async def portal_pdf(slug: str):
 
 
 if __name__ == "__main__":
+    setup_logging()
     port = int(os.getenv("PORT", 5000))
-    print(f"""
+    log.info(f"""
 +----------------------------------------------+
 |   BCBUISWEBBUILDERTOOL  Admin Server         |
 +----------------------------------------------+
