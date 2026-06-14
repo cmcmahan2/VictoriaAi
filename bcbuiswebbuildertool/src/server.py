@@ -73,6 +73,7 @@ class DiscoverRequest(BaseModel):
     business_type: str
     radius_km: int = 15
     max_results: int = 50
+    max_tier: int = 3  # region sweep depth: 1=top metros, 2=+mid-size, 3=all
 
 class PipelineRequest(BaseModel):
     name: str
@@ -197,12 +198,13 @@ async def discover_info(request: Request):
 @app.post("/api/discover")
 async def start_discovery(data: DiscoverRequest, request: Request):
     require_auth(request)
-    from discovery import discover_businesses, is_province_wide, save_leads
-    where = "all of BC (province-wide)" if is_province_wide(data.city) else f"{data.city}, BC"
+    import regions
+    from discovery import discover_businesses, save_leads
+    where = regions.region_label(data.city, data.max_tier)
     job_id = _new_job(f"Discover: {data.business_type} in {where}")
     def _go():
         print(f"[Phase 1] Searching: {data.business_type} in {where}")
-        leads = discover_businesses(data.city, data.business_type, data.radius_km, data.max_results)
+        leads = discover_businesses(data.city, data.business_type, data.radius_km, data.max_results, data.max_tier)
         save_leads(leads, str(OUTPUT_DIR))
         print(f"[Phase 1] Complete - {len(leads)} leads found")
         return {"leads_count": len(leads), "leads": leads}

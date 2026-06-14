@@ -1,0 +1,292 @@
+{
+  "country": "Canada",
+  "country_code": "CA",
+  "provinces": [
+    {
+      "name": "British Columbia",
+      "code": "CA-BC",
+      "priority": 1,
+      "aliases": ["bc", "b.c.", "british columbia", "province", "province-wide", "province wide", "provincewide", "all", "everywhere"],
+      "cities": [
+        {"name": "Vancouver", "tier": 1},
+        {"name": "Surrey", "tier": 1},
+        {"name": "Burnaby", "tier": 1},
+        {"name": "Richmond", "tier": 1},
+        {"name": "Victoria", "tier": 1},
+        {"name": "Kelowna", "tier": 1},
+        {"name": "Abbotsford", "tier": 1},
+        {"name": "Coquitlam", "tier": 1},
+        {"name": "Kamloops", "tier": 1},
+        {"name": "Nanaimo", "tier": 1},
+        {"name": "Langley", "tier": 1},
+        {"name": "Saanich", "tier": 2},
+        {"name": "Delta", "tier": 2},
+        {"name": "Chilliwack", "tier": 2},
+        {"name": "Maple Ridge", "tier": 2},
+        {"name": "Prince George", "tier": 2},
+        {"name": "New Westminster", "tier": 2},
+        {"name": "Port Coquitlam", "tier": 2},
+        {"name": "North Vancouver", "tier": 2},
+        {"name": "Vernon", "tier": 2},
+        {"name": "Courtenay", "tier": 2},
+        {"name": "Campbell River", "tier": 2},
+        {"name": "Penticton", "tier": 2},
+        {"name": "Mission", "tier": 2},
+        {"name": "West Vancouver", "tier": 2},
+        {"name": "Port Moody", "tier": 3},
+        {"name": "Duncan", "tier": 3},
+        {"name": "White Rock", "tier": 3},
+        {"name": "Salmon Arm", "tier": 3},
+        {"name": "Fort St. John", "tier": 3},
+        {"name": "Cranbrook", "tier": 3},
+        {"name": "Squamish", "tier": 3},
+        {"name": "Parksville", "tier": 3},
+        {"name": "Port Alberni", "tier": 3},
+        {"name": "Comox", "tier": 3},
+        {"name": "Terrace", "tier": 3},
+        {"name": "Powell River", "tier": 3},
+        {"name": "Sidney", "tier": 3},
+        {"name": "Quesnel", "tier": 3},
+        {"name": "Williams Lake", "tier": 3},
+        {"name": "Dawson Creek", "tier": 3},
+        {"name": "Nelson", "tier": 3},
+        {"name": "Sechelt", "tier": 3},
+        {"name": "Whistler", "tier": 3},
+        {"name": "Ladysmith", "tier": 3},
+        {"name": "Sooke", "tier": 3}
+      ]
+    },
+    {
+      "name": "Ontario",
+      "code": "CA-ON",
+      "priority": 2,
+      "aliases": ["on", "ont", "ontario"],
+      "cities": [
+        {"name": "Toronto", "tier": 1},
+        {"name": "Ottawa", "tier": 1},
+        {"name": "Mississauga", "tier": 1},
+        {"name": "Brampton", "tier": 1},
+        {"name": "Hamilton", "tier": 1},
+        {"name": "London", "tier": 1},
+        {"name": "Markham", "tier": 1},
+        {"name": "Vaughan", "tier": 1},
+        {"name": "Kitchener", "tier": 1},
+        {"name": "Windsor", "tier": 1},
+        {"name": "Richmond Hill", "tier": 2},
+        {"name": "Oakville", "tier": 2},
+        {"name": "Burlington", "tier": 2},
+        {"name": "Greater Sudbury", "tier": 2},
+        {"name": "Oshawa", "tier": 2},
+        {"name": "Barrie", "tier": 2},
+        {"name": "St. Catharines", "tier": 2},
+        {"name": "Guelph", "tier": 2},
+        {"name": "Cambridge", "tier": 2},
+        {"name": "Whitby", "tier": 2},
+        {"name": "Kingston", "tier": 2},
+        {"name": "Ajax", "tier": 2},
+        {"name": "Waterloo", "tier": 2},
+        {"name": "Thunder Bay", "tier": 2},
+        {"name": "Brantford", "tier": 3},
+        {"name": "Pickering", "tier": 3},
+        {"name": "Niagara Falls", "tier": 3},
+        {"name": "Peterborough", "tier": 3},
+        {"name": "Sault Ste. Marie", "tier": 3},
+        {"name": "Sarnia", "tier": 3},
+        {"name": "Welland", "tier": 3},
+        {"name": "North Bay", "tier": 3},
+        {"name": "Belleville", "tier": 3},
+        {"name": "Cornwall", "tier": 3},
+        {"name": "Chatham", "tier": 3},
+        {"name": "Newmarket", "tier": 3},
+        {"name": "Milton", "tier": 3},
+        {"name": "Orangeville", "tier": 3}
+      ]
+    },
+    {
+      "name": "Quebec",
+      "code": "CA-QC",
+      "priority": 3,
+      "aliases": ["qc", "que", "quebec", "québec"],
+      "cities": [
+        {"name": "Montreal", "tier": 1},
+        {"name": "Quebec City", "tier": 1},
+        {"name": "Laval", "tier": 1},
+        {"name": "Gatineau", "tier": 1},
+        {"name": "Longueuil", "tier": 1},
+        {"name": "Sherbrooke", "tier": 1},
+        {"name": "Saguenay", "tier": 2},
+        {"name": "Levis", "tier": 2},
+        {"name": "Trois-Rivieres", "tier": 2},
+        {"name": "Terrebonne", "tier": 2},
+        {"name": "Saint-Jean-sur-Richelieu", "tier": 2},
+        {"name": "Repentigny", "tier": 2},
+        {"name": "Brossard", "tier": 2},
+        {"name": "Drummondville", "tier": 2},
+        {"name": "Saint-Jerome", "tier": 3},
+        {"name": "Granby", "tier": 3},
+        {"name": "Blainville", "tier": 3},
+        {"name": "Saint-Hyacinthe", "tier": 3},
+        {"name": "Shawinigan", "tier": 3},
+        {"name": "Rimouski", "tier": 3},
+        {"name": "Chateauguay", "tier": 3},
+        {"name": "Victoriaville", "tier": 3}
+      ]
+    },
+    {
+      "name": "Alberta",
+      "code": "CA-AB",
+      "priority": 4,
+      "aliases": ["ab", "alta", "alberta"],
+      "cities": [
+        {"name": "Calgary", "tier": 1},
+        {"name": "Edmonton", "tier": 1},
+        {"name": "Red Deer", "tier": 1},
+        {"name": "Lethbridge", "tier": 1},
+        {"name": "St. Albert", "tier": 2},
+        {"name": "Medicine Hat", "tier": 2},
+        {"name": "Grande Prairie", "tier": 2},
+        {"name": "Airdrie", "tier": 2},
+        {"name": "Spruce Grove", "tier": 2},
+        {"name": "Leduc", "tier": 2},
+        {"name": "Fort Saskatchewan", "tier": 3},
+        {"name": "Okotoks", "tier": 3},
+        {"name": "Lloydminster", "tier": 3},
+        {"name": "Camrose", "tier": 3},
+        {"name": "Cochrane", "tier": 3},
+        {"name": "Beaumont", "tier": 3},
+        {"name": "Sylvan Lake", "tier": 3},
+        {"name": "Brooks", "tier": 3},
+        {"name": "Canmore", "tier": 3},
+        {"name": "Cold Lake", "tier": 3},
+        {"name": "High River", "tier": 3}
+      ]
+    },
+    {
+      "name": "Manitoba",
+      "code": "CA-MB",
+      "priority": 5,
+      "aliases": ["mb", "man", "manitoba"],
+      "cities": [
+        {"name": "Winnipeg", "tier": 1},
+        {"name": "Brandon", "tier": 1},
+        {"name": "Steinbach", "tier": 2},
+        {"name": "Thompson", "tier": 2},
+        {"name": "Portage la Prairie", "tier": 2},
+        {"name": "Winkler", "tier": 2},
+        {"name": "Selkirk", "tier": 3},
+        {"name": "Morden", "tier": 3},
+        {"name": "Dauphin", "tier": 3},
+        {"name": "The Pas", "tier": 3}
+      ]
+    },
+    {
+      "name": "Saskatchewan",
+      "code": "CA-SK",
+      "priority": 6,
+      "aliases": ["sk", "sask", "saskatchewan"],
+      "cities": [
+        {"name": "Saskatoon", "tier": 1},
+        {"name": "Regina", "tier": 1},
+        {"name": "Prince Albert", "tier": 2},
+        {"name": "Moose Jaw", "tier": 2},
+        {"name": "Swift Current", "tier": 2},
+        {"name": "Yorkton", "tier": 2},
+        {"name": "North Battleford", "tier": 3},
+        {"name": "Estevan", "tier": 3},
+        {"name": "Weyburn", "tier": 3},
+        {"name": "Martensville", "tier": 3}
+      ]
+    },
+    {
+      "name": "Nova Scotia",
+      "code": "CA-NS",
+      "priority": 7,
+      "aliases": ["ns", "nova scotia"],
+      "cities": [
+        {"name": "Halifax", "tier": 1},
+        {"name": "Sydney", "tier": 2},
+        {"name": "Dartmouth", "tier": 2},
+        {"name": "Truro", "tier": 2},
+        {"name": "New Glasgow", "tier": 3},
+        {"name": "Glace Bay", "tier": 3},
+        {"name": "Kentville", "tier": 3},
+        {"name": "Amherst", "tier": 3},
+        {"name": "Bridgewater", "tier": 3}
+      ]
+    },
+    {
+      "name": "New Brunswick",
+      "code": "CA-NB",
+      "priority": 8,
+      "aliases": ["nb", "new brunswick"],
+      "cities": [
+        {"name": "Moncton", "tier": 1},
+        {"name": "Saint John", "tier": 1},
+        {"name": "Fredericton", "tier": 1},
+        {"name": "Dieppe", "tier": 2},
+        {"name": "Riverview", "tier": 2},
+        {"name": "Miramichi", "tier": 3},
+        {"name": "Edmundston", "tier": 3},
+        {"name": "Bathurst", "tier": 3},
+        {"name": "Campbellton", "tier": 3},
+        {"name": "Oromocto", "tier": 3}
+      ]
+    },
+    {
+      "name": "Newfoundland and Labrador",
+      "code": "CA-NL",
+      "priority": 9,
+      "aliases": ["nl", "newfoundland", "newfoundland and labrador", "labrador"],
+      "cities": [
+        {"name": "St. John's", "tier": 1},
+        {"name": "Mount Pearl", "tier": 2},
+        {"name": "Corner Brook", "tier": 2},
+        {"name": "Conception Bay South", "tier": 2},
+        {"name": "Paradise", "tier": 3},
+        {"name": "Grand Falls-Windsor", "tier": 3},
+        {"name": "Gander", "tier": 3}
+      ]
+    },
+    {
+      "name": "Prince Edward Island",
+      "code": "CA-PE",
+      "priority": 10,
+      "aliases": ["pe", "pei", "prince edward island"],
+      "cities": [
+        {"name": "Charlottetown", "tier": 1},
+        {"name": "Summerside", "tier": 2},
+        {"name": "Stratford", "tier": 3},
+        {"name": "Cornwall", "tier": 3}
+      ]
+    },
+    {
+      "name": "Northwest Territories",
+      "code": "CA-NT",
+      "priority": 11,
+      "aliases": ["nt", "nwt", "northwest territories"],
+      "cities": [
+        {"name": "Yellowknife", "tier": 1},
+        {"name": "Hay River", "tier": 3}
+      ]
+    },
+    {
+      "name": "Yukon",
+      "code": "CA-YT",
+      "priority": 12,
+      "aliases": ["yt", "yukon"],
+      "cities": [
+        {"name": "Whitehorse", "tier": 1},
+        {"name": "Dawson City", "tier": 3}
+      ]
+    },
+    {
+      "name": "Nunavut",
+      "code": "CA-NU",
+      "priority": 13,
+      "aliases": ["nu", "nunavut"],
+      "cities": [
+        {"name": "Iqaluit", "tier": 1}
+      ]
+    }
+  ]
+}

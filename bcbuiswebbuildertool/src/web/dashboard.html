@@ -199,19 +199,28 @@
 <div class="main">
   <aside class="sidebar">
     <div class="sidebar-section">
-      <div class="sidebar-label">Search BC Businesses</div>
+      <div class="sidebar-label">Search Canadian Businesses</div>
       <div class="field">
         <label>City / Region</label>
         <input type="text" id="s-city" placeholder="e.g. Victoria — or 'All of BC'" list="city-suggestions" />
         <datalist id="city-suggestions">
-          <option value="All of BC"><option value="Victoria"><option value="Vancouver">
-          <option value="Surrey"><option value="Burnaby"><option value="Richmond">
+          <option value="All of Canada"><option value="All of BC"><option value="All of Ontario">
+          <option value="All of Alberta"><option value="All of Quebec"><option value="All of Manitoba">
+          <option value="All of Saskatchewan"><option value="All of Nova Scotia"><option value="All of New Brunswick">
+          <option value="Victoria"><option value="Vancouver"><option value="Surrey">
+          <option value="Toronto"><option value="Calgary"><option value="Edmonton">
+          <option value="Ottawa"><option value="Winnipeg"><option value="Halifax">
           <option value="Kelowna"><option value="Kamloops"><option value="Nanaimo">
-          <option value="Abbotsford"><option value="Chilliwack"><option value="Prince George">
-          <option value="Vernon"><option value="Courtenay"><option value="Campbell River">
-          <option value="Penticton"><option value="Duncan"><option value="Squamish">
         </datalist>
-        <div style="font-size:0.7rem;color:var(--muted);margin-top:0.25rem;">Type <strong>All of BC</strong> to search province-wide</div>
+        <div style="font-size:0.7rem;color:var(--muted);margin-top:0.25rem;">Type <strong>All of BC</strong> for a province, or <strong>All of Canada</strong> nationwide</div>
+      </div>
+      <div class="field" id="tier-field" style="display:none;">
+        <label>Sweep depth (region-wide only)</label>
+        <select id="s-tier">
+          <option value="3">All cities &amp; towns</option>
+          <option value="2">Metros + mid-size cities</option>
+          <option value="1">Top metros only</option>
+        </select>
       </div>
       <div class="field">
         <label>Business Type</label>
@@ -393,6 +402,18 @@
     setTimeout(() => el.remove(), 4000);
   }
 
+  // Show the sweep-depth selector only when the input names a whole region
+  // ("All of ..." / "Canada"), since tier only applies to multi-city sweeps.
+  function isRegionInput(v) {
+    const q = (v || '').trim().toLowerCase();
+    return q.startsWith('all of ') || q.startsWith('all ') ||
+           q === 'canada' || q === 'nationwide';
+  }
+  document.getElementById('s-city').addEventListener('input', (e) => {
+    document.getElementById('tier-field').style.display =
+      isRegionInput(e.target.value) ? 'block' : 'none';
+  });
+
   async function startDiscover() {
     const city = document.getElementById('s-city').value.trim();
     const type = document.getElementById('s-type').value.trim();
@@ -401,7 +422,7 @@
     btn.disabled = true; btn.textContent = 'Searching...';
     setStatus('Running discovery...', true);
     try {
-      const res = await api('/api/discover', { method:'POST', body:{city, business_type:type, radius_km:+document.getElementById('s-radius').value, max_results:+document.getElementById('s-max').value} });
+      const res = await api('/api/discover', { method:'POST', body:{city, business_type:type, radius_km:+document.getElementById('s-radius').value, max_results:+document.getElementById('s-max').value, max_tier:+document.getElementById('s-tier').value} });
       const { job_id } = await res.json();
       addJobToSidebar(job_id, `Discover: ${type} in ${city}`);
       streamJob(job_id, () => { btn.disabled=false; btn.textContent='Search'; setStatus('Ready'); loadLeads(); });
