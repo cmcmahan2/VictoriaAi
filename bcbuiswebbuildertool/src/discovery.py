@@ -1121,6 +1121,10 @@ def _score_business(business):
     business["score"]          = min(score, 10)
     business["weakness_flags"] = flags
     business["notes"]          = " - ".join(f.replace("_", " ") for f in flags) or "Minimal issues"
+    # Normalise the output schema: a lead whose site was never checked (no URL,
+    # or skipped by the prescore gate) still carries the key, set to None, so
+    # downstream consumers (leads.json, dashboard) see a consistent shape.
+    business.setdefault("website_health", None)
     return business
 
 
