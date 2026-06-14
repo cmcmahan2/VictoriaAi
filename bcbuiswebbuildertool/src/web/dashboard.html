@@ -408,8 +408,10 @@
         </div>
         <div style="font-size:0.72rem;color:var(--muted);margin-top:0.75rem;">Lead offer: <strong style="color:var(--white);">$0 setup &bull; $99/mo hosting</strong> &mdash; site already built, no risk to them.</div>
       </div>
-      <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem;">
+      <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem;align-items:center;">
         <a href="/api/clients/export.csv" id="export-csv-link" style="display:none;" class="btn-run">Export CSV</a>
+        <button id="rebuild-all-btn" onclick="rebuildAll()" class="btn-run" style="display:none;">↻ Rebuild all sites</button>
+        <span id="rebuild-all-status" style="font-size:0.75rem;color:var(--muted);"></span>
       </div>
       <div id="clients-list"><div class="empty-state"><p>No clients yet. Run a pipeline to save your first client.</p></div></div>
     </div>
@@ -774,11 +776,42 @@
       renderClients(clients);
     } catch{}
   }
+  async function rebuildAll() {
+    const btn=document.getElementById('rebuild-all-btn');
+    const status=document.getElementById('rebuild-all-status');
+    if (!confirm('Rebuild every client site with the latest template and bundled images? This runs in the background.')) return;
+    btn.disabled=true; btn.textContent='↻ Starting…';
+    try {
+      const res=await api('/api/rebuild-all',{method:'POST'});
+      const data=await res.json();
+      if (!res.ok) throw new Error(data.detail||'Failed');
+      addJobToSidebar(data.job_id, `Rebuild all (${data.buildable} sites)`);
+      status.textContent=`Rebuilding ${data.buildable} site(s)${data.skipped?` · ${data.skipped} skipped (no profile)`:''}…`;
+      toast(`Rebuilding ${data.buildable} site(s) in the background`);
+      streamJob(data.job_id, (finalStatus,result)=>{
+        btn.disabled=false; btn.textContent='↻ Rebuild all sites';
+        if (finalStatus==='done' && result) {
+          status.textContent=`Done: ${result.rebuilt} rebuilt, ${result.failed} failed, ${result.skipped.length} skipped`;
+          toast(`Rebuild complete: ${result.rebuilt} site(s) refreshed`);
+          loadClients();
+        } else {
+          status.textContent='Rebuild ended with an error — see Jobs tab';
+          toast('Rebuild failed — check the Jobs tab','error');
+        }
+      });
+    } catch(e) {
+      btn.disabled=false; btn.textContent='↻ Rebuild all sites';
+      toast('Rebuild failed: '+e.message,'error');
+    }
+  }
+
   function renderClients(clients) {
     const el=document.getElementById('clients-list');
     const exportLink=document.getElementById('export-csv-link');
-    if (!clients||!clients.length){ el.innerHTML='<div class="empty-state"><p>No clients yet. Run a pipeline to save your first client.</p></div>'; exportLink.style.display='none'; return; }
+    const rebuildBtn=document.getElementById('rebuild-all-btn');
+    if (!clients||!clients.length){ el.innerHTML='<div class="empty-state"><p>No clients yet. Run a pipeline to save your first client.</p></div>'; exportLink.style.display='none'; rebuildBtn.style.display='none'; return; }
     exportLink.style.display='inline-block';
+    rebuildBtn.style.display='inline-block';
     // Attach token to CSV export URL so server can auth it
     exportLink.href='/api/clients/export.csv?token='+token;
     const statusColors={'prospect':'var(--muted)','client':'var(--green)','closed':'#f87171'};

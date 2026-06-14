@@ -884,6 +884,41 @@ async def rebuild_customize(slug: str, request: Request):
             "preview_url": f"/preview/{slug}/index.html"}
 
 
+@app.post("/api/rebuild-all")
+async def rebuild_all(request: Request):
+    """Rebuild every client site that has a Phase-2 research profile, as a
+    background job so progress streams to the dashboard. Pulls in the latest
+    template, themes, and locally-bundled images for all existing clients."""
+    require_auth(request)
+    from build import build_website
+
+    clients = _load_clients()
+    buildable = [c for c in clients
+                 if (RESEARCH_DIR / c["slug"] / "profile.json").exists()]
+    skipped = [c["slug"] for c in clients if c not in buildable]
+
+    job_id = _new_job(f"Rebuild all sites ({len(buildable)} clients)")
+
+    def _go():
+        log.info(f"[rebuild-all] {len(buildable)} client(s) to rebuild; "
+                 f"{len(skipped)} skipped (no Phase-2 profile)")
+        done, failed = 0, 0
+        for i, c in enumerate(buildable, 1):
+            slug = c["slug"]
+            log.info(f"[rebuild-all] [{i}/{len(buildable)}] {c.get('name', slug)}")
+            try:
+                build_website(str(RESEARCH_DIR / slug), str(OUTPUT_DIR))
+                done += 1
+            except Exception as exc:
+                failed += 1
+                log.error(f"[rebuild-all] {slug} failed: {exc}")
+        log.info(f"[rebuild-all] Done - {done} rebuilt, {failed} failed, {len(skipped)} skipped")
+        return {"rebuilt": done, "failed": failed, "skipped": skipped}
+
+    _run(job_id, _go)
+    return {"job_id": job_id, "buildable": len(buildable), "skipped": len(skipped)}
+
+
 # ── Public client portal (no auth — shareable with prospects) ────────────────
 
 def _portal_business_name(slug: str) -> str:
