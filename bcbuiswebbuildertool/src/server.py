@@ -108,6 +108,12 @@ class PipelineRequest(BaseModel):
     rating: float | None = None
     review_count: int = 0
 
+class SweepRequest(BaseModel):
+    region: str                    # "All of BC", "All of Canada", province name, or city
+    business_types: list[str]      # one type per element, e.g. ["plumber", "dentist"]
+    max_results: int = 15          # per city per type
+    max_tier: int = 2              # sweep depth: 1=top metros, 2=+mid-size, 3=all
+
 
 def require_auth(request: Request):
     token = request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
@@ -271,6 +277,125 @@ async def get_leads(request: Request):
     require_auth(request)
     path = OUTPUT_DIR / "leads.json"
     return {"leads": json.loads(path.read_text()) if path.exists() else []}
+
+
+@app.post("/api/sweep")
+async def start_sweep(data: SweepRequest, request: Request):
+    require_auth(request)
+    import time as _time
+    import regions as _regions
+    from discovery import discover_businesses, save_leads
+
+    btypes = [t.strip() for t in data.business_types if t.strip()]
+    if not btypes:
+        raise HTTPException(status_code=400, detail="At least one business type required")
+
+    label  = _regions.region_label(data.region, data.max_tier)
+    prefix = ", ".join(btypes[:3]) + ("…" if len(btypes) > 3 else "")
+    job_id = _new_job(f"Sweep: {prefix} in {label}")
+
+    def _go():
+        region_data = _regions.resolve_region(data.region, data.max_tier)
+        cities = region_data["cities"] if region_data else [data.region]
+        total  = len(btypes) * len(cities)
+        done   = 0
+        all_leads: list[dict] = []
+
+        # Restore checkpoint when resuming an interrupted sweep
+        prev = JOBS[job_id].get("result") or {}
+        completed: set[str] = set(prev.get("completed_pairs", []))
+        if completed:
+            print(f"[sweep] Resuming — {len(completed)}/{total} pairs already done")
+
+        def _checkpoint(current: str = ""):
+            JOBS[job_id]["result"] = {
+                "done_pairs":      done,
+                "total_pairs":     total,
+                "progress_pct":    round(100 * done / total) if total else 100,
+                "leads_found":     len(all_leads),
+                "current":         current,
+                "completed_pairs": list(completed),
+                "region":          data.region,
+                "business_types":  btypes,
+            }
+            jobs_db.upsert(JOBS[job_id])
+
+        _checkpoint("Starting…")
+        print(f"[sweep] {len(btypes)} type(s) × {len(cities)} cities = {total} search pairs")
+
+        for bt in btypes:
+            for city in cities:
+                pair_key = f"{bt}|{city}"
+                if pair_key in completed:
+                    done += 1
+                    continue
+
+                # Pause check — cooperative, checked between pairs
+                if JOBS[job_id].get("pause_requested"):
+                    JOBS[job_id]["status"] = "paused"
+                    _checkpoint(f"Paused before: {bt} in {city}")
+                    print(f"[sweep] Paused. POST /api/jobs/{job_id}/resume to continue.")
+                    while JOBS[job_id].get("pause_requested"):
+                        _time.sleep(1)
+                    JOBS[job_id]["status"] = "running"
+                    jobs_db.upsert(JOBS[job_id])
+                    print(f"[sweep] Resumed.")
+
+                current = f"{bt} in {city}"
+                print(f"[sweep] [{done + 1}/{total}] {current}")
+                _checkpoint(current)
+
+                try:
+                    leads = discover_businesses(city, bt, 15, data.max_results, data.max_tier)
+                    all_leads.extend(leads)
+                    print(f"[sweep] +{len(leads)} leads (total {len(all_leads)})")
+                except Exception as exc:
+                    print(f"[sweep] Error for {current}: {exc}")
+
+                completed.add(pair_key)
+                done += 1
+
+                # Write leads progressively so partial results survive a restart
+                try:
+                    save_leads(all_leads, str(OUTPUT_DIR))
+                except Exception:
+                    pass
+
+        _checkpoint("Complete")
+        print(f"[sweep] Done — {len(all_leads)} total leads across {done} pairs.")
+        return {
+            "total_leads":   len(all_leads),
+            "pairs_run":     done,
+            "region":        data.region,
+            "business_types": btypes,
+        }
+
+    _run(job_id, _go)
+    return {"job_id": job_id}
+
+
+@app.post("/api/jobs/{job_id}/pause")
+async def pause_job(job_id: str, request: Request):
+    require_auth(request)
+    job = JOBS.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404)
+    if job["status"] != "running":
+        raise HTTPException(status_code=400, detail=f"Job is '{job['status']}', not running")
+    job["pause_requested"] = True
+    return {"ok": True, "job_id": job_id, "msg": "Pause will take effect after the current search pair completes."}
+
+
+@app.post("/api/jobs/{job_id}/resume")
+async def resume_job(job_id: str, request: Request):
+    require_auth(request)
+    job = JOBS.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404)
+    if job["status"] not in ("paused", "running"):
+        raise HTTPException(status_code=400, detail=f"Job is '{job['status']}', cannot resume")
+    job["pause_requested"] = False
+    return {"ok": True, "job_id": job_id, "msg": "Sweep will resume after the next poll cycle."}
 
 @app.post("/api/pipeline/{slug}")
 async def run_pipeline(slug: str, data: PipelineRequest, request: Request):

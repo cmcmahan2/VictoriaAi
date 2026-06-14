@@ -241,6 +241,36 @@
       <button class="btn-search" id="search-btn" onclick="startDiscover()">Search</button>
     </div>
     <div class="sidebar-section">
+      <div class="sidebar-label" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;" onclick="toggleSweepForm()">
+        <span>Batch Sweep</span><span id="sweep-chevron" style="font-size:0.7rem;color:var(--muted);">▸</span>
+      </div>
+      <div id="sweep-form" style="display:none;">
+        <div class="field" style="margin-top:0.5rem;">
+          <label>Region</label>
+          <input type="text" id="sw-region" placeholder="All of BC" value="All of BC" list="city-suggestions" />
+        </div>
+        <div class="field">
+          <label>Business Types <span style="color:var(--muted);font-weight:400;">(one per line)</span></label>
+          <textarea id="sw-types" rows="4" style="width:100%;box-sizing:border-box;background:var(--dark3);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:0.45rem 0.6rem;font-size:0.82rem;resize:vertical;font-family:inherit;" placeholder="plumber&#10;electrician&#10;dentist&#10;roofer"></textarea>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label>Depth</label>
+            <select id="sw-tier">
+              <option value="2" selected>Metros + mid-size</option>
+              <option value="1">Top metros only</option>
+              <option value="3">All cities</option>
+            </select>
+          </div>
+          <div class="field"><label>Per-city max</label><input type="number" id="sw-max" value="15" min="5" max="50" /></div>
+        </div>
+        <div style="display:flex;gap:0.5rem;">
+          <button class="btn-search" id="sweep-start-btn" onclick="startSweep()" style="flex:1;">Start Sweep</button>
+          <button id="sweep-pause-btn" onclick="toggleSweepPause()" style="display:none;background:var(--dark3);border:1px solid var(--border2);border-radius:6px;padding:0.5rem 0.65rem;cursor:pointer;color:var(--text);font-size:0.82rem;white-space:nowrap;">Pause</button>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-section">
       <div class="sidebar-label">Recent Jobs</div>
       <div id="jobs-sidebar"><div class="no-jobs">No jobs yet</div></div>
     </div>
@@ -249,6 +279,20 @@
     <div class="tab-panel active" id="tab-discover">
       <div class="panel-title">Business Leads</div>
       <p class="panel-sub">Search for BC businesses with weak or no web presence. Click &ldquo;Run Pipeline&rdquo; on any lead to build their site.</p>
+      <div id="sweep-progress-panel" style="display:none;background:var(--dark3);border:1px solid var(--border2);border-radius:8px;padding:1rem 1.25rem;margin-bottom:1.25rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem;">
+          <span style="font-weight:600;font-size:0.9rem;">Batch Sweep</span>
+          <span id="sweep-prog-badge" class="job-status-badge badge-running">Running</span>
+        </div>
+        <div style="background:var(--dark2);border-radius:4px;height:6px;overflow:hidden;margin-bottom:0.5rem;">
+          <div id="sweep-prog-bar" style="height:100%;background:var(--green);transition:width 0.6s ease;width:0%;"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--muted);margin-bottom:0.25rem;">
+          <span id="sweep-prog-pct">0%</span>
+          <span id="sweep-prog-leads">0 leads found</span>
+        </div>
+        <div id="sweep-prog-current" style="font-size:0.75rem;color:var(--muted);font-style:italic;"></div>
+      </div>
       <div class="table-wrap" id="leads-wrap">
         <div class="empty-state"><p>Enter a city and business type in the sidebar,<br>then click Search to find leads.</p></div>
       </div>
@@ -432,6 +476,119 @@
       toast('Search failed: '+e.message, 'error');
       btn.disabled=false; btn.textContent='Search'; setStatus('Ready');
     }
+  }
+
+  // ── Batch Sweep ───────────────────────────────────────────────────────────
+  let activeSweepJobId = null;
+  let sweepPollTimer   = null;
+
+  function toggleSweepForm() {
+    const form = document.getElementById('sweep-form');
+    const icon = document.getElementById('sweep-chevron');
+    const open = form.style.display === 'none';
+    form.style.display = open ? 'block' : 'none';
+    icon.textContent = open ? '▾' : '▸';
+  }
+
+  async function startSweep() {
+    const region = document.getElementById('sw-region').value.trim();
+    const rawTypes = document.getElementById('sw-types').value;
+    const types = rawTypes.split('\n').map(t => t.trim()).filter(Boolean);
+    if (!region) { toast('Enter a region for the sweep', 'error'); return; }
+    if (!types.length) { toast('Enter at least one business type', 'error'); return; }
+    const btn = document.getElementById('sweep-start-btn');
+    btn.disabled = true; btn.textContent = 'Starting…';
+    try {
+      const res = await api('/api/sweep', { method:'POST', body:{
+        region, business_types: types,
+        max_results: +document.getElementById('sw-max').value,
+        max_tier:    +document.getElementById('sw-tier').value,
+      }});
+      if (!res.ok) { const e=await res.json(); throw new Error(e.detail||'Sweep failed'); }
+      const { job_id } = await res.json();
+      activeSweepJobId = job_id;
+      addJobToSidebar(job_id, `Sweep in ${region}`);
+      document.getElementById('sweep-pause-btn').style.display = 'inline-block';
+      document.getElementById('sweep-pause-btn').textContent = 'Pause';
+      document.getElementById('sweep-progress-panel').style.display = 'block';
+      document.getElementById('sweep-prog-badge').className = 'job-status-badge badge-running';
+      document.getElementById('sweep-prog-badge').textContent = 'Running';
+      toast(`Sweep started: ${types.length} type(s) in ${region}`);
+      _pollSweepProgress(job_id);
+    } catch(e) {
+      toast('Sweep failed: '+e.message, 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Start Sweep';
+    }
+  }
+
+  async function toggleSweepPause() {
+    if (!activeSweepJobId) return;
+    const btn = document.getElementById('sweep-pause-btn');
+    const badge = document.getElementById('sweep-prog-badge');
+    const isPaused = btn.textContent === 'Resume';
+    const endpoint = isPaused ? 'resume' : 'pause';
+    try {
+      const res = await api(`/api/jobs/${activeSweepJobId}/${endpoint}`, { method:'POST' });
+      if (!res.ok) { const e=await res.json(); throw new Error(e.detail); }
+      if (isPaused) {
+        btn.textContent = 'Pause';
+        badge.className = 'job-status-badge badge-running';
+        badge.textContent = 'Running';
+        toast('Sweep resumed');
+      } else {
+        btn.textContent = 'Resume';
+        badge.className = 'job-status-badge badge-interrupted';
+        badge.textContent = 'Pausing…';
+        toast('Sweep will pause after the current city finishes');
+      }
+    } catch(e) { toast('Failed: '+e.message, 'error'); }
+  }
+
+  function _pollSweepProgress(job_id) {
+    if (sweepPollTimer) clearInterval(sweepPollTimer);
+    sweepPollTimer = setInterval(async () => {
+      try {
+        const res = await api(`/api/jobs/${job_id}`);
+        if (!res.ok) return;
+        const job = await res.json();
+        const result = job.result || {};
+        const pct = result.progress_pct ?? 0;
+        const leads = result.leads_found ?? 0;
+        const current = result.current || '';
+        const status = job.status;
+
+        document.getElementById('sweep-prog-bar').style.width = pct + '%';
+        document.getElementById('sweep-prog-pct').textContent = pct + '%';
+        document.getElementById('sweep-prog-leads').textContent = leads + ' leads found';
+        document.getElementById('sweep-prog-current').textContent = current ? '↪ ' + current : '';
+
+        const badge = document.getElementById('sweep-prog-badge');
+        const pauseBtn = document.getElementById('sweep-pause-btn');
+        if (status === 'paused') {
+          badge.className = 'job-status-badge badge-interrupted';
+          badge.textContent = 'Paused';
+          pauseBtn.textContent = 'Resume';
+        } else if (status === 'running') {
+          badge.className = 'job-status-badge badge-running';
+          badge.textContent = 'Running';
+        }
+
+        if (status === 'done' || status === 'error') {
+          clearInterval(sweepPollTimer);
+          sweepPollTimer = null;
+          badge.className = status === 'done' ? 'job-status-badge badge-done' : 'job-status-badge badge-error';
+          badge.textContent = status === 'done' ? 'Done' : 'Error';
+          pauseBtn.style.display = 'none';
+          if (status === 'done') {
+            toast(`Sweep complete — ${leads} total leads!`);
+            loadLeads();
+          } else {
+            toast('Sweep ended with an error', 'error');
+          }
+        }
+      } catch(_) {}
+    }, 3000);
   }
 
   async function loadLeads() {
