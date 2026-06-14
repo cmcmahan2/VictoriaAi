@@ -16,7 +16,7 @@ import os
 import secrets
 import sys
 import threading
-from contextlib import contextmanager
+from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime
 from pathlib import Path
 
@@ -29,15 +29,37 @@ from pydantic import BaseModel
 sys.path.insert(0, str(Path(__file__).parent))
 load_dotenv()
 
-app = FastAPI(title="BCBUISWEBBUILDERTOOL Admin", docs_url=None, redoc_url=None)
+import jobs_db
 
-OUTPUT_DIR  = Path("./output")
+OUTPUT_DIR   = Path("./output")
 RESEARCH_DIR = Path("./research")
-WEB_DIR     = Path(__file__).parent / "web"
+WEB_DIR      = Path(__file__).parent / "web"
 CLIENTS_FILE = OUTPUT_DIR / "clients.json"
 
 VALID_TOKENS: set[str] = set()
 JOBS: dict[str, dict]  = {}
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    OUTPUT_DIR.mkdir(exist_ok=True)
+    RESEARCH_DIR.mkdir(exist_ok=True)
+    jobs_db.configure(OUTPUT_DIR / "jobs.db")
+    jobs_db.init()
+    for job in jobs_db.load_all():
+        if job["status"] == "running":
+            job["status"] = "interrupted"
+            job["logs"].append({
+                "ts": datetime.now().strftime("%H:%M:%S"),
+                "msg": "Job interrupted by server restart.",
+            })
+            jobs_db.upsert(job)
+        JOBS[job["id"]] = job
+    yield
+
+
+app = FastAPI(title="BCBUISWEBBUILDERTOOL Admin", docs_url=None, redoc_url=None,
+              lifespan=lifespan)
 
 
 def _load_clients() -> list:
@@ -98,13 +120,26 @@ class _JobLogger:
     def __init__(self, job_id, real_stdout):
         self._job_id = job_id
         self._real   = real_stdout
+        self._since_flush = 0
+
     def write(self, text):
         self._real.write(text)
         msg = text.strip()
         if msg:
-            JOBS[self._job_id]["logs"].append({"ts": datetime.now().strftime("%H:%M:%S"), "msg": msg})
+            job = JOBS[self._job_id]
+            job["logs"].append({"ts": datetime.now().strftime("%H:%M:%S"), "msg": msg})
+            self._since_flush += 1
+            # Persist every 5 log entries to avoid overwhelming SQLite on verbose jobs
+            if self._since_flush >= 5:
+                jobs_db.upsert(job)
+                self._since_flush = 0
+
     def flush(self):
         self._real.flush()
+        # Flush any buffered log entries
+        if self._since_flush > 0:
+            jobs_db.upsert(JOBS[self._job_id])
+            self._since_flush = 0
 
 
 @contextmanager
@@ -119,28 +154,48 @@ def _capture(job_id):
 
 def _new_job(description):
     job_id = secrets.token_hex(8)
-    JOBS[job_id] = {"id": job_id, "description": description, "status": "queued",
-                    "logs": [], "result": None, "error": None, "created_at": datetime.now().isoformat()}
+    JOBS[job_id] = {
+        "id":          job_id,
+        "description": description,
+        "status":      "queued",
+        "logs":        [],
+        "result":      None,
+        "error":       None,
+        "created_at":  datetime.now().isoformat(),
+        "finished_at": None,
+    }
+    jobs_db.upsert(JOBS[job_id])
     return job_id
 
 
 def _run(job_id, fn, *args, **kwargs):
     def _target():
         JOBS[job_id]["status"] = "running"
+        jobs_db.upsert(JOBS[job_id])
         try:
             with _capture(job_id):
                 result = fn(*args, **kwargs)
-            JOBS[job_id]["status"]  = "done"
-            JOBS[job_id]["result"] = result
+            JOBS[job_id]["status"]      = "done"
+            JOBS[job_id]["result"]      = result
+            JOBS[job_id]["finished_at"] = datetime.now().isoformat()
         except NotImplementedError:
-            JOBS[job_id]["status"] = "not_implemented"
-            JOBS[job_id]["error"]  = "Phase not yet implemented."
-            JOBS[job_id]["logs"].append({"ts": datetime.now().strftime("%H:%M:%S"),
-                                          "msg": "Phase not yet implemented - scaffold only."})
+            JOBS[job_id]["status"]      = "not_implemented"
+            JOBS[job_id]["error"]       = "Phase not yet implemented."
+            JOBS[job_id]["finished_at"] = datetime.now().isoformat()
+            JOBS[job_id]["logs"].append({
+                "ts": datetime.now().strftime("%H:%M:%S"),
+                "msg": "Phase not yet implemented - scaffold only.",
+            })
         except Exception as exc:
-            JOBS[job_id]["status"] = "error"
-            JOBS[job_id]["error"]  = str(exc)
-            JOBS[job_id]["logs"].append({"ts": datetime.now().strftime("%H:%M:%S"), "msg": f"Error: {exc}"})
+            JOBS[job_id]["status"]      = "error"
+            JOBS[job_id]["error"]       = str(exc)
+            JOBS[job_id]["finished_at"] = datetime.now().isoformat()
+            JOBS[job_id]["logs"].append({
+                "ts": datetime.now().strftime("%H:%M:%S"),
+                "msg": f"Error: {exc}",
+            })
+        finally:
+            jobs_db.upsert(JOBS[job_id])
     threading.Thread(target=_target, daemon=True).start()
 
 
@@ -680,8 +735,6 @@ async def portal_pdf(slug: str):
 
 
 if __name__ == "__main__":
-    OUTPUT_DIR.mkdir(exist_ok=True)
-    RESEARCH_DIR.mkdir(exist_ok=True)
     port = int(os.getenv("PORT", 5000))
     print(f"""
 +----------------------------------------------+
