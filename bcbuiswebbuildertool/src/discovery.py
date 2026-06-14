@@ -39,6 +39,18 @@ SCORE_NOT_MOBILE      = 1
 SCORE_NO_PHOTOS       = 1
 SCORE_FEW_REVIEWS     = 1
 SCORE_NO_BOOKING      = 1
+SCORE_NO_REVIEWS      = 1   # zero reviews at all = effectively invisible online
+SCORE_STALE_REVIEWS   = 1   # newest review older than the staleness window
+SCORE_INDUSTRY_HIGH   = 2   # high-LTV trades/professional services (can pay more)
+SCORE_INDUSTRY_MED    = 1   # mid-LTV services
+
+# A review is "stale" once the newest one is older than this many days.
+STALE_REVIEW_DAYS = int(os.getenv("STALE_REVIEW_DAYS", "180"))
+
+# Only run the expensive website-health HTTP check on leads whose cheap,
+# metadata-only prescore is at least this high. Set to 0 to check every lead
+# that has a URL (the old behaviour).
+PRESCORE_HTTP_THRESHOLD = int(os.getenv("PRESCORE_HTTP_THRESHOLD", "3"))
 
 CURRENT_YEAR = datetime.now().year
 
@@ -162,9 +174,23 @@ def discover_businesses(
         )
         return []
 
-    print(f"[discovery] Checking website health for {len(businesses)} businesses...")
-    businesses = _check_all_websites(businesses)
     businesses = _enrich(businesses)
+
+    # Score-first, check-second: compute a cheap metadata-only prescore, then
+    # spend the expensive (8s) website-health HTTP check only on leads that have
+    # a URL AND already look promising. Leads with no website are top leads that
+    # need no check; established-looking businesses fall below the threshold and
+    # are left unchecked (ranked on metadata alone). Tune via PRESCORE_HTTP_THRESHOLD.
+    for b in businesses:
+        b["_prescore"] = _prescore_business(b)
+    to_check = [b for b in businesses
+                if b.get("existing_website") and b["_prescore"] >= PRESCORE_HTTP_THRESHOLD
+                and b.get("website_health") is None]
+    skipped = len(businesses) - len(to_check)
+    print(f"[discovery] Pre-scored {len(businesses)} leads - {len(to_check)} qualify for website check, "
+          f"{skipped} skipped (no URL or below threshold {PRESCORE_HTTP_THRESHOLD})")
+    if to_check:
+        _check_all_websites(to_check)  # mutates each dict in place with website_health
 
     scored = [_score_business(b) for b in businesses]
     ranked = sorted(scored, key=lambda b: b["score"], reverse=True)
@@ -196,10 +222,14 @@ def _discover_via_places_api(city, business_type, radius_km, max_results, api_ke
 
 def _discover_via_places_api_live(city, business_type, radius_km, max_results, api_key):
     """Tier 1: Google Maps Text Search + Place Details."""
-    query      = f"{business_type} in {city}, BC, Canada"
+    # Note: city carries its own province via the registry sweep, so we anchor to
+    # "Canada" (not "BC") - hardcoding BC broke non-BC cities once we went national.
+    query      = f"{business_type} in {city}, Canada"
     search_url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
     detail_url = "https://maps.googleapis.com/maps/api/place/details/json"
-    fields     = "name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,photos,opening_hours,business_status"
+    # `reviews` rides along in the same (Atmosphere-tier) details call we already
+    # pay for, giving us the newest-review timestamp for the recency signal.
+    fields     = "name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,photos,reviews,opening_hours,business_status"
 
     place_ids = []
     params = {"query": query, "key": api_key}
@@ -234,6 +264,7 @@ def _discover_via_places_api_live(city, business_type, radius_km, max_results, a
                 "rating":           r.get("rating"),
                 "review_count":     r.get("user_ratings_total", 0),
                 "photos_count":     len(r.get("photos", [])),
+                "latest_review_age_days": _latest_review_age_days(r.get("reviews", [])),
                 "category":         business_type,
                 "city":             city,
                 "source":           "google_places",
@@ -952,15 +983,91 @@ def _enrich(businesses):
     return businesses
 
 
+def _latest_review_age_days(reviews) -> int | None:
+    """Age in days of the newest review, from a Google Places `reviews` list
+    (each item has a unix `time`). None when there are no usable timestamps."""
+    if not reviews:
+        return None
+    times = [r.get("time") for r in reviews if isinstance(r.get("time"), (int, float))]
+    if not times:
+        return None
+    newest = max(times)
+    return max(0, int((time.time() - newest) / 86400))
+
+
+# High-LTV industries that can comfortably afford recurring web/marketing
+# retainers ($300-1500/mo) - these make the best leads.
+_INDUSTRY_HIGH = (
+    "plumb", "electric", "hvac", "heating", "roof", "contractor", "construction",
+    "renovation", "landscap", "dentist", "dental", "lawyer", "legal", "attorney",
+    "notary", "accountant", "accounting", "real estate", "realtor", "insurance",
+    "chiropract", "physio", "cosmetic", "medical", "clinic", "law",
+)
+# Mid-LTV service businesses.
+_INDUSTRY_MED = (
+    "salon", "spa", "barber", "hair", "nail", "beauty", "mechanic", "auto",
+    "tire", "gym", "fitness", "yoga", "vet", "veterinar", "pet", "groom",
+    "painter", "painting", "clean", "floor", "carpet", "window", "glass",
+    "photographer", "tattoo", "handyman", "moving",
+)
+
+
+def _industry_score(business) -> tuple[int, str | None]:
+    """Ability-to-pay signal from the business category/name. Returns
+    (points, flag). High-LTV trades/professional services score highest."""
+    hay = f"{business.get('category', '')} {business.get('name', '')}".lower()
+    if any(k in hay for k in _INDUSTRY_HIGH):
+        return SCORE_INDUSTRY_HIGH, "high_value_industry"
+    if any(k in hay for k in _INDUSTRY_MED):
+        return SCORE_INDUSTRY_MED, "mid_value_industry"
+    return 0, None
+
+
+def _value_signals(business) -> tuple[int, list[str]]:
+    """Cheap, metadata-only lead signals (no HTTP): missing photos/reviews,
+    stale reviews, and industry ability-to-pay. Shared by the prescore gate and
+    the final score so both stay consistent."""
+    score = 0
+    flags: list[str] = []
+    if business.get("photos_count", 0) == 0:
+        score += SCORE_NO_PHOTOS; flags.append("no_photos")
+    reviews = business.get("review_count", 0) or 0
+    if reviews == 0:
+        score += SCORE_NO_REVIEWS; flags.append("no_reviews")
+    elif reviews < 10:
+        score += SCORE_FEW_REVIEWS; flags.append("few_reviews")
+    age = business.get("latest_review_age_days")
+    if age is not None and age > STALE_REVIEW_DAYS:
+        score += SCORE_STALE_REVIEWS; flags.append("stale_reviews")
+    ipts, iflag = _industry_score(business)
+    if ipts:
+        score += ipts
+        flags.append(iflag)
+    return score, flags
+
+
+def _prescore_business(business) -> int:
+    """Cheap metadata-only estimate of lead quality, used to decide whether a
+    lead is worth the expensive website-health HTTP check. Knows about the
+    no-website win and the value signals, but not site health (which is exactly
+    what the HTTP check resolves)."""
+    score = 0
+    if not business.get("existing_website"):
+        score += SCORE_NO_WEBSITE
+    pts, _ = _value_signals(business)
+    score += pts
+    return min(score, 10)
+
+
 def _score_business(business):
     """Score 0-10 on web presence weakness. Higher = better lead.
 
     A business with a genuinely strong existing site (accessible, SSL,
     mobile-responsive, recent copyright, booking) should score very low and
     sink to the bottom. No-website / broken / outdated businesses rise to the
-    top. Photo/review weakness only counts as a tie-breaker when the website
-    itself isn't already a clear weakness, so a strong-site business can't be
-    pushed up the ranking purely by missing photos/reviews.
+    top. Photo/review/industry signals only count as tie-breakers when the
+    website itself isn't already strong, so a strong-site business can't be
+    pushed up the ranking purely by metadata.
     """
     score = 0; flags = []
     health  = business.get("website_health")
@@ -993,17 +1100,19 @@ def _score_business(business):
             and not health.get("outdated")
             and recent
         )
+    else:
+        # Has a website URL but we skipped the HTTP check (low prescore). We
+        # don't know the site's quality, so we add no website points and flag it
+        # for transparency - it ranks on metadata signals alone.
+        flags.append("site_unchecked")
 
-    # Photo/review weakness: only a meaningful signal when the website isn't
-    # already strong. For a strong-site business these stay off so it can't be
-    # lifted up the ranking by data we don't even reliably have for OSM leads.
+    # Value signals (missing photos/reviews, stale reviews, industry) only count
+    # when the website isn't already strong, so a strong-site business can't be
+    # lifted up the ranking by metadata we may not even reliably have.
     if not site_is_strong:
-        if business.get("photos_count", 0) == 0:
-            score += SCORE_NO_PHOTOS; flags.append("no_photos")
-        if business.get("review_count", 0) < 10:
-            score += SCORE_FEW_REVIEWS; flags.append("few_reviews")
-
-    if site_is_strong:
+        vpts, vflags = _value_signals(business)
+        score += vpts; flags += vflags
+    else:
         flags.append("strong_existing_site")
 
     business["score"]          = min(score, 10)
