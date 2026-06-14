@@ -447,6 +447,7 @@ def build_website(profile_dir: str, output_dir: str = "./output") -> Path:
     _write_sitemap(business, site_dir)
     _write_robots(site_dir)
     _copy_logo(profile_dir, site_dir)
+    _localize_images(site_dir)
 
     log.info(f"[build] Site complete: {site_dir}")
     log.info(f"[build] Pages: index, services, about, contact, reviews")
@@ -2082,6 +2083,82 @@ def _img(keywords: str, w: int, h: int, seed: str = "") -> str:
         f"https://images.unsplash.com/{pid}"
         f"?auto=format&fit=crop&w={w}&h={h}&q=80"
     )
+
+
+# Remote image hosts we emit and want to pull local at build time. (Google
+# Places photo URLs are also bundled so deployed sites never call back to
+# Google's CDN.)
+_REMOTE_IMG_RE = re.compile(
+    r"https://(?:images\.unsplash\.com|lh3\.googleusercontent\.com|"
+    r"maps\.googleapis\.com)/[^\"')\s]+"
+)
+_IMG_DL_HEADERS = {
+    "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                   "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"),
+}
+
+
+def _localize_images(site_dir: Path) -> None:
+    """Download every remote photo the generated site references into
+    assets/img/ and rewrite the references to local relative paths, so the
+    finished site is self-contained — it never depends on a third-party CDN
+    (Unsplash/Google) being up or allowing hotlinks at view time, and the
+    images deploy to Netlify bundled with the site.
+
+    Resilient by design: if a download fails, the original URL is left in
+    place, so the result is never worse than hotlinking. Skip entirely with
+    BUNDLE_IMAGES=false (keeps the old hotlink behaviour).
+    """
+    if os.getenv("BUNDLE_IMAGES", "true").lower() in ("0", "false", "no"):
+        log.info("[build] BUNDLE_IMAGES disabled - keeping hotlinked images")
+        return
+
+    import requests  # local import: only needed when bundling
+
+    files = list(site_dir.glob("*.html")) + list(site_dir.glob("css/*.css"))
+    # Map the exact in-file token (which may be HTML-escaped, e.g. &amp;) to its
+    # real downloadable URL, so we download once and replace the right text.
+    tokens: set[str] = set()
+    for f in files:
+        tokens.update(_REMOTE_IMG_RE.findall(f.read_text(encoding="utf-8", errors="replace")))
+    if not tokens:
+        return
+
+    img_dir = site_dir / "assets" / "img"
+    img_dir.mkdir(parents=True, exist_ok=True)
+    sess = requests.Session()
+    mapping: dict[str, str] = {}  # in-file token -> "assets/img/<name>.jpg"
+    ok = 0
+    for token in sorted(tokens):
+        real_url = token.replace("&amp;", "&")
+        fname = hashlib.md5(token.encode("utf-8")).hexdigest()[:16] + ".jpg"
+        dest = img_dir / fname
+        rel = f"assets/img/{fname}"
+        if dest.exists() and dest.stat().st_size > 0:
+            mapping[token] = rel; ok += 1
+            continue
+        try:
+            r = sess.get(real_url, timeout=15, headers=_IMG_DL_HEADERS)
+            r.raise_for_status()
+            if not r.content:
+                raise ValueError("empty response")
+            dest.write_bytes(r.content)
+            mapping[token] = rel; ok += 1
+        except Exception as exc:
+            log.warning(f"[build] image download failed ({exc}) - keeping hotlink for {token[:70]}")
+
+    # Rewrite references. CSS lives one level down (css/style.css) so it needs a
+    # ../ prefix to reach assets/img/ at the site root.
+    for f in files:
+        text = f.read_text(encoding="utf-8", errors="replace")
+        prefix = "../" if f.suffix == ".css" else ""
+        new = text
+        for token, rel in mapping.items():
+            new = new.replace(token, prefix + rel)
+        if new != text:
+            f.write_text(new, encoding="utf-8")
+
+    log.info(f"[build] Localized {ok}/{len(tokens)} images -> assets/img/")
 
 
 # ── Pages ─────────────────────────────────────────────────────────────────────
