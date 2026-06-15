@@ -15,17 +15,19 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { rankJobs } from './rank.js';
 import { GEOGRAPHIES, SECTORS, buildSearchPlan, searchLinks } from './tracks.js';
+import { passesLevelRule, parseSalary } from './filters.js';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const profile = JSON.parse(readFileSync(join(__dir, 'profile.json'), 'utf8'));
 const seed = JSON.parse(readFileSync(join(__dir, 'seed-jobs.json'), 'utf8'));
 
 function parseArgs(argv) {
-  const args = { sectors: null, geos: null, links: false, md: false };
+  const args = { sectors: null, geos: null, links: false, md: false, allLevels: false };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--links') args.links = true;
     else if (a === '--md') args.md = true;
+    else if (a === '--all-levels') args.allLevels = true;
     else if (a === '--sectors') args.sectors = argv[++i]?.split(',').map((s) => s.trim());
     else if (a === '--geos') args.geos = argv[++i]?.split(',').map((s) => s.trim().toUpperCase());
   }
@@ -57,6 +59,11 @@ async function main() {
   if (args.sectors) jobs = jobs.filter((j) => args.sectors.includes(j.sector));
   if (args.geos) jobs = jobs.filter((j) => args.geos.includes(j.geo));
 
+  // Christian's rule: finance & real estate must be entry-level (golf any level).
+  const total = jobs.length;
+  if (!args.allLevels) jobs = jobs.filter(passesLevelRule);
+  const dropped = total - jobs.length;
+
   const { ranked, engine } = await rankJobs(jobs);
 
   const out = [];
@@ -65,6 +72,7 @@ async function main() {
   out.push(`**Profile:** ${profile.education.degree}, ${profile.education.school} (grad ${profile.education.graduation}) · ${profile.citizenship} citizen`);
   out.push(`**Priorities:** high wage · good benefits · open to abroad · sectors: ${profile.preferences.target_sectors.join(', ')}`);
   out.push(`**Listings ranked:** ${ranked.length} · **Ranking engine:** ${engine} · **Data fetched:** ${seed.fetched_at}`);
+  out.push(`**Level rule:** ${args.allLevels ? 'all levels (filter off)' : `finance & real estate restricted to entry-level — ${dropped} non-entry role(s) hidden`}`);
   out.push('');
   out.push('## Top matches');
   out.push('');
@@ -73,7 +81,9 @@ async function main() {
     out.push(`### ${i + 1}. ${j.title} — ${j.company}`);
     out.push(`\`${bar(j.fitScore)}\` **${j.fitScore}/100**  ${flagBadge(j.flags)}`);
     out.push('');
-    out.push(`- 📍 ${j.location} (${GEOGRAPHIES[j.geo]?.label || j.geo}) · ${j.type} · comp: ${j.compensation}`);
+    const sal = parseSalary(j.compensation);
+    const wage = sal ? `💵 ${j.compensation}` : `comp: ${j.compensation}`;
+    out.push(`- 📍 ${j.location} (${GEOGRAPHIES[j.geo]?.label || j.geo}) · ${j.type} · ${wage}`);
     out.push(`- 💬 ${j.rationale}`);
     out.push(`- 🔗 [Apply / view](${j.url})`);
     out.push('');

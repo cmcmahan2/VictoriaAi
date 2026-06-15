@@ -6,6 +6,7 @@
 // ANTHROPIC_API_KEY is set, so the tool always produces a ranking.
 
 import { GEOGRAPHIES } from './tracks.js';
+import { parseSalary } from './filters.js';
 
 // The Anthropic SDK is imported lazily (only when an API key is set) so the
 // heuristic path runs with zero dependencies — no `npm install` required.
@@ -61,8 +62,20 @@ function heuristicScore(job) {
   // High wage / benefits signals
   const comp = (job.compensation || '').toLowerCase();
   const taxFree = (g.tax_note || '').toLowerCase().includes('no personal income tax');
-  if (/\$|salary|year|\d{2,3},\d{3}|grad program|graduate program|comp/.test(comp)) {
-    score += 8;
+  // Use the actual posted salary when available: bigger number, bigger bonus.
+  // Confirmed pay is rewarded more than assumed pay, so real high-wage roles
+  // win the top spots (wage is a stated priority).
+  const salary = parseSalary(job.compensation);
+  if (salary) {
+    if (salary.mid >= 120000) score += 22;
+    else if (salary.mid >= 90000) score += 18;
+    else if (salary.mid >= 70000) score += 14;
+    else if (salary.mid >= 50000) score += 8;
+    else score += 3;
+    flags.push('high-wage');
+  } else if (/grad program|graduate program/.test(comp)) {
+    // Elite grad programs likely pay well, but comp is unconfirmed — modest nudge.
+    score += 5;
     flags.push('high-wage');
   }
   // Tax-free pay (e.g. UAE) is a real benefit, but only a modest nudge so a
@@ -78,8 +91,8 @@ function heuristicScore(job) {
   // Recognized graduate / development programs: strong fit for a new grad and
   // typically come with structured pay, training, and benefits.
   if (/(grad program|graduate program|development program|academy|new analyst|summer analyst)/.test(comp + ' ' + job.title.toLowerCase())) {
-    score += 10;
-    flags.push('entry-level-friendly', 'high-wage');
+    score += 7;
+    flags.push('entry-level-friendly');
   }
 
   // Seniority realism — penalize obviously senior/licensed roles for an entry candidate.
@@ -101,12 +114,21 @@ function heuristicScore(job) {
   return { fitScore: score, rationale, flags: [...new Set(flags)] };
 }
 
+// Primary sort: fit (which already weights wage/benefits/sector/level).
+// Tiebreak by actual posted salary so higher-paying roles float up.
+function byFitThenWage(a, b) {
+  if (b.fitScore !== a.fitScore) return b.fitScore - a.fitScore;
+  const sa = parseSalary(a.compensation)?.mid || 0;
+  const sb = parseSalary(b.compensation)?.mid || 0;
+  return sb - sa;
+}
+
 export async function rankJobs(jobs) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
 
   if (!apiKey) {
     const ranked = jobs.map((j) => ({ ...j, ...heuristicScore(j) }));
-    ranked.sort((a, b) => b.fitScore - a.fitScore);
+    ranked.sort(byFitThenWage);
     return { ranked, engine: 'heuristic' };
   }
 
@@ -140,12 +162,12 @@ export async function rankJobs(jobs) {
       const r = byIndex.get(i) || heuristicScore(j);
       return { ...j, fitScore: r.fitScore, rationale: r.rationale, flags: r.flags || [] };
     });
-    ranked.sort((a, b) => b.fitScore - a.fitScore);
+    ranked.sort(byFitThenWage);
     return { ranked, engine: 'claude:claude-sonnet-4-6' };
   } catch (err) {
     // Network/key failure — degrade gracefully rather than crash.
     const ranked = jobs.map((j) => ({ ...j, ...heuristicScore(j) }));
-    ranked.sort((a, b) => b.fitScore - a.fitScore);
+    ranked.sort(byFitThenWage);
     return { ranked, engine: `heuristic (Claude error: ${err.message})` };
   }
 }

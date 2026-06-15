@@ -32,7 +32,21 @@ Filter by sector or geography:
 node index.js --sectors golf,real_estate
 node index.js --geos AE,US,GB        # Dubai, USA, UK only
 node index.js --sectors finance --geos US --links
+node index.js --all-levels           # disable the entry-level rule (see below)
 ```
+
+### Entry-level rule
+
+Finance and real estate roles are **restricted to entry-level by default**
+(senior / VP / director / "Analyst II" / "5+ years" roles are hidden). **Golf
+roles are exempt** — any level is kept. Pass `--all-levels` to turn the rule
+off. The report header tells you how many roles were hidden.
+
+### Wage sorting
+
+Posted salaries are parsed (annualized, hourly × 2080) and weighted heavily, so
+**confirmed high-paying roles rise to the top** and salary breaks ties between
+equally-good fits. Roles with a real salary show a 💵 figure.
 
 ## Smarter ranking with Claude (optional)
 
