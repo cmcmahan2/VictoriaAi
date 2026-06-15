@@ -15,19 +15,20 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { rankJobs } from './rank.js';
 import { GEOGRAPHIES, SECTORS, buildSearchPlan, searchLinks } from './tracks.js';
-import { passesLevelRule, parseSalary } from './filters.js';
+import { passesLevelRule, parseSalary, attainability } from './filters.js';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const profile = JSON.parse(readFileSync(join(__dir, 'profile.json'), 'utf8'));
 const seed = JSON.parse(readFileSync(join(__dir, 'seed-jobs.json'), 'utf8'));
 
 function parseArgs(argv) {
-  const args = { sectors: null, geos: null, links: false, md: false, allLevels: false };
+  const args = { sectors: null, geos: null, links: false, md: false, allLevels: false, realistic: false };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--links') args.links = true;
     else if (a === '--md') args.md = true;
     else if (a === '--all-levels') args.allLevels = true;
+    else if (a === '--realistic') args.realistic = true;
     else if (a === '--sectors') args.sectors = argv[++i]?.split(',').map((s) => s.trim());
     else if (a === '--geos') args.geos = argv[++i]?.split(',').map((s) => s.trim().toUpperCase());
   }
@@ -64,6 +65,10 @@ async function main() {
   if (!args.allLevels) jobs = jobs.filter(passesLevelRule);
   const dropped = total - jobs.length;
 
+  // --realistic hides the elite "Reach" seats so the list is just what's
+  // genuinely attainable for the current resume.
+  if (args.realistic) jobs = jobs.filter((j) => attainability(j).tier !== 'Reach');
+
   const { ranked, engine } = await rankJobs(jobs);
 
   const out = [];
@@ -83,7 +88,10 @@ async function main() {
     out.push('');
     const sal = parseSalary(j.compensation);
     const wage = sal ? `💵 ${j.compensation}` : `comp: ${j.compensation}`;
+    const { tier, why } = attainability(j);
+    const tierIcon = { Realistic: '🟢', Stretch: '🟡', Reach: '🔴' }[tier];
     out.push(`- 📍 ${j.location} (${GEOGRAPHIES[j.geo]?.label || j.geo}) · ${j.type} · ${wage}`);
+    out.push(`- ${tierIcon} **${tier}** — ${why}`);
     out.push(`- 💬 ${j.rationale}`);
     out.push(`- 🔗 [Apply / view](${j.url})`);
     out.push('');

@@ -36,3 +36,38 @@ export function passesLevelRule(job) {
   }
   return true;
 }
+
+// Elite / high-pedigree finance seats that realistically want prior internships,
+// modeling reps, and a target-school/CFA signal — a reach for a new grad whose
+// experience is golf + seasonal trades.
+const REACH_FINANCE = /(investment bank|\bib\b|private equity|hedge fund|equity research|bulge)/i;
+const REACH_FIRMS = /(goldman|jpmorgan|j\.?p\.? morgan|morgan stanley|point72|blackstone|carlyle|bnp paribas|safehold|bessemer|metlife)/i;
+
+// Honest attainability read for Christian's actual resume (golf shop + TrackMan,
+// seasonal trades, Financial Economics grad, Stata/Excel — no finance internship yet).
+// Tiers: 'Realistic' | 'Stretch' | 'Reach'.
+export function attainability(job) {
+  const t = (job.title || '').toLowerCase();
+  const c = (job.company || '').toLowerCase();
+  const sal = parseSalary(job.compensation);
+
+  if (job.sector === 'golf') {
+    if (/director|head|pga professional|superintendent|general manager/.test(t)) {
+      return { tier: 'Reach', why: 'needs PGA/management credentials you don’t have yet' };
+    }
+    return { tier: 'Realistic', why: 'matches your Cedar Hill pro-shop + TrackMan experience' };
+  }
+
+  // finance / real estate
+  if (REACH_FINANCE.test(t) || REACH_FIRMS.test(c) || (sal && sal.mid >= 100000)) {
+    return { tier: 'Reach', why: 'elite/high-comp seat — typically wants internships, modeling, pedigree' };
+  }
+  if (/grad program|graduate program|development program|academy/.test((job.type || '') + ' ' + t)) {
+    return { tier: 'Stretch', why: 'competitive grad program — apply, but treat as a long shot' };
+  }
+  if (/junior|appraisal|intern|assistant|fp&a|financial planning|graduate|trainee/.test(t) || (sal && sal.mid < 75000)) {
+    return { tier: 'Realistic', why: 'genuine entry point for a new grad with your background' };
+  }
+  return { tier: 'Stretch', why: 'plausible with a sharp application; build a modeling/internship signal' };
+}
+

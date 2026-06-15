@@ -42,6 +42,22 @@ Finance and real estate roles are **restricted to entry-level by default**
 roles are exempt** — any level is kept. Pass `--all-levels` to turn the rule
 off. The report header tells you how many roles were hidden.
 
+### Attainability tiers
+
+Every listing is tagged against Christian's *actual* resume (golf pro-shop +
+TrackMan, seasonal trades, Financial Economics grad, Stata/Excel — no finance
+internship yet):
+
+- 🟢 **Realistic** — genuine entry point you can land now (most golf ops roles,
+  junior appraisal, FP&A, university/government analyst seats).
+- 🟡 **Stretch** — plausible with a sharp application; build a modeling/internship signal first.
+- 🔴 **Reach** — elite/high-comp seats (IB, PE, hedge funds, bulge-bracket grad
+  programs) that expect prior internships and pedigree.
+
+```bash
+node index.js --realistic    # hide the 🔴 Reach roles; show only what's landable
+```
+
 ### Wage sorting
 
 Posted salaries are parsed (annualized, hourly × 2080) and weighted heavily, so
