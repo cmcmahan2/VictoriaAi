@@ -366,6 +366,177 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      <FileDropUploader />
+    </div>
+  );
+}
+
+// Drop any video file (e.g. a Higgsfield clip) and publish it straight to YouTube.
+function FileDropUploader() {
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoPath, setVideoPath] = useState<string | null>(null);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [tags, setTags] = useState('');
+  const [privacy, setPrivacy] = useState<'private' | 'unlisted' | 'public'>('private');
+  const [busy, setBusy] = useState<null | 'upload' | 'publish'>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [watchUrl, setWatchUrl] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  async function uploadFile(f: File) {
+    setBusy('upload');
+    setError(null);
+    setWatchUrl(null);
+    setNotice('Uploading file…');
+    try {
+      const fd = new FormData();
+      fd.append('file', f);
+      const res = await fetch('/api/upload-file', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || 'Upload failed');
+      setVideoUrl(data.videoUrl);
+      setVideoPath(data.videoPath);
+      if (!title) setTitle((f.name || '').replace(/\.[^.]+$/, ''));
+      setNotice('File ready — add details and publish.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Upload failed');
+      setNotice(null);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function publish() {
+    if (!videoPath || !title.trim()) {
+      setError('Add a video and a title first');
+      return;
+    }
+    setBusy('publish');
+    setError(null);
+    setNotice('Uploading to YouTube…');
+    try {
+      const metadata = {
+        title,
+        description,
+        tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
+        hashtags: ['#Shorts'],
+        hook: '',
+      };
+      const res = await fetch('/api/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ localPath: videoPath, metadata, privacyStatus: privacy }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || 'Publish failed');
+      setWatchUrl(data.result.watchUrl);
+      setNotice('Published!');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Publish failed');
+      setNotice(null);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="mt-10 space-y-4 rounded-lg border border-[#30363d] bg-[#161b22] p-5">
+      <div>
+        <h2 className="text-lg font-medium">📤 Upload your own video</h2>
+        <p className="text-sm text-[#8b949e]">
+          Drop a finished clip (e.g. a Higgsfield video) and publish it straight to YouTube.
+        </p>
+      </div>
+
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          const f = e.dataTransfer.files?.[0];
+          if (f) uploadFile(f);
+        }}
+        className={`flex flex-col items-center justify-center rounded-md border-2 border-dashed p-8 text-center ${
+          dragging ? 'border-[#1f6feb] bg-[#0d1117]' : 'border-[#30363d]'
+        }`}
+      >
+        <p className="text-sm text-[#8b949e]">Drag & drop a video here, or</p>
+        <label className="mt-2 cursor-pointer rounded-md bg-[#1f6feb] px-4 py-2 text-sm font-medium text-white">
+          {busy === 'upload' ? 'Uploading…' : 'Choose file'}
+          <input
+            type="file"
+            accept="video/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) uploadFile(f);
+            }}
+          />
+        </label>
+      </div>
+
+      {videoUrl && (
+        <>
+          <video src={videoUrl} controls playsInline className="mx-auto max-h-[60vh] rounded-md border border-[#30363d]" />
+
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Title"
+            className="w-full rounded-md border border-[#30363d] bg-[#0d1117] px-3 py-2 text-sm"
+          />
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Description"
+            rows={3}
+            className="w-full rounded-md border border-[#30363d] bg-[#0d1117] px-3 py-2 text-sm"
+          />
+          <input
+            value={tags}
+            onChange={(e) => setTags(e.target.value)}
+            placeholder="tags, comma, separated"
+            className="w-full rounded-md border border-[#30363d] bg-[#0d1117] px-3 py-2 text-sm"
+          />
+
+          <div className="flex flex-wrap items-center gap-3">
+            <select
+              value={privacy}
+              onChange={(e) => setPrivacy(e.target.value as typeof privacy)}
+              className="rounded-md border border-[#30363d] bg-[#0d1117] px-3 py-2 text-sm"
+            >
+              <option value="private">Private</option>
+              <option value="unlisted">Unlisted</option>
+              <option value="public">Public</option>
+            </select>
+            <button
+              onClick={publish}
+              disabled={busy !== null}
+              className="rounded-md bg-[#3fb950] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {busy === 'publish' ? 'Uploading…' : '⬆️ Upload to YouTube'}
+            </button>
+          </div>
+        </>
+      )}
+
+      {notice && <p className="text-sm text-[#3fb950]">{notice}</p>}
+      {error && <p className="text-sm text-[#f85149]">{error}</p>}
+      {watchUrl && (
+        <p className="text-sm text-[#3fb950]">
+          Published →{' '}
+          <a href={watchUrl} target="_blank" rel="noreferrer" className="underline">
+            {watchUrl}
+          </a>
+        </p>
+      )}
     </div>
   );
 }
