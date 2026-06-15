@@ -1,0 +1,26 @@
+{
+  "name": "sabotage-server",
+  "version": "0.1.0",
+  "description": "Authoritative Colyseus game server for Sabotage",
+  "private": true,
+  "main": "build/index.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "tsc",
+    "start": "node build/index.js"
+  },
+  "dependencies": {
+    "@colyseus/core": "^0.15.17",
+    "@colyseus/monitor": "^0.15.17",
+    "@colyseus/schema": "^2.0.36",
+    "@colyseus/ws-transport": "^0.15.17",
+    "colyseus": "^0.15.17",
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.0",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.4.5"
+  }
+}
