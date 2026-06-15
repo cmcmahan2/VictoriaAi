@@ -1,9 +1,13 @@
 # Job Search Tool — Christian McMahan
 
-A personalized job-search tool for a **Canadian Financial Economics post-grad**
+A personalized job-search tool for a **Financial Economics post-grad**
 (University of Victoria, May 2026) targeting **golf, finance, and real estate**
-roles — at home in Canada and abroad — with a heavy weight on **high wage and
-good benefits**.
+roles — at home in Canada and **anywhere abroad a Canadian or American can
+realistically work** — with a heavy weight on **high wage and good benefits**.
+
+It is not tied to any one city. The default snapshot deliberately spans
+Australia, the UK, New Zealand, Ireland, the US, the UAE, and Canada so no
+single low-tax market dominates the ranking.
 
 It does three things:
 
@@ -75,6 +79,13 @@ Each result is tagged: 💰 high-wage · 🎁 benefits · ✈️ abroad · 🌱 
 > The TN visa angle is worth underlining: as a Financial Economics grad you may
 > qualify under the **Economist** profession with a US job offer — a far easier
 > route to the US than the H-1B lottery.
+
+**For Americans:** the pathways above are written for a Canadian citizen. A US
+citizen has different (often equivalent) routes — the US is home; Australia,
+NZ, and Ireland offer comparable working-holiday/skilled programs; the UK uses
+the Skilled Worker route rather than Youth Mobility; and TN works in reverse
+(Canada hires US Economists). Edit `tracks.js` → `work_authorization` to retune
+for a different citizenship.
 
 ## Refreshing listings
 

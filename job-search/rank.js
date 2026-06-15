@@ -61,17 +61,25 @@ function heuristicScore(job) {
   // High wage / benefits signals
   const comp = (job.compensation || '').toLowerCase();
   const taxFree = (g.tax_note || '').toLowerCase().includes('no personal income tax');
-  if (/\$|salary|year|\d{2,3},\d{3}/.test(comp)) {
+  if (/\$|salary|year|\d{2,3},\d{3}|grad program|graduate program|comp/.test(comp)) {
     score += 8;
     flags.push('high-wage');
   }
+  // Tax-free pay (e.g. UAE) is a real benefit, but only a modest nudge so a
+  // single low-tax city doesn't dominate the whole ranking.
   if (taxFree) {
-    score += 12;
-    flags.push('high-wage', 'benefits');
+    score += 5;
+    flags.push('benefits');
   }
   if (g.abroad) {
     score += 6;
     flags.push('abroad');
+  }
+  // Recognized graduate / development programs: strong fit for a new grad and
+  // typically come with structured pay, training, and benefits.
+  if (/(grad program|graduate program|development program|academy|new analyst|summer analyst)/.test(comp + ' ' + job.title.toLowerCase())) {
+    score += 10;
+    flags.push('entry-level-friendly', 'high-wage');
   }
 
   // Seniority realism — penalize obviously senior/licensed roles for an entry candidate.

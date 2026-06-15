@@ -1,50 +1,50 @@
 {
-  "_comment": "Live listings pulled from Indeed via the LinkedIn/Indeed job-search MCP on 2026-06-15. Refresh with `node index.js --refresh` (requires the MCP) or by re-running searches. Used as the default dataset so the tool ranks something out of the box.",
+  "_comment": "Live listings pulled from Indeed via the job-search MCP on 2026-06-15. A geographically balanced snapshot across Canada and many abroad markets open to Canadian/American grads. Refresh by re-running searches and pasting new roles here.",
   "fetched_at": "2026-06-15",
   "jobs": [
     {
-      "title": "Golf Operations Attendant",
-      "company": "Discovery Land Company",
-      "location": "Dubai",
-      "geo": "AE",
-      "sector": "golf",
-      "type": "Full-time",
-      "compensation": "N/A (tax-free; benefits typical for the region)",
-      "posted": "2026-06-09",
-      "url": "https://to.indeed.com/aa8cmcdz4ng9"
+      "title": "2026/2027 Corporate Analyst Development Program - Summer Analyst",
+      "company": "JPMorganChase",
+      "location": "Sydney NSW",
+      "geo": "AU",
+      "sector": "finance",
+      "type": "Full-time (graduate program)",
+      "compensation": "N/A (bulge-bracket grad program; strong comp + benefits)",
+      "posted": "2026-06-03",
+      "url": "https://to.indeed.com/aagn4wbjqvtf"
     },
     {
-      "title": "PGA Professional-1",
-      "company": "Discovery Land Company",
-      "location": "Dubai",
-      "geo": "AE",
-      "sector": "golf",
-      "type": "Full-time",
-      "compensation": "N/A (tax-free)",
-      "posted": "2026-06-09",
-      "url": "https://to.indeed.com/aawgy7z9t7dm"
+      "title": "Private Wealth Management - New Analyst",
+      "company": "Goldman Sachs",
+      "location": "Sydney NSW",
+      "geo": "AU",
+      "sector": "finance",
+      "type": "Full-time (graduate)",
+      "compensation": "N/A (bulge-bracket; high comp + benefits)",
+      "posted": "2026-03-03",
+      "url": "https://to.indeed.com/aaxtndmgck48"
     },
     {
-      "title": "Head Golf Professional, Golf Operations",
-      "company": "BlueStar Resort & Golf",
-      "location": "Rio Verde, AZ",
-      "geo": "US",
-      "sector": "golf",
+      "title": "Associate, Australian Equity Research",
+      "company": "RBC",
+      "location": "Sydney NSW",
+      "geo": "AU",
+      "sector": "finance",
       "type": "Full-time",
-      "compensation": "$60,000 - $65,000 a year",
-      "posted": "2026-05-22",
-      "url": "https://to.indeed.com/aadjqx6d7dk8"
+      "compensation": "N/A (Canadian bank — familiar employer)",
+      "posted": "2026-06-03",
+      "url": "https://to.indeed.com/aawtttyxbcmw"
     },
     {
-      "title": "Golf Shop Attendant",
-      "company": "Arbutus Ridge Golf Club",
-      "location": "Cobble Hill, BC",
-      "geo": "CA",
-      "sector": "golf",
-      "type": "Part-time",
-      "compensation": "N/A",
-      "posted": "2026-06-12",
-      "url": "https://to.indeed.com/aacr9mr6bqf6"
+      "title": "2026 Graduate Programme - Securities Services",
+      "company": "BNP Paribas",
+      "location": "Sydney NSW",
+      "geo": "AU",
+      "sector": "finance",
+      "type": "Full-time (graduate program)",
+      "compensation": "N/A (structured grad program)",
+      "posted": "2026-02-26",
+      "url": "https://to.indeed.com/aalw2mhwbjh6"
     },
     {
       "title": "Investment Analyst - July 2026",
@@ -58,13 +58,13 @@
       "url": "https://to.indeed.com/aahmmtq7yk8h"
     },
     {
-      "title": "Point72 Academy Investment Analyst Program for Upcoming Graduates (2027 - UK)",
+      "title": "Point72 Academy Investment Analyst Program for Upcoming Graduates",
       "company": "Point72",
       "location": "London",
       "geo": "GB",
       "sector": "finance",
-      "type": "Full-time",
-      "compensation": "N/A (graduate program; strong comp + training)",
+      "type": "Full-time (graduate program)",
+      "compensation": "N/A (top-tier training + comp)",
       "posted": "2026-05-14",
       "url": "https://to.indeed.com/aa2r7v86p2q6"
     },
@@ -74,8 +74,8 @@
       "location": "London",
       "geo": "GB",
       "sector": "finance",
-      "type": "Fixed term contract",
-      "compensation": "N/A",
+      "type": "Internship",
+      "compensation": "N/A (econ consulting — direct econometrics fit)",
       "posted": "2026-04-13",
       "url": "https://to.indeed.com/aark266dbxk6"
     },
@@ -91,15 +91,81 @@
       "url": "https://to.indeed.com/aab7jhxjgm7n"
     },
     {
-      "title": "FP&A Junior Analyst",
-      "company": "Moneycorp",
-      "location": "London",
-      "geo": "GB",
+      "title": "Investment Analyst",
+      "company": "Debbie Graham & Associates",
+      "location": "Auckland",
+      "geo": "NZ",
       "sector": "finance",
-      "type": "Permanent",
+      "type": "Full-time",
       "compensation": "N/A",
-      "posted": "2026-03-05",
-      "url": "https://to.indeed.com/aar7wnd8js9r"
+      "posted": "2026-06-10",
+      "url": "https://to.indeed.com/aaptbh7plzst"
+    },
+    {
+      "title": "Markets - Business Development Analyst",
+      "company": "PwC",
+      "location": "Auckland",
+      "geo": "NZ",
+      "sector": "finance",
+      "type": "Full-time",
+      "compensation": "N/A (Big Four — benefits + progression)",
+      "posted": "2026-06-11",
+      "url": "https://to.indeed.com/aamhsbdwbpvd"
+    },
+    {
+      "title": "Analyst - Proposal Writer (Private Markets)",
+      "company": "StepStone Group",
+      "location": "Dublin",
+      "geo": "IE",
+      "sector": "finance",
+      "type": "Full-time",
+      "compensation": "N/A (global private markets firm)",
+      "posted": "2026-04-22",
+      "url": "https://to.indeed.com/aaf46rzn8kcc"
+    },
+    {
+      "title": "Real Estate Analyst",
+      "company": "STREE Real Estate",
+      "location": "Dubai",
+      "geo": "AE",
+      "sector": "real_estate",
+      "type": "Full-time",
+      "compensation": "N/A (tax-free pay)",
+      "posted": "2026-02-28",
+      "url": "https://to.indeed.com/aagd6y94rlsw"
+    },
+    {
+      "title": "Golf Operations Attendant",
+      "company": "Discovery Land Company",
+      "location": "Dubai",
+      "geo": "AE",
+      "sector": "golf",
+      "type": "Full-time",
+      "compensation": "N/A (tax-free; housing/benefits typical)",
+      "posted": "2026-06-09",
+      "url": "https://to.indeed.com/aa8cmcdz4ng9"
+    },
+    {
+      "title": "Head Golf Professional, Golf Operations",
+      "company": "BlueStar Resort & Golf",
+      "location": "Rio Verde, AZ",
+      "geo": "US",
+      "sector": "golf",
+      "type": "Full-time",
+      "compensation": "$60,000 - $65,000 a year",
+      "posted": "2026-05-22",
+      "url": "https://to.indeed.com/aadjqx6d7dk8"
+    },
+    {
+      "title": "Concierge Supervisor (resort / golf club)",
+      "company": "RACV",
+      "location": "Gold Coast QLD",
+      "geo": "AU",
+      "sector": "golf",
+      "type": "Permanent",
+      "compensation": "N/A (resort & golf operator)",
+      "posted": "2026-06-11",
+      "url": "https://to.indeed.com/aaywfkq7slhv"
     },
     {
       "title": "Junior Appraisal Research Analyst / Appraiser (AACI or Candidate)",
@@ -113,17 +179,6 @@
       "url": "https://to.indeed.com/aavdhv9r4zd4"
     },
     {
-      "title": "Financial and Collections Analyst",
-      "company": "Pinnacle International",
-      "location": "Vancouver, BC",
-      "geo": "CA",
-      "sector": "real_estate",
-      "type": "Full-time",
-      "compensation": "N/A (real estate developer)",
-      "posted": "2026-06-02",
-      "url": "https://to.indeed.com/aatg6dpt4bj6"
-    },
-    {
       "title": "Business Analyst, Anaplan",
       "company": "QuadReal",
       "location": "Vancouver, BC",
@@ -135,26 +190,15 @@
       "url": "https://to.indeed.com/aapcvc2ttg4d"
     },
     {
-      "title": "Mortgage Underwriter",
-      "company": "Blue Pearl Mortgage Group Inc.",
+      "title": "Assistant Manager",
+      "company": "Golf Town",
       "location": "Surrey, BC",
       "geo": "CA",
-      "sector": "real_estate",
+      "sector": "golf",
       "type": "Full-time",
       "compensation": "N/A",
-      "posted": "2026-05-14",
-      "url": "https://to.indeed.com/aaw2ndzlbh7y"
-    },
-    {
-      "title": "Real Estate Analyst",
-      "company": "STREE Real Estate",
-      "location": "Dubai",
-      "geo": "AE",
-      "sector": "real_estate",
-      "type": "Full-time",
-      "compensation": "N/A (tax-free)",
-      "posted": "2026-02-28",
-      "url": "https://to.indeed.com/aagd6y94rlsw"
+      "posted": "2026-06-05",
+      "url": "https://to.indeed.com/aa2wtdfr2gxh"
     }
   ]
 }

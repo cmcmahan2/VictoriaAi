@@ -2,112 +2,143 @@
 
 **Profile:** Bachelor of Arts, Financial Economics, University of Victoria (grad 2026-05) · Canada citizen
 **Priorities:** high wage · good benefits · open to abroad · sectors: golf, finance, real_estate
-**Listings ranked:** 14 · **Ranking engine:** heuristic · **Data fetched:** 2026-06-15
+**Listings ranked:** 18 · **Ranking engine:** heuristic · **Data fetched:** 2026-06-15
 
 ## Top matches
 
-### 1. Golf Operations Attendant — Discovery Land Company
-`████████░░` **84/100**  🎯 sector fit · 💰 high-wage · 🎁 benefits · ✈️ abroad · 🌱 entry-level
+### 1. 2026/2027 Corporate Analyst Development Program - Summer Analyst — JPMorganChase
+`█████████░` **90/100**  🎯 sector fit · 💰 high-wage · ✈️ abroad · 🌱 entry-level
 
-- 📍 Dubai (United Arab Emirates (Dubai/Abu Dhabi)) · Full-time · comp: N/A (tax-free; benefits typical for the region)
-- 💬 On-sector golf role abroad in United Arab Emirates (Dubai/Abu Dhabi), tax-free pay.
-- 🔗 [Apply / view](https://to.indeed.com/aa8cmcdz4ng9)
+- 📍 Sydney NSW (Australia) · Full-time (graduate program) · comp: N/A (bulge-bracket grad program; strong comp + benefits)
+- 💬 On-sector finance role abroad in Australia.
+- 🔗 [Apply / view](https://to.indeed.com/aagn4wbjqvtf)
 
-### 2. Real Estate Analyst — STREE Real Estate
-`████████░░` **84/100**  🎯 sector fit · 💰 high-wage · 🎁 benefits · ✈️ abroad · 🌱 entry-level
+### 2. Private Wealth Management - New Analyst — Goldman Sachs
+`█████████░` **90/100**  🎯 sector fit · 💰 high-wage · ✈️ abroad · 🌱 entry-level
 
-- 📍 Dubai (United Arab Emirates (Dubai/Abu Dhabi)) · Full-time · comp: N/A (tax-free)
+- 📍 Sydney NSW (Australia) · Full-time (graduate) · comp: N/A (bulge-bracket; high comp + benefits)
+- 💬 On-sector finance role abroad in Australia.
+- 🔗 [Apply / view](https://to.indeed.com/aaxtndmgck48)
+
+### 3. 2026 Graduate Programme - Securities Services — BNP Paribas
+`█████████░` **90/100**  🎯 sector fit · 💰 high-wage · ✈️ abroad · 🌱 entry-level
+
+- 📍 Sydney NSW (Australia) · Full-time (graduate program) · comp: N/A (structured grad program)
+- 💬 On-sector finance role abroad in Australia.
+- 🔗 [Apply / view](https://to.indeed.com/aalw2mhwbjh6)
+
+### 4. Point72 Academy Investment Analyst Program for Upcoming Graduates — Point72
+`█████████░` **90/100**  🎯 sector fit · 💰 high-wage · ✈️ abroad · 🌱 entry-level
+
+- 📍 London (United Kingdom) · Full-time (graduate program) · comp: N/A (top-tier training + comp)
+- 💬 On-sector finance role abroad in United Kingdom.
+- 🔗 [Apply / view](https://to.indeed.com/aa2r7v86p2q6)
+
+### 5. Financial Analyst, Google Play — Google
+`████████░░` **80/100**  🎯 sector fit · 💰 high-wage · ✈️ abroad · 🌱 entry-level
+
+- 📍 London (United Kingdom) · Full-time · comp: N/A (big-tech comp + benefits)
+- 💬 On-sector finance role abroad in United Kingdom.
+- 🔗 [Apply / view](https://to.indeed.com/aab7jhxjgm7n)
+
+### 6. Real Estate Analyst — STREE Real Estate
+`████████░░` **77/100**  🎯 sector fit · 🎁 benefits · ✈️ abroad · 🌱 entry-level
+
+- 📍 Dubai (United Arab Emirates (Dubai/Abu Dhabi)) · Full-time · comp: N/A (tax-free pay)
 - 💬 On-sector real estate role abroad in United Arab Emirates (Dubai/Abu Dhabi), tax-free pay.
 - 🔗 [Apply / view](https://to.indeed.com/aagd6y94rlsw)
 
-### 3. Investment Analyst - July 2026 — Cambridge Associates
+### 7. Golf Operations Attendant — Discovery Land Company
+`████████░░` **77/100**  🎯 sector fit · 🎁 benefits · ✈️ abroad · 🌱 entry-level
+
+- 📍 Dubai (United Arab Emirates (Dubai/Abu Dhabi)) · Full-time · comp: N/A (tax-free; housing/benefits typical)
+- 💬 On-sector golf role abroad in United Arab Emirates (Dubai/Abu Dhabi), tax-free pay.
+- 🔗 [Apply / view](https://to.indeed.com/aa8cmcdz4ng9)
+
+### 8. Investment Analyst - July 2026 — Cambridge Associates
 `███████░░░` **72/100**  🎯 sector fit · ✈️ abroad · 🌱 entry-level
 
 - 📍 London (United Kingdom) · Full-time · comp: N/A
 - 💬 On-sector finance role abroad in United Kingdom.
 - 🔗 [Apply / view](https://to.indeed.com/aahmmtq7yk8h)
 
-### 4. Point72 Academy Investment Analyst Program for Upcoming Graduates (2027 - UK) — Point72
+### 9. 2026 Research Analyst Intern - Economics & Finance — The Brattle Group, Inc.
 `███████░░░` **72/100**  🎯 sector fit · ✈️ abroad · 🌱 entry-level
 
-- 📍 London (United Kingdom) · Full-time · comp: N/A (graduate program; strong comp + training)
-- 💬 On-sector finance role abroad in United Kingdom.
-- 🔗 [Apply / view](https://to.indeed.com/aa2r7v86p2q6)
-
-### 5. 2026 Research Analyst Intern - Economics & Finance — The Brattle Group, Inc.
-`███████░░░` **72/100**  🎯 sector fit · ✈️ abroad · 🌱 entry-level
-
-- 📍 London (United Kingdom) · Fixed term contract · comp: N/A
+- 📍 London (United Kingdom) · Internship · comp: N/A (econ consulting — direct econometrics fit)
 - 💬 On-sector finance role abroad in United Kingdom.
 - 🔗 [Apply / view](https://to.indeed.com/aark266dbxk6)
 
-### 6. Financial Analyst, Google Play — Google
+### 10. Investment Analyst — Debbie Graham & Associates
 `███████░░░` **72/100**  🎯 sector fit · ✈️ abroad · 🌱 entry-level
 
-- 📍 London (United Kingdom) · Full-time · comp: N/A (big-tech comp + benefits)
-- 💬 On-sector finance role abroad in United Kingdom.
-- 🔗 [Apply / view](https://to.indeed.com/aab7jhxjgm7n)
+- 📍 Auckland (New Zealand) · Full-time · comp: N/A
+- 💬 On-sector finance role abroad in New Zealand.
+- 🔗 [Apply / view](https://to.indeed.com/aaptbh7plzst)
 
-### 7. FP&A Junior Analyst — Moneycorp
+### 11. Markets - Business Development Analyst — PwC
 `███████░░░` **72/100**  🎯 sector fit · ✈️ abroad · 🌱 entry-level
 
-- 📍 London (United Kingdom) · Permanent · comp: N/A
-- 💬 On-sector finance role abroad in United Kingdom.
-- 🔗 [Apply / view](https://to.indeed.com/aar7wnd8js9r)
+- 📍 Auckland (New Zealand) · Full-time · comp: N/A (Big Four — benefits + progression)
+- 💬 On-sector finance role abroad in New Zealand.
+- 🔗 [Apply / view](https://to.indeed.com/aamhsbdwbpvd)
 
-### 8. PGA Professional-1 — Discovery Land Company
-`███████░░░` **70/100**  🎯 sector fit · 💰 high-wage · 🎁 benefits · ✈️ abroad · 📜 needs license
+### 12. Analyst - Proposal Writer (Private Markets) — StepStone Group
+`███████░░░` **72/100**  🎯 sector fit · ✈️ abroad · 🌱 entry-level
 
-- 📍 Dubai (United Arab Emirates (Dubai/Abu Dhabi)) · Full-time · comp: N/A (tax-free)
-- 💬 On-sector golf role abroad in United Arab Emirates (Dubai/Abu Dhabi), tax-free pay.
-- 🔗 [Apply / view](https://to.indeed.com/aawgy7z9t7dm)
+- 📍 Dublin (Ireland) · Full-time · comp: N/A (global private markets firm)
+- 💬 On-sector finance role abroad in Ireland.
+- 🔗 [Apply / view](https://to.indeed.com/aaf46rzn8kcc)
 
-### 9. Golf Shop Attendant — Arbutus Ridge Golf Club
-`███████░░░` **66/100**  🎯 sector fit · 🌱 entry-level
-
-- 📍 Cobble Hill, BC (Canada (home)) · Part-time · comp: N/A
-- 💬 On-sector golf role in Canada.
-- 🔗 [Apply / view](https://to.indeed.com/aacr9mr6bqf6)
-
-### 10. Financial and Collections Analyst — Pinnacle International
-`███████░░░` **66/100**  🎯 sector fit · 🌱 entry-level
-
-- 📍 Vancouver, BC (Canada (home)) · Full-time · comp: N/A (real estate developer)
-- 💬 On-sector real estate role in Canada.
-- 🔗 [Apply / view](https://to.indeed.com/aatg6dpt4bj6)
-
-### 11. Business Analyst, Anaplan — QuadReal
+### 13. Business Analyst, Anaplan — QuadReal
 `███████░░░` **66/100**  🎯 sector fit · 🌱 entry-level
 
 - 📍 Vancouver, BC (Canada (home)) · Full-time · comp: N/A (major real estate investor)
 - 💬 On-sector real estate role in Canada.
 - 🔗 [Apply / view](https://to.indeed.com/aapcvc2ttg4d)
 
-### 12. Junior Appraisal Research Analyst / Appraiser (AACI or Candidate) — L.W. Property Advisors Ltd.
+### 14. Associate, Australian Equity Research — RBC
+`██████░░░░` **64/100**  🎯 sector fit · ✈️ abroad
+
+- 📍 Sydney NSW (Australia) · Full-time · comp: N/A (Canadian bank — familiar employer)
+- 💬 On-sector finance role abroad in Australia.
+- 🔗 [Apply / view](https://to.indeed.com/aawtttyxbcmw)
+
+### 15. Concierge Supervisor (resort / golf club) — RACV
+`██████░░░░` **64/100**  🎯 sector fit · ✈️ abroad
+
+- 📍 Gold Coast QLD (Australia) · Permanent · comp: N/A (resort & golf operator)
+- 💬 On-sector golf role abroad in Australia.
+- 🔗 [Apply / view](https://to.indeed.com/aaywfkq7slhv)
+
+### 16. Junior Appraisal Research Analyst / Appraiser (AACI or Candidate) — L.W. Property Advisors Ltd.
 `██████░░░░` **60/100**  🎯 sector fit · 🌱 entry-level · 📜 needs license
 
 - 📍 Vancouver, BC (Canada (home)) · Full-time · comp: N/A
 - 💬 On-sector real estate role in Canada.
 - 🔗 [Apply / view](https://to.indeed.com/aavdhv9r4zd4)
 
-### 13. Head Golf Professional, Golf Operations — BlueStar Resort & Golf
+### 17. Head Golf Professional, Golf Operations — BlueStar Resort & Golf
 `██████░░░░` **58/100**  🎯 sector fit · 💰 high-wage · ✈️ abroad · 📈 stretch
 
 - 📍 Rio Verde, AZ (United States) · Full-time · comp: $60,000 - $65,000 a year
 - 💬 On-sector golf role abroad in United States — likely a stretch for an entry-level grad.
 - 🔗 [Apply / view](https://to.indeed.com/aadjqx6d7dk8)
 
-### 14. Mortgage Underwriter — Blue Pearl Mortgage Group Inc.
-`█████░░░░░` **52/100**  🎯 sector fit · 📜 needs license
+### 18. Assistant Manager — Golf Town
+`████░░░░░░` **44/100**  🎯 sector fit · 📈 stretch
 
 - 📍 Surrey, BC (Canada (home)) · Full-time · comp: N/A
-- 💬 On-sector real estate role in Canada.
-- 🔗 [Apply / view](https://to.indeed.com/aaw2ndzlbh7y)
+- 💬 On-sector golf role in Canada — likely a stretch for an entry-level grad.
+- 🔗 [Apply / view](https://to.indeed.com/aa2wtdfr2gxh)
 
 ## Work authorization (Canadian citizen)
 
-- **United Arab Emirates (Dubai/Abu Dhabi)** — Employer-sponsored work permit + residence visa. _No personal income tax — take-home pay is high._
+- **Australia** — Working Holiday visa (subclass 417) — Canadians aged 18–35, up to 3 years. _Income tax applies; high statutory minimum wage._
 - **United Kingdom** — Youth Mobility Scheme visa — open to Canadians aged 18–35, up to 2 years, no employer sponsor needed. _PAYE income tax + National Insurance._
+- **United Arab Emirates (Dubai/Abu Dhabi)** — Employer-sponsored work permit + residence visa. _No personal income tax — take-home pay is high._
+- **New Zealand** — Working Holiday visa — Canadians aged 18–35, up to 23 months. _Income tax applies._
+- **Ireland** — Working Holiday Authorisation — Canadians aged 18–35, up to 2 years. _PAYE income tax._
 - **Canada (home)** — Citizen — no permit required. _Standard federal + provincial income tax._
 - **United States** — TN visa under CUSMA — "Economist" is a TN-eligible profession, so a Financial Economics grad can qualify for finance/economics roles with a US job offer. _Federal + state income tax (no state tax in TX/FL/NV)._
 
