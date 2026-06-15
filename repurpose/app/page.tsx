@@ -160,7 +160,7 @@ export default function Home() {
               value={matchup}
               onChange={(e) => setMatchup(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && makeVideo()}
-              placeholder="Jordan vs LeBron"
+              placeholder="LeBron at 22 vs Wemby at 22"
               className="flex-1 rounded-md border border-[#30363d] bg-[#0d1117] px-3 py-2 text-sm outline-none focus:border-[#1f6feb]"
             />
             <button
