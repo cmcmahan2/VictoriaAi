@@ -3,8 +3,9 @@
 import { useState } from 'react';
 
 type Idea = { matchup: string; sport: string; angle: string; viralReason: string };
-type PlayerProfile = { name: string; oneLiner: string; accolades: string[]; wikiTitle: string };
+type PlayerProfile = { name: string; oneLiner: string; wikiTitle: string };
 type StatRow = { label: string; a: string; b: string; edge: 'A' | 'B' | 'EVEN' };
+type Scene = { kind: string; title: string; aItems: string[]; bItems: string[]; narration: string };
 type Plan = {
   matchup: string;
   sport: string;
@@ -12,7 +13,7 @@ type Plan = {
   playerB: PlayerProfile;
   statRows: StatRow[];
   hook: string;
-  narration: string[];
+  scenes: Scene[];
   verdict: string;
   youtube: { title: string; description: string; tags: string[]; hashtags: string[] };
   statsDisclaimer: string;
@@ -246,13 +247,27 @@ export default function Home() {
           <Section title="Hook">
             <p className="text-[#e6edf3]">{plan.hook}</p>
           </Section>
-          <Section title="Narration (voiceover beats)">
-            <ol className="list-decimal space-y-1 pl-5 text-[#e6edf3]">
-              {plan.narration.map((line, i) => (
-                <li key={i}>{line}</li>
-              ))}
-            </ol>
-          </Section>
+
+          {/* Comparison sections (awards / teams / coaches / teammates / competition / stats) */}
+          {plan.scenes?.map((s, i) => (
+            <div key={i} className="rounded-md border border-[#30363d] p-3">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#ffa657]">
+                {s.title || s.kind}
+              </div>
+              {(s.aItems?.length || s.bItems?.length) ? (
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <ul className="space-y-0.5 text-[#e6edf3]">
+                    {s.aItems?.map((it, j) => <li key={j}>• {it}</li>)}
+                  </ul>
+                  <ul className="space-y-0.5 text-[#e6edf3]">
+                    {s.bItems?.map((it, j) => <li key={j}>• {it}</li>)}
+                  </ul>
+                </div>
+              ) : null}
+              <p className="mt-2 text-sm text-[#8b949e] italic">🎙️ {s.narration}</p>
+            </div>
+          ))}
+
           <Section title="Verdict / vote">
             <p className="text-[#58a6ff]">{plan.verdict}</p>
           </Section>

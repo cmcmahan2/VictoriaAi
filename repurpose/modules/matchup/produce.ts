@@ -3,7 +3,7 @@ import path from 'node:path';
 import { loadEnv } from '../../lib/env';
 import { generateMatchupPlan, type MatchupPlan } from './script';
 import { fetchPlayerPhoto } from '../visuals/photos';
-import { buildScenes } from '../visuals/scenes';
+import { buildScenes, planToRenderScenes } from '../visuals/scenes';
 import { synthesizeBeats } from '../voice/tts';
 import { assembleVideo } from '../video/assemble';
 
@@ -32,14 +32,14 @@ export async function produceMatchupVideo(
     fetchPlayerPhoto(plan.playerB.wikiTitle || plan.playerB.name, plan.playerB.name, jobDir),
   ]);
 
-  // 2. Narration beats — the single source of truth for both scenes and voice.
-  const beats = (plan.narration.length ? plan.narration : [plan.hook, plan.verdict])
-    .map((b) => b.trim())
-    .filter(Boolean);
+  // 2. Expand the plan into ordered scenes; captions double as the narration
+  //    beats so scenes and voice stay perfectly aligned.
+  const renderScenes = planToRenderScenes(plan);
+  const beats = renderScenes.map((s) => s.caption.trim());
 
   // 3. Render scenes + synthesize voice in parallel.
   const [scenes, clips] = await Promise.all([
-    buildScenes(plan, beats, photoA?.localPath ?? null, photoB?.localPath ?? null, jobDir),
+    buildScenes(plan, renderScenes, photoA?.localPath ?? null, photoB?.localPath ?? null, jobDir),
     synthesizeBeats(beats, jobDir),
   ]);
 

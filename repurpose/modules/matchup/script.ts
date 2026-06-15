@@ -1,21 +1,32 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { extractJson } from './ideas';
 
-// A player's side of the comparison.
+// A player's identity for the comparison.
 export type PlayerProfile = {
   name: string;          // display name, e.g. "LeBron James"
   oneLiner: string;      // short identity, e.g. "4x champion, all-time scoring leader"
-  accolades: string[];   // bullet highlights (titles, MVPs, records)
   wikiTitle: string;     // best-guess Wikipedia/Wikimedia page title for photo lookup
 };
 
 // One row of the head-to-head stat card. Values are strings so we can show
-// "6" or "32.4 PPG" or "—". `edge` marks who wins that row.
+// "6" or "32.4" or "—". `edge` marks who wins that row.
 export type StatRow = {
   label: string;         // "Championships"
-  a: string;             // player A value
-  b: string;             // player B value
+  a: string;             // player A value (short)
+  b: string;             // player B value (short)
   edge: 'A' | 'B' | 'EVEN';
+};
+
+export type SceneKind = 'awards' | 'teams' | 'coaches' | 'teammates' | 'competition' | 'stats';
+
+// One comparison section of the mini-doc. For list scenes, aItems/bItems hold
+// the bullets per player; the 'stats' scene renders statRows instead.
+export type ComparisonScene = {
+  kind: SceneKind;
+  title: string;         // "AWARDS", "TEAMS", "BY THE NUMBERS"
+  aItems: string[];      // player A bullets (empty for 'stats')
+  bItems: string[];      // player B bullets (empty for 'stats')
+  narration: string;     // the voiceover line for this section
 };
 
 // The full plan that downstream phases (graphics, voice, assembly) consume.
@@ -24,10 +35,10 @@ export type MatchupPlan = {
   sport: string;
   playerA: PlayerProfile;
   playerB: PlayerProfile;
-  statRows: StatRow[];
-  hook: string;          // scroll-stopping opening line
-  narration: string[];   // ordered narration beats (also used for captions)
-  verdict: string;       // closing line that drives the vote
+  statRows: StatRow[];   // for the 'stats' scene
+  hook: string;          // intro narration (scroll-stopper)
+  scenes: ComparisonScene[]; // ordered comparison sections
+  verdict: string;       // closing narration that drives the vote
   youtube: {
     title: string;
     description: string;
@@ -40,46 +51,68 @@ export type MatchupPlan = {
 
 const MODEL = 'claude-sonnet-4-6';
 
-const SYSTEM_PROMPT = `You are the writing and research engine for a faceless sports-debate YouTube Shorts channel. Given a matchup of two real athletes, you produce a complete, ready-to-produce debate plan.
+const SYSTEM_PROMPT = `You are the writing and research engine for a faceless sports-debate YouTube Shorts channel. Given a matchup of two real athletes, you produce a complete, multi-dimensional debate plan — not just stats, but the full case: awards, teams, coaches, star teammates, and the competition/era each player faced.
 
 Rules:
 - Output ONLY valid JSON — no prose, no markdown fences.
-- Be ACCURATE with stats and accolades to the best of your knowledge. Use widely-accepted career numbers. If unsure of an exact figure, give the commonly-cited value and keep it plausible — never invent fake records.
-- "statRows": exactly 5-6 rows of the most argument-relevant head-to-head stats for THIS sport (e.g. basketball: championships, MVPs, PPG, All-Star selections, scoring titles). Mark "edge" honestly per row.
-- STAT FORMATTING (critical for clean graphics): each "a"/"b" value must be SHORT — a single number or compact token, max ~7 characters. Good: "6", "30.1", "4-6", "38,652". Bad: "1st (38,652+ pts)", "~32,292 pts", "7.4 APG / 7.5 RPG". Put units/context in the "label", never in the value. One stat per row — never combine two stats with a slash. Keep "label" concise, max ~16 characters (e.g. "Scoring Rank", "Career PPG" — not "Career PPG (Regular Season)").
-- "narration": 5-9 short spoken beats (one sentence each) that flow as a 30-45 second voiceover. Beat 1 = the hook. Build the case for each side fairly, then tee up the vote. Conversational, punchy, no fluff.
-- "verdict": a closing line that explicitly asks viewers to vote in the comments (e.g. "Drop a 1 for Jordan, a 2 for LeBron 👇").
-- "wikiTitle": your best guess at the athlete's Wikipedia article title (usually their full name) for photo lookup.
-- "youtube.title": <=100 chars, debate-forward. "youtube.tags": 10-15 search tags (no '#'). "youtube.hashtags": 3-5 incl. "#Shorts".
-- Keep it about on-field/on-court greatness. No personal-life controversy.
-- Always fill "statsDisclaimer" with a brief reminder that stats are AI-generated and should be verified before publishing.`;
+- Be ACCURATE to the best of your knowledge. Use widely-accepted facts and career numbers. If unsure of an exact figure, give the commonly-cited value — never invent fake records, fake teams, or fake teammates.
+- "playerA"/"playerB": name, a short "oneLiner" identity, and "wikiTitle" (your best guess at their Wikipedia article title for photo lookup).
+- "statRows": exactly 5-6 head-to-head stats for THIS sport. Each "a"/"b" value must be SHORT — a single number/token, max ~7 chars (e.g. "6", "30.1", "38,652"). Put units/context in "label" (max ~16 chars, e.g. "Career PPG"). One stat per row, never combine with a slash. Mark "edge" honestly.
+- "scenes": an ORDERED array of comparison sections. Include these kinds when they apply, in this order: "awards", "teams", "coaches", "teammates", "competition", then "stats" LAST. 5-6 scenes total.
+  - For each non-"stats" scene: "aItems" and "bItems" are 2-4 SHORT bullets each (max ~24 chars per bullet) comparing that dimension for player A vs player B. "title" is an ALL-CAPS label ("AWARDS", "TEAMS", "COACHES", "TEAMMATES", "COMPETITION").
+  - The "stats" scene has empty "aItems"/"bItems" (it renders statRows), title "BY THE NUMBERS".
+  - Every scene has a "narration": one punchy spoken sentence for that section (this is the voiceover + caption).
+- "hook": one scroll-stopping opening sentence. "verdict": a closing line that explicitly asks viewers to vote (e.g. "Drop a 1 for Jordan, a 2 for LeBron 👇").
+- "youtube.title": <=100 chars, debate-forward. "youtube.tags": 10-15 tags (no '#'). "youtube.hashtags": 3-5 incl. "#Shorts".
+- Keep it about on-field greatness. No personal-life controversy. Always fill "statsDisclaimer" reminding that facts are AI-generated and should be verified before publishing.`;
 
 function buildUserPrompt(matchup: string): string {
-  return `Create the full debate plan for this matchup: "${matchup}".
+  return `Create the full multi-dimensional debate plan for this matchup: "${matchup}".
 
 Return JSON of this exact shape:
 {
   "matchup": "Player A vs Player B",
   "sport": "Basketball",
-  "playerA": { "name": "...", "oneLiner": "...", "accolades": ["..."], "wikiTitle": "..." },
-  "playerB": { "name": "...", "oneLiner": "...", "accolades": ["..."], "wikiTitle": "..." },
+  "playerA": { "name": "...", "oneLiner": "...", "wikiTitle": "..." },
+  "playerB": { "name": "...", "oneLiner": "...", "wikiTitle": "..." },
   "statRows": [ { "label": "Championships", "a": "6", "b": "4", "edge": "A" } ],
   "hook": "...",
-  "narration": ["...", "..."],
+  "scenes": [
+    { "kind": "awards", "title": "AWARDS", "aItems": ["..."], "bItems": ["..."], "narration": "..." },
+    { "kind": "teams", "title": "TEAMS", "aItems": ["..."], "bItems": ["..."], "narration": "..." },
+    { "kind": "coaches", "title": "COACHES", "aItems": ["..."], "bItems": ["..."], "narration": "..." },
+    { "kind": "teammates", "title": "TEAMMATES", "aItems": ["..."], "bItems": ["..."], "narration": "..." },
+    { "kind": "competition", "title": "COMPETITION", "aItems": ["..."], "bItems": ["..."], "narration": "..." },
+    { "kind": "stats", "title": "BY THE NUMBERS", "aItems": [], "bItems": [], "narration": "..." }
+  ],
   "verdict": "...",
   "youtube": { "title": "...", "description": "...", "tags": ["..."], "hashtags": ["#Shorts", "..."] },
   "statsDisclaimer": "..."
 }`;
 }
 
+function asStrArr(v: unknown): string[] {
+  return Array.isArray(v) ? v.map((x) => String(x)) : [];
+}
+
 function normalizePlan(plan: MatchupPlan): MatchupPlan {
-  // Guard #Shorts and basic shape so downstream phases never choke.
   const hashtags = Array.isArray(plan.youtube?.hashtags) ? plan.youtube.hashtags : [];
   if (!hashtags.some((h) => h.toLowerCase() === '#shorts')) hashtags.unshift('#Shorts');
+
+  const scenes: ComparisonScene[] = Array.isArray(plan.scenes)
+    ? plan.scenes.map((s) => ({
+        kind: s.kind,
+        title: s.title || '',
+        aItems: asStrArr(s.aItems),
+        bItems: asStrArr(s.bItems),
+        narration: s.narration || '',
+      }))
+    : [];
+
   return {
     ...plan,
     statRows: Array.isArray(plan.statRows) ? plan.statRows : [],
-    narration: Array.isArray(plan.narration) ? plan.narration : [],
+    scenes,
     youtube: {
       title: plan.youtube?.title || plan.matchup,
       description: plan.youtube?.description || '',
@@ -87,7 +120,7 @@ function normalizePlan(plan: MatchupPlan): MatchupPlan {
       hashtags,
     },
     statsDisclaimer:
-      plan.statsDisclaimer || 'Stats are AI-generated — double-check them before publishing.',
+      plan.statsDisclaimer || 'Facts are AI-generated — double-check them before publishing.',
   };
 }
 
@@ -100,7 +133,7 @@ export async function generateMatchupPlan(matchup: string, apiKey?: string): Pro
 
   const response = await client.messages.create({
     model: MODEL,
-    max_tokens: 2500,
+    max_tokens: 4000,
     system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
     messages: [{ role: 'user', content: buildUserPrompt(matchup.trim()) }],
   });

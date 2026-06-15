@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
-import type { MatchupPlan } from '../matchup/script';
+import type { MatchupPlan, SceneKind } from '../matchup/script';
 
 // Vertical Shorts canvas.
 const W = 1080;
@@ -15,8 +15,7 @@ function esc(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-// Rough text width estimate for Arial-ish fonts (0.6 ≈ bold average). Used to
-// auto-shrink text so it never overflows its box.
+// Rough text width estimate for Arial-ish fonts (0.6 ≈ bold average).
 const CHAR_W = 0.6;
 function estWidth(text: string, fontSize: number): number {
   return (text || '').length * fontSize * CHAR_W;
@@ -29,7 +28,6 @@ function fitFont(text: string, maxWidth: number, base: number, min = 20): number
   return Math.max(min, Math.min(base, size));
 }
 
-// Greedy word-wrap into lines of at most `maxChars`.
 function wrapLines(text: string, maxChars: number): string[] {
   const words = (text || '').split(/\s+/).filter(Boolean);
   const lines: string[] = [];
@@ -46,13 +44,8 @@ function wrapLines(text: string, maxChars: number): string[] {
   return lines;
 }
 
-// Fit a caption into a box (maxWidth x maxHeight): pick the largest font from a
-// ladder where the wrapped text fits both width and height. Guarantees no clip.
-function fitCaption(
-  text: string,
-  maxWidth: number,
-  maxHeight: number,
-): { fontSize: number; lineHeight: number; lines: string[] } {
+// Fit a caption into a box: largest font where the wrapped text fits.
+function fitCaption(text: string, maxWidth: number, maxHeight: number) {
   for (const fontSize of [56, 52, 48, 44, 40, 36, 32, 28]) {
     const lineHeight = Math.round(fontSize * 1.2);
     const maxChars = Math.max(8, Math.floor(maxWidth / (fontSize * CHAR_W)));
@@ -65,8 +58,8 @@ function fitCaption(
   return { fontSize, lineHeight, lines: wrapLines(text, maxChars) };
 }
 
-// Embed a photo as a base64 data URI clipped into a rounded square, or a
-// fallback circle with initials when no photo is available.
+// Embed a photo as a base64 data URI clipped into a circle, or a fallback
+// circle with initials when no photo is available.
 function photoBlock(localPath: string | null, name: string, cx: number, cy: number, size: number, clipId: string): string {
   const r = size / 2;
   const initials = name.split(/\s+/).map((p) => p[0]).slice(0, 2).join('').toUpperCase();
@@ -85,63 +78,96 @@ function photoBlock(localPath: string | null, name: string, cx: number, cy: numb
     <text x="${cx}" y="${cy + 28}" font-size="84" fill="#8b949e" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700">${esc(initials)}</text>`;
 }
 
-type SceneKind = 'intro' | 'stats' | 'verdict';
+// One scene to render: derived from the plan (intro / comparison / verdict).
+export type RenderScene = {
+  kind: 'intro' | SceneKind | 'verdict';
+  title?: string;
+  aItems?: string[];
+  bItems?: string[];
+  caption: string;
+};
 
-function renderSceneSvg(
-  plan: MatchupPlan,
-  caption: string,
-  kind: SceneKind,
-  photoA: string | null,
-  photoB: string | null,
-): string {
+// Expand a plan into the ordered scenes: intro → each comparison → verdict.
+// Captions double as the narration beats (kept aligned for TTS).
+export function planToRenderScenes(plan: MatchupPlan): RenderScene[] {
+  const items: RenderScene[] = [{ kind: 'intro', caption: plan.hook }];
+  for (const s of plan.scenes) {
+    items.push({ kind: s.kind, title: s.title, aItems: s.aItems, bItems: s.bItems, caption: s.narration });
+  }
+  items.push({ kind: 'verdict', caption: plan.verdict });
+  return items.filter((it) => it.caption && it.caption.trim());
+}
+
+// Two centered columns of short bullets, one per player.
+function listMiddle(title: string, aItems: string[], bItems: string[], aCx: number, bCx: number): string {
+  const titleY = 650;
+  const startY = 760;
+  const lineH = 100;
+  const colW = 460;
+  const col = (items: string[], cx: number) =>
+    (items || [])
+      .slice(0, 4)
+      .map((it, i) => {
+        const f = fitFont(it, colW, 40, 22);
+        return `<text x="${cx}" y="${startY + i * lineH}" font-size="${f}" fill="#e6edf3" text-anchor="middle" font-family="Arial, sans-serif" font-weight="600">${esc(it)}</text>`;
+      })
+      .join('');
+  return `
+    <text x="${W / 2}" y="${titleY}" font-size="56" fill="#ffa657" text-anchor="middle" font-family="Arial, sans-serif" font-weight="800">${esc(title)}</text>
+    ${col(aItems, aCx)}
+    ${col(bItems, bCx)}`;
+}
+
+// The head-to-head stat table.
+function statsMiddle(plan: MatchupPlan): string {
+  const rows = plan.statRows.slice(0, 6);
+  const startY = 700;
+  const rowH = 112;
+  const aValX = 400;
+  const bValX = 680;
+  const valMaxW = 360;
+  const labelMaxW = 250;
+  return rows
+    .map((row, i) => {
+      const y = startY + i * rowH;
+      const aColor = row.edge === 'A' ? '#3fb950' : '#e6edf3';
+      const bColor = row.edge === 'B' ? '#3fb950' : '#e6edf3';
+      const aFont = fitFont(row.a, valMaxW, 48, 24);
+      const bFont = fitFont(row.b, valMaxW, 48, 24);
+      const lFont = fitFont(row.label, labelMaxW, 30, 18);
+      return `
+        <text x="${aValX}" y="${y}" font-size="${aFont}" fill="${aColor}" text-anchor="end" font-family="Arial, sans-serif" font-weight="700">${esc(row.a)}</text>
+        <text x="${W / 2}" y="${y}" font-size="${lFont}" fill="#8b949e" text-anchor="middle" font-family="Arial, sans-serif">${esc(row.label)}</text>
+        <text x="${bValX}" y="${y}" font-size="${bFont}" fill="${bColor}" text-anchor="start" font-family="Arial, sans-serif" font-weight="700">${esc(row.b)}</text>`;
+    })
+    .join('');
+}
+
+function renderSceneSvg(plan: MatchupPlan, item: RenderScene, photoA: string | null, photoB: string | null): string {
   const photoSize = 300;
   const aCx = W * 0.28;
   const bCx = W * 0.72;
   const photoCy = 360;
   const nameY = photoCy + photoSize / 2 + 70;
-
-  // Player names auto-shrink to fit under each photo.
   const aNameFont = fitFont(plan.playerA.name, 380, 44, 26);
   const bNameFont = fitFont(plan.playerB.name, 380, 44, 26);
 
-  // Middle band differs per scene kind.
   let middle = '';
-  if (kind === 'intro') {
+  if (item.kind === 'intro') {
     middle = `<text x="${W / 2}" y="${photoCy + 30}" font-size="130" fill="#ffa657" text-anchor="middle" font-family="Arial, sans-serif" font-weight="800">VS</text>`;
-  } else if (kind === 'verdict') {
+  } else if (item.kind === 'verdict') {
     middle = `
       <text x="${W / 2}" y="720" font-size="74" fill="#e6edf3" text-anchor="middle" font-family="Arial, sans-serif" font-weight="800">WHO'S BETTER?</text>
       <text x="${W / 2}" y="820" font-size="56" fill="#58a6ff" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700">Comment 1 or 2 👇</text>`;
+  } else if (item.kind === 'stats') {
+    middle = statsMiddle(plan);
   } else {
-    // Stats table: three columns (A value | label | B value), each auto-fit.
-    const rows = plan.statRows.slice(0, 6);
-    const startY = 700;
-    const rowH = 112;
-    const aValX = 400; // A value right-aligned here (grows left, max ~360px)
-    const bValX = 680; // B value left-aligned here (grows right, max ~360px)
-    const valMaxW = 360;
-    const labelMaxW = 250;
-    const rowsSvg = rows
-      .map((row, i) => {
-        const y = startY + i * rowH;
-        const aColor = row.edge === 'A' ? '#3fb950' : '#e6edf3';
-        const bColor = row.edge === 'B' ? '#3fb950' : '#e6edf3';
-        const aFont = fitFont(row.a, valMaxW, 48, 24);
-        const bFont = fitFont(row.b, valMaxW, 48, 24);
-        const lFont = fitFont(row.label, labelMaxW, 30, 18);
-        return `
-          <text x="${aValX}" y="${y}" font-size="${aFont}" fill="${aColor}" text-anchor="end" font-family="Arial, sans-serif" font-weight="700">${esc(row.a)}</text>
-          <text x="${W / 2}" y="${y}" font-size="${lFont}" fill="#8b949e" text-anchor="middle" font-family="Arial, sans-serif">${esc(row.label)}</text>
-          <text x="${bValX}" y="${y}" font-size="${bFont}" fill="${bColor}" text-anchor="start" font-family="Arial, sans-serif" font-weight="700">${esc(row.b)}</text>`;
-      })
-      .join('');
-    middle = rowsSvg;
+    middle = listMiddle(item.title || '', item.aItems || [], item.bItems || [], aCx, bCx);
   }
 
-  // Caption auto-fits a fixed box near the bottom and is vertically centered.
   const capTop = 1380;
   const capBottom = 1860;
-  const cap = fitCaption(caption, 980, capBottom - capTop);
+  const cap = fitCaption(item.caption, 980, capBottom - capTop);
   const blockHeight = cap.lines.length * cap.lineHeight;
   const firstBaseline = (capTop + capBottom) / 2 - blockHeight / 2 + cap.fontSize;
   const captionTspans = cap.lines
@@ -169,22 +195,18 @@ function renderSceneSvg(
   </svg>`;
 }
 
-// Build one PNG frame per narration beat. Beat 0 = intro, last = verdict,
-// the rest show the stat table. Returns the PNG paths in beat order.
-// `beats` is passed in so scenes stay aligned with the TTS clips.
+// Render one PNG per scene, in order, aligned to the TTS beats.
 export async function buildScenes(
   plan: MatchupPlan,
-  beats: string[],
+  items: RenderScene[],
   photoA: string | null,
   photoB: string | null,
   outDir: string,
 ): Promise<string[]> {
   fs.mkdirSync(outDir, { recursive: true });
   const paths: string[] = [];
-
-  for (let i = 0; i < beats.length; i++) {
-    const kind: SceneKind = i === 0 ? 'intro' : i === beats.length - 1 ? 'verdict' : 'stats';
-    const svg = renderSceneSvg(plan, beats[i], kind, photoA, photoB);
+  for (let i = 0; i < items.length; i++) {
+    const svg = renderSceneSvg(plan, items[i], photoA, photoB);
     const out = path.join(outDir, `scene-${String(i).padStart(2, '0')}.png`);
     await sharp(Buffer.from(svg)).png().toFile(out);
     paths.push(out);
