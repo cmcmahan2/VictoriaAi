@@ -1,0 +1,48 @@
+{
+  "name": "Christian McMahan",
+  "location": "Vancouver, BC, Canada",
+  "citizenship": "Canada",
+  "email": "christianmcmahan22@gmail.com",
+  "phone": "604-704-4359",
+  "status": "Post-graduate student",
+  "education": {
+    "degree": "Bachelor of Arts, Financial Economics",
+    "school": "University of Victoria",
+    "graduation": "2026-05",
+    "coursework": [
+      "Urban Land Economics",
+      "Applied Econometrics I & II",
+      "Statistical Inference",
+      "Money & Banking",
+      "Financial Accounting"
+    ]
+  },
+  "skills": [
+    "Data analysis",
+    "Regression (Stata)",
+    "Market evaluation",
+    "Financial modelling basics",
+    "Accounting",
+    "Microsoft Excel",
+    "TrackMan golf analytics",
+    "Customer service",
+    "Construction & site work"
+  ],
+  "experience_highlights": [
+    "Golf Shop Attendant - Cedar Hill Golf Course (pro shop, TrackMan)",
+    "Busser - University Golf Club",
+    "Seasonal Painter - Careful Painting (rehired multiple seasons)",
+    "General Labourer - Fortress Landscapes & Cold Stone Cobblestone"
+  ],
+  "interests": ["Golf", "Finance", "Real estate development", "Property investment"],
+  "preferences": {
+    "target_sectors": ["golf", "finance", "real_estate"],
+    "priorities": {
+      "high_wage": true,
+      "good_benefits": true,
+      "open_to_abroad": true
+    },
+    "minimum_salary_cad_hourly": 22,
+    "preferred_employment_types": ["fulltime", "internship"]
+  }
+}

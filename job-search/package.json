@@ -1,0 +1,17 @@
+{
+  "name": "job-search",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Personalized job-search tool for a Canadian Financial Economics post-grad targeting golf, finance, and real estate roles (home and abroad).",
+  "bin": {
+    "job-search": "index.js"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "report": "node index.js --links --md > report.md"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1"
+  }
+}

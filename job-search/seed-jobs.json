@@ -1,0 +1,160 @@
+{
+  "_comment": "Live listings pulled from Indeed via the LinkedIn/Indeed job-search MCP on 2026-06-15. Refresh with `node index.js --refresh` (requires the MCP) or by re-running searches. Used as the default dataset so the tool ranks something out of the box.",
+  "fetched_at": "2026-06-15",
+  "jobs": [
+    {
+      "title": "Golf Operations Attendant",
+      "company": "Discovery Land Company",
+      "location": "Dubai",
+      "geo": "AE",
+      "sector": "golf",
+      "type": "Full-time",
+      "compensation": "N/A (tax-free; benefits typical for the region)",
+      "posted": "2026-06-09",
+      "url": "https://to.indeed.com/aa8cmcdz4ng9"
+    },
+    {
+      "title": "PGA Professional-1",
+      "company": "Discovery Land Company",
+      "location": "Dubai",
+      "geo": "AE",
+      "sector": "golf",
+      "type": "Full-time",
+      "compensation": "N/A (tax-free)",
+      "posted": "2026-06-09",
+      "url": "https://to.indeed.com/aawgy7z9t7dm"
+    },
+    {
+      "title": "Head Golf Professional, Golf Operations",
+      "company": "BlueStar Resort & Golf",
+      "location": "Rio Verde, AZ",
+      "geo": "US",
+      "sector": "golf",
+      "type": "Full-time",
+      "compensation": "$60,000 - $65,000 a year",
+      "posted": "2026-05-22",
+      "url": "https://to.indeed.com/aadjqx6d7dk8"
+    },
+    {
+      "title": "Golf Shop Attendant",
+      "company": "Arbutus Ridge Golf Club",
+      "location": "Cobble Hill, BC",
+      "geo": "CA",
+      "sector": "golf",
+      "type": "Part-time",
+      "compensation": "N/A",
+      "posted": "2026-06-12",
+      "url": "https://to.indeed.com/aacr9mr6bqf6"
+    },
+    {
+      "title": "Investment Analyst - July 2026",
+      "company": "Cambridge Associates",
+      "location": "London",
+      "geo": "GB",
+      "sector": "finance",
+      "type": "Full-time",
+      "compensation": "N/A",
+      "posted": "2026-03-04",
+      "url": "https://to.indeed.com/aahmmtq7yk8h"
+    },
+    {
+      "title": "Point72 Academy Investment Analyst Program for Upcoming Graduates (2027 - UK)",
+      "company": "Point72",
+      "location": "London",
+      "geo": "GB",
+      "sector": "finance",
+      "type": "Full-time",
+      "compensation": "N/A (graduate program; strong comp + training)",
+      "posted": "2026-05-14",
+      "url": "https://to.indeed.com/aa2r7v86p2q6"
+    },
+    {
+      "title": "2026 Research Analyst Intern - Economics & Finance",
+      "company": "The Brattle Group, Inc.",
+      "location": "London",
+      "geo": "GB",
+      "sector": "finance",
+      "type": "Fixed term contract",
+      "compensation": "N/A",
+      "posted": "2026-04-13",
+      "url": "https://to.indeed.com/aark266dbxk6"
+    },
+    {
+      "title": "Financial Analyst, Google Play",
+      "company": "Google",
+      "location": "London",
+      "geo": "GB",
+      "sector": "finance",
+      "type": "Full-time",
+      "compensation": "N/A (big-tech comp + benefits)",
+      "posted": "2026-05-18",
+      "url": "https://to.indeed.com/aab7jhxjgm7n"
+    },
+    {
+      "title": "FP&A Junior Analyst",
+      "company": "Moneycorp",
+      "location": "London",
+      "geo": "GB",
+      "sector": "finance",
+      "type": "Permanent",
+      "compensation": "N/A",
+      "posted": "2026-03-05",
+      "url": "https://to.indeed.com/aar7wnd8js9r"
+    },
+    {
+      "title": "Junior Appraisal Research Analyst / Appraiser (AACI or Candidate)",
+      "company": "L.W. Property Advisors Ltd.",
+      "location": "Vancouver, BC",
+      "geo": "CA",
+      "sector": "real_estate",
+      "type": "Full-time",
+      "compensation": "N/A",
+      "posted": "2026-05-25",
+      "url": "https://to.indeed.com/aavdhv9r4zd4"
+    },
+    {
+      "title": "Financial and Collections Analyst",
+      "company": "Pinnacle International",
+      "location": "Vancouver, BC",
+      "geo": "CA",
+      "sector": "real_estate",
+      "type": "Full-time",
+      "compensation": "N/A (real estate developer)",
+      "posted": "2026-06-02",
+      "url": "https://to.indeed.com/aatg6dpt4bj6"
+    },
+    {
+      "title": "Business Analyst, Anaplan",
+      "company": "QuadReal",
+      "location": "Vancouver, BC",
+      "geo": "CA",
+      "sector": "real_estate",
+      "type": "Full-time",
+      "compensation": "N/A (major real estate investor)",
+      "posted": "2026-04-13",
+      "url": "https://to.indeed.com/aapcvc2ttg4d"
+    },
+    {
+      "title": "Mortgage Underwriter",
+      "company": "Blue Pearl Mortgage Group Inc.",
+      "location": "Surrey, BC",
+      "geo": "CA",
+      "sector": "real_estate",
+      "type": "Full-time",
+      "compensation": "N/A",
+      "posted": "2026-05-14",
+      "url": "https://to.indeed.com/aaw2ndzlbh7y"
+    },
+    {
+      "title": "Real Estate Analyst",
+      "company": "STREE Real Estate",
+      "location": "Dubai",
+      "geo": "AE",
+      "sector": "real_estate",
+      "type": "Full-time",
+      "compensation": "N/A (tax-free)",
+      "posted": "2026-02-28",
+      "url": "https://to.indeed.com/aagd6y94rlsw"
+    }
+  ]
+}
