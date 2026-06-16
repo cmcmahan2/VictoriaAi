@@ -23,6 +23,7 @@ import textwrap
 from datetime import datetime
 from pathlib import Path
 from typing import Literal, Optional
+from urllib.parse import parse_qs, urlparse
 
 from dotenv import load_dotenv
 
@@ -2132,6 +2133,42 @@ _IMG_DL_HEADERS = {
                    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"),
 }
 
+# Gradient pairs used to colour the local placeholder generated when a
+# remote photo can't be fetched (offline build, blocked CDN, dead photo id).
+# Picked deterministically per-image so the same image is always the same
+# colour, but different images on a page don't all look identical.
+_PLACEHOLDER_GRADIENTS = [
+    ("#1e3a5f", "#2c5f8a"), ("#3a5f1e", "#5f8a2c"), ("#5f1e3a", "#8a2c5f"),
+    ("#1e5f4a", "#2c8a6b"), ("#5f4a1e", "#8a6b2c"), ("#2a2a4a", "#46467a"),
+]
+
+
+def _placeholder_svg(token: str, w: int, h: int) -> bytes:
+    """Build a tasteful gradient SVG placeholder so a generated site never
+    shows a broken image — used when a remote photo (Unsplash / Google
+    Places) can't be downloaded at build time."""
+    digest = hashlib.md5(token.encode("utf-8")).hexdigest()
+    c1, c2 = _PLACEHOLDER_GRADIENTS[int(digest, 16) % len(_PLACEHOLDER_GRADIENTS)]
+    gid = f"g{digest[:8]}"
+    icon = (
+        f'<g transform="translate({w/2-28},{h/2-28})" opacity="0.55">'
+        '<rect x="0" y="8" width="56" height="40" rx="4" fill="none" '
+        'stroke="white" stroke-width="3"/>'
+        '<circle cx="28" cy="28" r="10" fill="none" stroke="white" stroke-width="3"/>'
+        '<rect x="18" y="0" width="20" height="8" rx="2" fill="white"/>'
+        "</g>"
+    )
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
+        f'viewBox="0 0 {w} {h}">'
+        f'<defs><linearGradient id="{gid}" x1="0" y1="0" x2="1" y2="1">'
+        f'<stop offset="0" stop-color="{c1}"/><stop offset="1" stop-color="{c2}"/>'
+        "</linearGradient></defs>"
+        f'<rect width="{w}" height="{h}" fill="url(#{gid})"/>'
+        f"{icon}"
+        "</svg>"
+    ).encode("utf-8")
+
 
 def _localize_images(site_dir: Path) -> None:
     """Download every remote photo the generated site references into
@@ -2180,7 +2217,13 @@ def _localize_images(site_dir: Path) -> None:
             dest.write_bytes(r.content)
             mapping[token] = rel; ok += 1
         except Exception as exc:
-            log.warning(f"[build] image download failed ({exc}) - keeping hotlink for {token[:70]}")
+            log.warning(f"[build] image download failed ({exc}) - using local placeholder for {token[:70]}")
+            qs = parse_qs(urlparse(real_url).query)
+            w = int(qs.get("w", ["800"])[0]); h = int(qs.get("h", ["600"])[0])
+            svg_name = hashlib.md5(token.encode("utf-8")).hexdigest()[:16] + ".svg"
+            svg_dest = img_dir / svg_name
+            svg_dest.write_bytes(_placeholder_svg(token, w, h))
+            mapping[token] = f"assets/img/{svg_name}"
 
     # Rewrite references. CSS lives one level down (css/style.css) so it needs a
     # ../ prefix to reach assets/img/ at the site root.
@@ -2193,7 +2236,8 @@ def _localize_images(site_dir: Path) -> None:
         if new != text:
             f.write_text(new, encoding="utf-8")
 
-    log.info(f"[build] Localized {ok}/{len(tokens)} images -> assets/img/")
+    log.info(f"[build] Localized {ok}/{len(tokens)} real photos "
+             f"({len(tokens) - ok} placeholder(s)) -> assets/img/")
 
 
 # ── Pages ─────────────────────────────────────────────────────────────────────
