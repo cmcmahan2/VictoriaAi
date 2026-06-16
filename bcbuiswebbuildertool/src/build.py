@@ -2121,13 +2121,13 @@ def _img(keywords: str, w: int, h: int, seed: str = "") -> str:
     )
 
 
-# Remote image hosts we emit and want to pull local at build time. (Google
-# Places photo URLs are also bundled so deployed sites never call back to
-# Google's CDN.)
-_REMOTE_IMG_RE = re.compile(
-    r"https://(?:images\.unsplash\.com|lh3\.googleusercontent\.com|"
-    r"maps\.googleapis\.com)/[^\"')\s]+"
-)
+# Extract remote image references by context so we bundle EVERY remote photo
+# (Unsplash, Google Places, an imported prospect's own site, an operator-set
+# hero URL — any host), not just a hard-coded allowlist, while never grabbing
+# non-image links like <a href> or Google Fonts <link>. Two contexts cover
+# every image we emit: <img src="..."> and CSS/inline url(...).
+_IMG_SRC_RE = re.compile(r'<img\b[^>]*?\bsrc=["\']([^"\']+)["\']', re.I)
+_CSS_URL_RE = re.compile(r"""url\(\s*(['"]?)([^'")]+)\1\s*\)""")
 _IMG_DL_HEADERS = {
     "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"),
@@ -2173,13 +2173,13 @@ def _placeholder_svg(token: str, w: int, h: int) -> bytes:
 def _localize_images(site_dir: Path) -> None:
     """Download every remote photo the generated site references into
     assets/img/ and rewrite the references to local relative paths, so the
-    finished site is self-contained — it never depends on a third-party CDN
-    (Unsplash/Google) being up or allowing hotlinks at view time, and the
-    images deploy to Netlify bundled with the site.
+    finished site is self-contained — it never depends on a third-party host
+    being up or allowing hotlinks at view time, and the images deploy to
+    Netlify bundled with the site.
 
-    Resilient by design: if a download fails, the original URL is left in
-    place, so the result is never worse than hotlinking. Skip entirely with
-    BUNDLE_IMAGES=false (keeps the old hotlink behaviour).
+    Resilient by design: if a download fails, a local gradient placeholder is
+    bundled in its place, so an image slot is never blank or broken. Skip
+    entirely with BUNDLE_IMAGES=false (keeps the old hotlink behaviour).
     """
     if os.getenv("BUNDLE_IMAGES", "true").lower() in ("0", "false", "no"):
         log.info("[build] BUNDLE_IMAGES disabled - keeping hotlinked images")
@@ -2188,11 +2188,18 @@ def _localize_images(site_dir: Path) -> None:
     import requests  # local import: only needed when bundling
 
     files = list(site_dir.glob("*.html")) + list(site_dir.glob("css/*.css"))
-    # Map the exact in-file token (which may be HTML-escaped, e.g. &amp;) to its
-    # real downloadable URL, so we download once and replace the right text.
+    # Collect remote image references by context (img src + CSS url()). The
+    # token kept is the exact in-file text (which may be HTML-escaped, e.g.
+    # &amp;) so we replace precisely what appears. Local/data URIs are skipped.
     tokens: set[str] = set()
     for f in files:
-        tokens.update(_REMOTE_IMG_RE.findall(f.read_text(encoding="utf-8", errors="replace")))
+        text = f.read_text(encoding="utf-8", errors="replace")
+        for m in _IMG_SRC_RE.findall(text):
+            if m.startswith(("http://", "https://")):
+                tokens.add(m)
+        for _q, u in _CSS_URL_RE.findall(text):
+            if u.startswith(("http://", "https://")):
+                tokens.add(u)
     if not tokens:
         return
 
