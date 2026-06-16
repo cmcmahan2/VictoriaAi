@@ -11,11 +11,13 @@ Set ADMIN_PASSWORD in .env before running.
 """
 
 import asyncio
+import calendar
 import json
 import os
 import secrets
 import sys
 import threading
+import time
 from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime
 from pathlib import Path
@@ -714,6 +716,234 @@ async def export_clients_csv(request: Request, token: str = Query(default="")):
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=clients.csv"},
     )
+
+
+# ── Leads (live form submissions via Netlify) ───────────────────────────────
+#
+# Contact forms on the deployed sites use Netlify Forms, so submissions are
+# captured reliably even when this admin server is offline. We read them back
+# through the Netlify API using the existing NETLIFY_AUTH_TOKEN and surface them
+# here, mapped to the client whose site they came from.
+
+_LEADS_CACHE = {"ts": 0.0, "data": None}
+
+
+def _netlify_token() -> str:
+    t = os.getenv("NETLIFY_AUTH_TOKEN", "").strip()
+    return "" if (not t or t.startswith("your_")) else t
+
+
+def _site_id_index() -> dict:
+    """Map Netlify site_id -> client record, read from each client's
+    output/{slug}/deployment.json (written by Phase 5)."""
+    idx = {}
+    for c in _load_clients():
+        dep = OUTPUT_DIR / c.get("slug", "") / "deployment.json"
+        if dep.exists():
+            try:
+                d = json.loads(dep.read_text(encoding="utf-8", errors="replace"))
+                if d.get("site_id"):
+                    idx[d["site_id"]] = c
+            except Exception:
+                pass
+    return idx
+
+
+def _normalize_lead(submission: dict, site_index: dict) -> dict:
+    fields = submission.get("data") or {}
+    client = site_index.get(submission.get("site_id")) or {}
+    first  = (fields.get("first_name") or "").strip()
+    last   = (fields.get("last_name") or "").strip()
+    name   = (f"{first} {last}".strip() or fields.get("name") or "").strip()
+    return {
+        "id":          submission.get("id"),
+        "client_name": client.get("name") or submission.get("title")
+                       or submission.get("name") or "Unknown site",
+        "client_slug": client.get("slug"),
+        "site_url":    submission.get("site_url"),
+        "name":        name or "(no name)",
+        "email":       fields.get("email", ""),
+        "phone":       fields.get("phone", ""),
+        "service":     fields.get("service", ""),
+        "message":     fields.get("message", ""),
+        "created_at":  submission.get("created_at"),
+    }
+
+
+@app.get("/api/submissions")
+def list_submissions(request: Request):
+    require_auth(request)
+    token = _netlify_token()
+    if not token:
+        return {"leads": [], "configured": False, "count": 0,
+                "note": "Add NETLIFY_AUTH_TOKEN to .env to pull live form submissions."}
+
+    now = time.time()
+    if _LEADS_CACHE["data"] is not None and now - _LEADS_CACHE["ts"] < 60:
+        return _LEADS_CACHE["data"]
+
+    import requests
+    try:
+        r = requests.get(
+            "https://api.netlify.com/api/v1/submissions",
+            headers={"Authorization": f"Bearer {token}"},
+            params={"per_page": 200}, timeout=20,
+        )
+    except Exception as exc:
+        return {"leads": [], "configured": True, "count": 0, "error": str(exc)}
+
+    if r.status_code != 200:
+        return {"leads": [], "configured": True, "count": 0,
+                "error": f"Netlify API returned {r.status_code}"}
+
+    site_index = _site_id_index()
+    leads = [_normalize_lead(s, site_index) for s in r.json()]
+    leads.sort(key=lambda l: l.get("created_at") or "", reverse=True)
+    data = {"leads": leads, "configured": True, "count": len(leads)}
+    _LEADS_CACHE.update(ts=now, data=data)
+    return data
+
+
+# ── Uptime / health monitoring ──────────────────────────────────────────────
+
+_MONITOR_CACHE = {"ts": 0.0, "data": None}
+
+
+def _check_site(client: dict) -> dict:
+    import requests
+    url = client.get("live_url")
+    res = {"slug": client.get("slug"), "name": client.get("name"),
+           "live_url": url, "status": "unknown", "http_status": None,
+           "response_ms": None}
+    if not url:
+        res["status"] = "not_deployed"
+        return res
+    try:
+        t0 = time.time()
+        r = requests.get(url, timeout=12, allow_redirects=True)
+        res["response_ms"] = int((time.time() - t0) * 1000)
+        res["http_status"] = r.status_code
+        res["status"] = "up" if r.status_code < 400 else "down"
+    except Exception as exc:
+        res["status"] = "down"
+        res["error"] = str(exc)[:140]
+    return res
+
+
+@app.get("/api/monitor")
+def monitor_sites(request: Request, refresh: bool = Query(default=False)):
+    require_auth(request)
+    now = time.time()
+    if (not refresh and _MONITOR_CACHE["data"] is not None
+            and now - _MONITOR_CACHE["ts"] < 120):
+        return _MONITOR_CACHE["data"]
+
+    clients  = _load_clients()
+    deployed = [c for c in clients if c.get("live_url")]
+    results  = []
+    if deployed:
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            results = list(pool.map(_check_site, deployed))
+    results.sort(key=lambda r: (r["status"] != "down", r.get("name") or ""))
+
+    up   = sum(1 for r in results if r["status"] == "up")
+    down = sum(1 for r in results if r["status"] == "down")
+    data = {
+        "sites": results,
+        "summary": {"total": len(results), "up": up, "down": down,
+                    "not_deployed": len(clients) - len(deployed)},
+        "checked_at": datetime.now().isoformat(),
+    }
+    _MONITOR_CACHE.update(ts=now, data=data)
+    return data
+
+
+# ── Billing / subscriptions ─────────────────────────────────────────────────
+
+class BillingPatch(BaseModel):
+    plan: str | None = None             # e.g. "Tier 1 — Entry"
+    monthly_fee: float | None = None
+    billing_status: str | None = None   # active | paused | free
+    next_due: str | None = None         # ISO date (YYYY-MM-DD)
+    billing_notes: str | None = None
+
+
+def _add_month(d):
+    """Return the same day-of-month one month later, clamped to month length."""
+    m, y = d.month + 1, d.year
+    if m > 12:
+        m, y = 1, y + 1
+    return d.replace(year=y, month=m, day=min(d.day, calendar.monthrange(y, m)[1]))
+
+
+@app.get("/api/billing")
+async def get_billing(request: Request):
+    require_auth(request)
+    clients = _load_clients()
+    today   = datetime.now().date().isoformat()
+    counts  = {"active": 0, "paused": 0, "free": 0, "unset": 0}
+    mrr, overdue = 0.0, 0
+    rows = []
+    for c in clients:
+        status = c.get("billing_status") or "unset"
+        fee    = float(c.get("monthly_fee") or 0)
+        nd     = c.get("next_due")
+        is_overdue = bool(status == "active" and nd and nd < today)
+        if status == "active":
+            mrr += fee
+        if is_overdue:
+            overdue += 1
+        counts[status if status in counts else "unset"] += 1
+        rows.append({
+            "slug": c.get("slug"), "name": c.get("name"),
+            "live_url": c.get("live_url"), "status_label": c.get("status"),
+            "plan": c.get("plan", ""), "monthly_fee": fee,
+            "billing_status": status, "next_due": nd,
+            "billing_notes": c.get("billing_notes", ""),
+            "last_paid": c.get("last_paid"), "is_overdue": is_overdue,
+        })
+    # Overdue first, then by name
+    rows.sort(key=lambda r: (not r["is_overdue"], (r["name"] or "").lower()))
+    return {"clients": rows, "mrr": round(mrr, 2), "counts": counts,
+            "overdue_count": overdue, "active_count": counts["active"]}
+
+
+@app.put("/api/clients/{slug}/billing")
+async def update_billing(slug: str, data: BillingPatch, request: Request):
+    require_auth(request)
+    clients = _load_clients()
+    client = next((c for c in clients if c["slug"] == slug), None)
+    if not client:
+        raise HTTPException(status_code=404)
+    for k, v in data.model_dump(exclude_none=True).items():
+        client[k] = v
+    _save_clients(clients)
+    return client
+
+
+@app.post("/api/clients/{slug}/billing/mark-paid")
+async def mark_paid(slug: str, request: Request):
+    require_auth(request)
+    clients = _load_clients()
+    client = next((c for c in clients if c["slug"] == slug), None)
+    if not client:
+        raise HTTPException(status_code=404)
+    from datetime import date
+    base = date.today()
+    nd = client.get("next_due")
+    if nd:
+        try:
+            cur = date.fromisoformat(nd)
+            if cur > base:
+                base = cur
+        except Exception:
+            pass
+    client["next_due"]       = _add_month(base).isoformat()
+    client["billing_status"] = "active"
+    client["last_paid"]      = date.today().isoformat()
+    _save_clients(clients)
+    return client
 
 
 # ── Site editor ───────────────────────────────────────────────────────────────

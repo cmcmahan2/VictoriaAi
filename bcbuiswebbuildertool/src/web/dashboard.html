@@ -190,6 +190,9 @@
     <button class="tab-btn" onclick="switchTab('customize')">Customize</button>
     <button class="tab-btn" onclick="switchTab('projects')">Projects</button>
     <button class="tab-btn" onclick="switchTab('clients')">Clients</button>
+    <button class="tab-btn" onclick="switchTab('leads')">Leads</button>
+    <button class="tab-btn" onclick="switchTab('monitor')">Monitor</button>
+    <button class="tab-btn" onclick="switchTab('billing')">Billing</button>
     <button class="tab-btn" onclick="switchTab('jobs')">Jobs</button>
   </div>
   <div class="nav-right">
@@ -424,6 +427,33 @@
       </div>
       <div id="clients-list"><div class="empty-state"><p>No clients yet. Run a pipeline to save your first client.</p></div></div>
     </div>
+    <div class="tab-panel" id="tab-leads">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div class="panel-title">Leads</div>
+          <p class="panel-sub">Contact-form submissions from your live client sites, captured by Netlify and pulled in here. New customers reaching your clients = proof your sites work.</p>
+        </div>
+        <button onclick="loadSubmissions(true)" class="btn-run" style="white-space:nowrap;">↻ Refresh</button>
+      </div>
+      <div id="leads-list"><div class="empty-state"><p>Loading leads…</p></div></div>
+    </div>
+    <div class="tab-panel" id="tab-monitor">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div class="panel-title">Uptime Monitor</div>
+          <p class="panel-sub">Live status of every deployed client site. Find out before they do if something goes down.</p>
+        </div>
+        <button onclick="loadMonitor(true)" class="btn-run" style="white-space:nowrap;">↻ Check now</button>
+      </div>
+      <div id="monitor-summary" style="display:flex;gap:0.6rem;flex-wrap:wrap;margin-bottom:1.25rem;"></div>
+      <div id="monitor-list"><div class="empty-state"><p>Loading…</p></div></div>
+    </div>
+    <div class="tab-panel" id="tab-billing">
+      <div class="panel-title">Billing &amp; Subscriptions</div>
+      <p class="panel-sub">Track who's on a plan, what they pay, and when they're due. This is your recurring revenue.</p>
+      <div id="billing-summary" style="display:flex;gap:0.6rem;flex-wrap:wrap;margin-bottom:1.25rem;"></div>
+      <div id="billing-list"><div class="empty-state"><p>Loading…</p></div></div>
+    </div>
     <div class="tab-panel" id="tab-jobs">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;">
         <div>
@@ -518,6 +548,9 @@
     if (id==='clients') loadClients();
     if (id==='customize') loadCustomizeClients();
     if (id==='projects') loadProjects();
+    if (id==='leads') loadSubmissions();
+    if (id==='monitor') loadMonitor();
+    if (id==='billing') loadBilling();
   }
 
   function toast(msg, type='success') {
@@ -812,6 +845,109 @@
       btn.disabled=false; btn.textContent='↻ Rebuild all sites';
       toast('Rebuild failed: '+e.message,'error');
     }
+  }
+
+  // ── Leads tab ──────────────────────────────────────────────────────────────
+  function timeAgo(iso){
+    if(!iso) return '';
+    const d=new Date(iso), s=(Date.now()-d.getTime())/1000;
+    if(s<60) return 'just now';
+    if(s<3600) return Math.floor(s/60)+'m ago';
+    if(s<86400) return Math.floor(s/3600)+'h ago';
+    if(s<2592000) return Math.floor(s/86400)+'d ago';
+    return d.toLocaleDateString();
+  }
+  async function loadSubmissions(force){
+    const el=document.getElementById('leads-list');
+    if(force) el.innerHTML='<div class="empty-state"><p>Refreshing…</p></div>';
+    try{
+      const res=await api('/api/submissions'); const d=await res.json();
+      if(!d.configured){
+        el.innerHTML=`<div class="empty-state"><p>${esc(d.note||'Netlify token not configured.')}</p></div>`; return;
+      }
+      if(d.error){
+        el.innerHTML=`<div class="empty-state"><p>Couldn't load leads: ${esc(d.error)}</p></div>`; return;
+      }
+      if(!d.leads||!d.leads.length){
+        el.innerHTML='<div class="empty-state"><p>No leads yet. Once a visitor submits a contact form on a deployed client site, it shows up here.</p></div>'; return;
+      }
+      el.innerHTML=d.leads.map(l=>`
+        <div style="background:var(--dark3);border:1px solid var(--border2);border-radius:9px;padding:0.9rem 1.1rem;margin-bottom:0.75rem;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:0.5rem;">
+            <div><strong style="color:var(--white);">${esc(l.name)}</strong> <span style="color:var(--muted);font-size:0.78rem;">→ ${esc(l.client_name)}</span></div>
+            <span style="color:var(--muted);font-size:0.75rem;">${esc(timeAgo(l.created_at))}</span>
+          </div>
+          <div style="font-size:0.8rem;color:var(--text);margin-top:0.4rem;display:flex;gap:1rem;flex-wrap:wrap;">
+            ${l.email?`<a href="mailto:${esc(l.email)}" style="color:var(--green);">${esc(l.email)}</a>`:''}
+            ${l.phone?`<a href="tel:${esc(l.phone)}" style="color:var(--green);">${esc(l.phone)}</a>`:''}
+            ${l.service?`<span>${esc(l.service)}</span>`:''}
+          </div>
+          ${l.message?`<p style="font-size:0.82rem;color:var(--text);margin-top:0.5rem;line-height:1.5;">${esc(l.message)}</p>`:''}
+        </div>`).join('');
+    }catch(e){ el.innerHTML=`<div class="empty-state"><p>Error loading leads: ${esc(e.message)}</p></div>`; }
+  }
+
+  // ── Monitor tab ──────────────────────────────────────────────────────────────
+  async function loadMonitor(force){
+    const el=document.getElementById('monitor-list');
+    const sum=document.getElementById('monitor-summary');
+    if(force){ el.innerHTML='<div class="empty-state"><p>Pinging sites…</p></div>'; sum.innerHTML=''; }
+    try{
+      const res=await api('/api/monitor'+(force?'?refresh=true':'')); const d=await res.json();
+      const s=d.summary||{};
+      const pill=(label,val,color)=>`<div style="background:var(--dark3);border:1px solid var(--border2);border-radius:8px;padding:0.55rem 0.9rem;"><span style="font-size:1.1rem;font-weight:700;color:${color};">${val}</span> <span style="font-size:0.75rem;color:var(--muted);">${label}</span></div>`;
+      sum.innerHTML=pill('Up',s.up||0,'#2bd47f')+pill('Down',s.down||0,(s.down?'#f87171':'var(--muted)'))+pill('Not deployed',s.not_deployed||0,'var(--muted)')+`<div style="align-self:center;font-size:0.72rem;color:var(--muted);">checked ${esc(timeAgo(d.checked_at))}</div>`;
+      if(!d.sites||!d.sites.length){ el.innerHTML='<div class="empty-state"><p>No deployed sites yet. Deploy a site (Phase 5) and it will appear here.</p></div>'; return; }
+      el.innerHTML=d.sites.map(x=>{
+        const map={up:['#2bd47f','● Up'],down:['#f87171','● Down'],not_deployed:['var(--muted)','○ Not deployed'],unknown:['#fbbf24','● Unknown']};
+        const [color,label]=map[x.status]||map.unknown;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;background:var(--dark3);border:1px solid var(--border2);border-radius:9px;padding:0.7rem 1.1rem;margin-bottom:0.5rem;">
+          <div><strong style="color:var(--white);">${esc(x.name||x.slug)}</strong>${x.live_url?` <a href="${esc(x.live_url)}" target="_blank" style="color:var(--muted);font-size:0.75rem;margin-left:0.4rem;">${esc(x.live_url.replace(/^https?:\/\//,''))}</a>`:''}</div>
+          <div style="display:flex;align-items:center;gap:1rem;">
+            ${x.response_ms!=null?`<span style="font-size:0.75rem;color:var(--muted);">${x.response_ms}ms</span>`:''}
+            <span style="font-weight:700;font-size:0.82rem;color:${color};white-space:nowrap;">${label}</span>
+          </div>
+        </div>`;}).join('');
+    }catch(e){ el.innerHTML=`<div class="empty-state"><p>Error: ${esc(e.message)}</p></div>`; }
+  }
+
+  // ── Billing tab ────────────────────────────────────────────────────────────
+  const BILLING_STATUSES=['unset','active','paused','free'];
+  async function loadBilling(){
+    const el=document.getElementById('billing-list');
+    const sum=document.getElementById('billing-summary');
+    try{
+      const res=await api('/api/billing'); const d=await res.json();
+      const pill=(label,val,color)=>`<div style="background:var(--dark3);border:1px solid var(--border2);border-radius:8px;padding:0.55rem 0.9rem;"><span style="font-size:1.1rem;font-weight:700;color:${color};">${val}</span> <span style="font-size:0.75rem;color:var(--muted);">${label}</span></div>`;
+      sum.innerHTML=pill('MRR','$'+(d.mrr||0).toLocaleString(),'#2bd47f')+pill('Active',d.active_count||0,'var(--white)')+pill('Overdue',d.overdue_count||0,(d.overdue_count?'#f87171':'var(--muted)'));
+      if(!d.clients||!d.clients.length){ el.innerHTML='<div class="empty-state"><p>No clients yet.</p></div>'; return; }
+      el.innerHTML=`<div class="table-wrap"><table>
+        <thead><tr style="text-align:left;color:var(--muted);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.05em;">
+          <th style="padding:0.5rem;">Client</th><th style="padding:0.5rem;">Plan</th><th style="padding:0.5rem;">$/mo</th><th style="padding:0.5rem;">Status</th><th style="padding:0.5rem;">Next due</th><th style="padding:0.5rem;"></th>
+        </tr></thead><tbody>
+        ${d.clients.map(c=>`<tr style="border-top:1px solid var(--border);">
+          <td style="padding:0.55rem 0.5rem;"><strong style="color:var(--white);">${esc(c.name||c.slug)}</strong></td>
+          <td style="padding:0.55rem 0.5rem;"><input value="${esc(c.plan||'')}" placeholder="Tier 1" data-slug="${esc(c.slug)}" data-field="plan" class="bill-in" style="width:120px;background:rgba(255,255,255,0.05);border:1px solid var(--border2);border-radius:5px;padding:0.3rem 0.45rem;color:var(--white);font-size:0.8rem;" /></td>
+          <td style="padding:0.55rem 0.5rem;"><input type="number" value="${c.monthly_fee||''}" placeholder="0" data-slug="${esc(c.slug)}" data-field="monthly_fee" class="bill-in" style="width:70px;background:rgba(255,255,255,0.05);border:1px solid var(--border2);border-radius:5px;padding:0.3rem 0.45rem;color:var(--white);font-size:0.8rem;" /></td>
+          <td style="padding:0.55rem 0.5rem;"><select data-slug="${esc(c.slug)}" data-field="billing_status" class="bill-in" style="background:rgba(255,255,255,0.05);border:1px solid var(--border2);border-radius:5px;padding:0.3rem 0.45rem;color:var(--white);font-size:0.8rem;">${BILLING_STATUSES.map(s=>`<option value="${s}" ${s===c.billing_status?'selected':''}>${s}</option>`).join('')}</select></td>
+          <td style="padding:0.55rem 0.5rem;"><input type="date" value="${esc(c.next_due||'')}" data-slug="${esc(c.slug)}" data-field="next_due" class="bill-in" style="background:rgba(255,255,255,0.05);border:1px solid var(--border2);border-radius:5px;padding:0.3rem 0.45rem;color:${c.is_overdue?'#f87171':'var(--white)'};font-size:0.8rem;" />${c.is_overdue?' <span style="color:#f87171;font-size:0.7rem;">overdue</span>':''}</td>
+          <td style="padding:0.55rem 0.5rem;white-space:nowrap;"><button onclick="markPaid('${esc(c.slug)}')" style="background:var(--green);border:none;border-radius:5px;padding:0.32rem 0.7rem;color:#fff;font-size:0.75rem;font-weight:600;cursor:pointer;">Mark paid</button></td>
+        </tr>`).join('')}
+        </tbody></table></div>
+        <p style="font-size:0.74rem;color:var(--muted);margin-top:0.75rem;">Edits save automatically. &ldquo;Mark paid&rdquo; sets status to active and advances the next due date by one month.</p>`;
+      el.querySelectorAll('.bill-in').forEach(inp=>{
+        inp.addEventListener('change',()=>saveBilling(inp.dataset.slug,inp.dataset.field,inp.value));
+      });
+    }catch(e){ el.innerHTML=`<div class="empty-state"><p>Error: ${esc(e.message)}</p></div>`; }
+  }
+  async function saveBilling(slug,field,value){
+    const body={}; body[field]=(field==='monthly_fee')?parseFloat(value||0):value;
+    try{ const res=await api('/api/clients/'+slug+'/billing',{method:'PUT',body}); if(res.ok){ toast('Saved'); loadBilling(); } else toast('Save failed','error'); }
+    catch(e){ toast('Save failed: '+e.message,'error'); }
+  }
+  async function markPaid(slug){
+    try{ const res=await api('/api/clients/'+slug+'/billing/mark-paid',{method:'POST'}); if(res.ok){ toast('Marked paid'); loadBilling(); } else toast('Failed','error'); }
+    catch(e){ toast('Failed: '+e.message,'error'); }
   }
 
   function renderClients(clients) {

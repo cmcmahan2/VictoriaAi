@@ -138,6 +138,8 @@ def _deploy_zip(site, site_path, headers):
     return {
         "live_url": live_url,
         "deploy_id": deploy_id,
+        "site_id": site.get("id"),       # needed to read form submissions (leads)
+        "site_name": site.get("name"),
         "admin_url": site.get("admin_url"),
         "deployed_at": datetime.now(timezone.utc).isoformat(),
         "platform": "netlify",

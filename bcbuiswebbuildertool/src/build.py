@@ -2813,8 +2813,12 @@ def _write_contact(business: dict, content: dict, site_dir: Path) -> None:
         <!-- Contact form (left/main) -->
         <div class="form-card" style="order:1">
           <h3>{_esc(cta)}</h3>
-          <form id="contact-form" name="contact-main" data-netlify="true" method="POST">
+          <form id="contact-form" name="contact-main" method="POST"
+                data-netlify="true" netlify-honeypot="bot-field">
             <input type="hidden" name="form-name" value="contact-main" />
+            <!-- Honeypot: real users never fill this; bots do -> silently dropped -->
+            <p style="display:none"><label>Don't fill this out: <input name="bot-field" /></label></p>
+            <div id="form-success" style="display:none;background:#e9f9f1;border:1px solid #1fb574;color:#0f7a4e;border-radius:8px;padding:1rem;margin-bottom:1rem;font-weight:600;">✓ Thanks! Your message was sent — we'll be in touch within 24 hours.</div>
             <div class="form-row">
               <div class="form-group">
                 <label for="fname">First Name</label>
@@ -2897,6 +2901,34 @@ def _write_contact(business: dict, content: dict, site_dir: Path) -> None:
     </div>
   </div>
 </main>
+"""
+    # Submit the Netlify form via AJAX so we can show an inline thank-you instead
+    # of redirecting to Netlify's generic success page. Submissions are still
+    # captured by Netlify Forms (and surface in the admin Leads tab). Kept as a
+    # plain (non-f) string so its JS braces don't collide with f-string syntax.
+    html += """<script>
+  (function(){
+    var form = document.getElementById('contact-form');
+    if (!form) return;
+    form.addEventListener('submit', function(e){
+      e.preventDefault();
+      var btn = form.querySelector('button[type="submit"]');
+      if (btn) { btn.disabled = true; btn.textContent = 'Sending\\u2026'; }
+      var data = new URLSearchParams(new FormData(form)).toString();
+      fetch('/', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:data})
+        .then(function(){
+          var ok = document.getElementById('form-success');
+          if (ok) { ok.style.display = 'block'; ok.scrollIntoView({behavior:'smooth', block:'center'}); }
+          form.reset();
+          if (btn) { btn.disabled = false; btn.textContent = 'Send Message'; }
+        })
+        .catch(function(){
+          if (btn) { btn.disabled = false; btn.textContent = 'Send Message'; }
+          alert('Sorry, something went wrong. Please call us instead.');
+        });
+    });
+  })();
+</script>
 """
     html += _footer(business)
     html += "\n</body>\n</html>"
