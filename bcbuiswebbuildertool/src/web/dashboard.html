@@ -327,6 +327,15 @@
     <div class="tab-panel" id="tab-customize">
       <div class="panel-title">Customize Site</div>
       <p class="panel-sub">Pick a theme, paste real Google reviews, add real images, and give the AI facts &amp; brand voice. Save then rebuild to apply.</p>
+      <div class="cz-section" style="max-width:760px;background:var(--dark3);border:1px solid var(--border2);border-radius:10px;padding:1.1rem 1.25rem;">
+        <h3 style="color:var(--green);">⚡ Import an existing site</h3>
+        <p style="font-size:0.82rem;color:var(--text);margin:-0.25rem 0 0.85rem;">Already have a client with a website? Paste their URL — we'll pull their name, photos, contact info and reviews, then rebuild a premium version you can hand over.</p>
+        <div style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;">
+          <input type="url" id="cz-import-url" placeholder="https://their-current-website.com" style="flex:1;min-width:260px;background:rgba(255,255,255,0.05);border:1px solid var(--border2);border-radius:6px;padding:0.6rem 0.7rem;color:var(--white);font-family:inherit;font-size:0.85rem;outline:none;" />
+          <button class="cz-btn cz-btn-primary" id="cz-import-btn" onclick="importSite()">Import &amp; Rebuild Better</button>
+        </div>
+        <span id="cz-import-status" style="display:block;margin-top:0.6rem;font-size:0.8rem;color:var(--muted);"></span>
+      </div>
       <div class="cz-section" style="max-width:420px;">
         <h3>Client</h3>
         <select id="cz-client" onchange="onCzClientChange()" style="width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border2);border-radius:6px;padding:0.55rem 0.7rem;color:var(--white);font-family:inherit;font-size:0.85rem;outline:none;">
@@ -1125,6 +1134,45 @@ hello@pacificwebbuilder.ca`
     document.querySelectorAll('#cz-theme-grid .theme-swatch').forEach(s=>{
       s.classList.toggle('active',(s.getAttribute('data-theme')||'')===(czSelectedTheme||''));
     });
+  }
+
+  async function importSite() {
+    const input=document.getElementById('cz-import-url');
+    const btn=document.getElementById('cz-import-btn');
+    const status=document.getElementById('cz-import-status');
+    let url=(input.value||'').trim();
+    if (!url) { toast('Paste a website URL first','error'); return; }
+    btn.disabled=true; const orig=btn.textContent; btn.textContent='Importing…';
+    status.style.color='var(--muted)'; status.textContent='Scraping the existing site & rebuilding…';
+    try {
+      const res=await api('/api/import-site',{method:'POST',body:{url}});
+      const data=await res.json();
+      if (!res.ok) throw new Error(data.detail||'Import failed');
+      const d=data.derived||{};
+      const bits=[d.category,d.city].filter(Boolean).join(' · ');
+      status.textContent=`Building “${data.name}”${bits?' ('+bits+')':''}… watch progress in the terminal / Jobs tab.`;
+      refreshSidebarJobs();
+      streamJob(data.job_id,(jobStatus)=>{
+        btn.disabled=false; btn.textContent=orig;
+        if (jobStatus==='done') {
+          status.style.color='var(--green)';
+          status.textContent=`✓ “${data.name}” rebuilt. Selected below — tweak theme/reviews/images, then Save & Rebuild or deploy.`;
+          input.value='';
+          loadCustomizeClients().then(()=>{
+            const sel=document.getElementById('cz-client');
+            if ([...sel.options].some(o=>o.value===data.slug)) { sel.value=data.slug; onCzClientChange(); }
+          });
+          loadClients();
+        } else {
+          status.style.color='#f87171';
+          status.textContent='Import finished with errors — check the terminal / Jobs tab.';
+        }
+      });
+    } catch(e) {
+      btn.disabled=false; btn.textContent=orig;
+      status.style.color='#f87171'; status.textContent='Error: '+e.message;
+      toast('Import failed: '+e.message,'error');
+    }
   }
 
   async function loadCustomizeClients() {

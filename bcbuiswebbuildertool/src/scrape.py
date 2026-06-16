@@ -98,6 +98,193 @@ def build_profile(business: dict, output_dir: str = "./research") -> Path:
     return profile_dir
 
 
+def extract_business_from_url(url: str) -> dict:
+    """Given ONLY a website URL, fetch the page and derive a best-effort
+    ``business`` dict (name, phone, city, category, socials) suitable for
+    feeding ``build_profile()`` / ``build_website()``.
+
+    Powers the dashboard's "Import an existing site" flow: an operator pastes a
+    prospect's current URL and the pipeline rebuilds it better, reusing their
+    real photos and details. Always returns a usable dict — on fetch failure it
+    falls back to a name derived from the domain so the operator can proceed.
+    """
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+
+    business: dict = {"existing_website": url}
+
+    try:
+        resp = _SESSION.get(url, timeout=12, allow_redirects=True)
+        resp.raise_for_status()
+    except Exception as exc:
+        log.warning(f"[import] Could not fetch {url}: {exc}")
+        business["name"] = _name_from_domain(url)
+        business["_fetch_error"] = str(exc)
+        return business
+
+    soup    = BeautifulSoup(resp.text, "lxml")
+    meta    = _extract_meta(soup, resp.url)
+    contact = _extract_contact_info(soup, resp.text)
+    schemas = _flatten_schema(meta.get("schema_org") or [])
+
+    business["existing_website"] = resp.url
+    business["name"] = _derive_business_name(soup, meta, schemas, resp.url)
+
+    phones = contact.get("tel_links") or contact.get("phones") or []
+    if phones:
+        business["phone"] = phones[0]
+
+    emails = contact.get("mailto_links") or contact.get("emails") or []
+    if emails:
+        business["email"] = emails[0]
+
+    address, city = _derive_address_city(schemas, contact)
+    if address:
+        business["address"] = address
+    if city:
+        business["city"] = city
+
+    category = _derive_category(schemas, meta, soup, business.get("name", ""))
+    if category:
+        business["category"]      = category
+        business["business_type"] = category
+
+    business["social_links"] = _extract_social_links(soup, resp.url)
+    log.info(
+        f"[import] Derived business from {resp.url}: name={business.get('name')!r}, "
+        f"category={business.get('category')!r}, city={business.get('city')!r}"
+    )
+    return business
+
+
+def _name_from_domain(url: str) -> str:
+    """Fallback business name from the domain, e.g.
+    'https://derekselectric.ca/' -> 'Derekselectric'."""
+    host = urlparse(url).netloc.lower()
+    host = re.sub(r"^www\.", "", host)
+    label = host.split(".")[0] if host else "Imported Site"
+    return label.replace("-", " ").title() or "Imported Site"
+
+
+def _flatten_schema(schemas: list) -> list:
+    """Flatten JSON-LD blocks (which may nest under @graph or be lists) into a
+    flat list of dicts so we can scan for name/address/type."""
+    out: list = []
+
+    def _walk(node):
+        if isinstance(node, dict):
+            if "@graph" in node and isinstance(node["@graph"], list):
+                for child in node["@graph"]:
+                    _walk(child)
+            out.append(node)
+        elif isinstance(node, list):
+            for child in node:
+                _walk(child)
+
+    for s in schemas:
+        _walk(s)
+    return out
+
+
+_GENERIC_TITLE_WORDS = {
+    "home", "welcome", "homepage", "index", "official site", "official website",
+}
+
+
+def _derive_business_name(soup: BeautifulSoup, meta: dict, schemas: list,
+                          url: str) -> str:
+    """Best-effort business name. Priority: og:site_name > schema.org name >
+    cleaned <title> > first <h1> > domain."""
+    og_site = soup.find("meta", attrs={"property": "og:site_name"})
+    if og_site and og_site.get("content", "").strip():
+        return og_site["content"].strip()[:80]
+
+    for s in schemas:
+        t = s.get("@type", "")
+        types = t if isinstance(t, list) else [t]
+        if any("Organization" in str(x) or "Business" in str(x) or
+               "Store" in str(x) or "Restaurant" in str(x) for x in types):
+            nm = s.get("name")
+            if isinstance(nm, str) and nm.strip():
+                return nm.strip()[:80]
+
+    title = (meta.get("title") or "").strip()
+    if title:
+        # Split on common separators and pick the most "brand-like" segment:
+        # the shortest non-generic piece (taglines are usually longer).
+        parts = [p.strip() for p in re.split(r"\s*[|\-–—·:]\s*", title) if p.strip()]
+        parts = [p for p in parts if p.lower() not in _GENERIC_TITLE_WORDS]
+        if parts:
+            return min(parts, key=len)[:80]
+        return title[:80]
+
+    h1 = soup.find("h1")
+    if h1 and h1.get_text(strip=True):
+        return h1.get_text(strip=True)[:80]
+
+    return _name_from_domain(url)
+
+
+def _derive_address_city(schemas: list, contact: dict) -> tuple:
+    """Pull a street address + city from schema.org PostalAddress if present."""
+    for s in schemas:
+        addr = s.get("address")
+        if isinstance(addr, dict):
+            street   = addr.get("streetAddress") or ""
+            locality = addr.get("addressLocality") or ""
+            region   = addr.get("addressRegion") or ""
+            full = ", ".join(p for p in (street, locality, region) if p)
+            return (full or None, locality or None)
+    return (None, None)
+
+
+_CATEGORY_KEYWORDS = {
+    "plumber":     ["plumb"],
+    "electrician": ["electric"],
+    "landscaper":  ["landscap", "lawn care", "garden"],
+    "painter":     ["paint"],
+    "roofer":      ["roof"],
+    "hvac":        ["hvac", "heating", "air conditioning", "furnace"],
+    "cleaner":     ["cleaning", "janitorial", "maid"],
+    "handyman":    ["handyman"],
+    "restaurant":  ["restaurant", "bistro", "eatery", "diner"],
+    "cafe":        ["cafe", "coffee"],
+    "bakery":      ["bakery", "bakeshop"],
+    "dentist":     ["dental", "dentist", "orthodont"],
+    "lawyer":      ["law firm", "lawyer", "attorney", "legal services"],
+    "accountant":  ["accounting", "accountant", "bookkeeping", "cpa"],
+    "contractor":  ["contracting", "contractor", "renovation", "construction"],
+}
+
+
+def _derive_category(schemas: list, meta: dict, soup: BeautifulSoup,
+                     name: str) -> str:
+    """Best-effort trade/category from schema.org @type, then keyword scan over
+    title + headings + name. Returns '' when nothing matches."""
+    for s in schemas:
+        t = s.get("@type", "")
+        types = t if isinstance(t, list) else [t]
+        for x in types:
+            xl = str(x).lower()
+            for cat, words in _CATEGORY_KEYWORDS.items():
+                if cat in xl or any(w.replace(" ", "") in xl for w in words):
+                    return cat
+
+    haystack = " ".join([
+        meta.get("title") or "",
+        meta.get("description") or "",
+        meta.get("keywords") or "",
+        " ".join(meta.get("h1_tags") or []),
+        " ".join(meta.get("h2_tags") or []),
+        name,
+    ]).lower()
+
+    for cat, words in _CATEGORY_KEYWORDS.items():
+        if any(w in haystack for w in words):
+            return cat
+    return ""
+
+
 def _analyze_existing_website(business: dict, profile_dir: Path) -> dict:
     url = business.get("existing_website")
     if not url:

@@ -432,6 +432,31 @@ def build_website(profile_dir: str, output_dir: str = "./output") -> Path:
             customize["reviews"] = normalized
             log.info(f"[build] Using {len(normalized)} real Google reviews from Places API")
 
+    # ── Existing-website image reuse ──────────────────────────────────────────
+    # When a prospect already has a site (especially via the "Import an existing
+    # site" flow), reuse THEIR real photos so the rebuilt site shows their own
+    # work — not stock filler. Operator-set images and verified Google Places
+    # photos always win; this only fills the gaps they leave.
+    website = profile.get("website", {})
+    if isinstance(website, dict) and website.get("present"):
+        site_imgs: list[str] = []
+        og_image = (website.get("meta") or {}).get("og:image")
+        if og_image and not _is_logo_or_icon(og_image):
+            site_imgs.append(og_image)
+        for im in website.get("prominent_images") or []:
+            src = im.get("src") if isinstance(im, dict) else None
+            if src and src not in site_imgs and not _is_logo_or_icon(src):
+                site_imgs.append(src)
+
+        if site_imgs and not customize.get("hero_image"):
+            customize["hero_image"] = site_imgs[0]
+            log.info(f"[build] Using prospect's own photo as hero: {site_imgs[0][:60]}…")
+        if (len(site_imgs) > 1 and not customize.get("service_images")
+                and not customize.get("_gp_extra_photos")):
+            customize["_gp_extra_photos"] = site_imgs[1:6]
+            log.info(f"[build] Reusing {len(site_imgs[1:6])} of the prospect's own "
+                     "photos for service cards")
+
     # Generate content via Claude (or fall back to templates)
     log.info("[build] Generating page content...")
     content = _generate_content(business, profile, customize)
@@ -2059,6 +2084,16 @@ _IMG_TOPIC_MAP = [
     (("tool", "repair", "install", "maintenance", "handyman"), "tools"),
     (("beach", "mountain", "coast", "nature", "ocean"), "scenic"),
 ]
+
+
+def _is_logo_or_icon(src: str) -> bool:
+    """Heuristic: skip logos/icons/sprites when reusing a prospect's own photos,
+    so we feature real work shots — not their letterhead."""
+    s = (src or "").lower()
+    return any(k in s for k in (
+        "logo", "icon", "favicon", "sprite", "badge", "avatar",
+        "placeholder", "spinner", "loading", ".svg",
+    ))
 
 
 def _img_topic(keywords: str) -> str:

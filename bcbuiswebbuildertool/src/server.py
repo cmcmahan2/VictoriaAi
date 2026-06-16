@@ -112,6 +112,10 @@ class PipelineRequest(BaseModel):
     rating: float | None = None
     review_count: int = 0
 
+class ImportSiteRequest(BaseModel):
+    url: str
+    phases: list[int] = [2, 3]   # 2=scrape, 3=build; add 4 (audit) / 5 (deploy) if wanted
+
 class SweepRequest(BaseModel):
     region: str                    # "All of BC", "All of Canada", province name, or city
     business_types: list[str]      # one type per element, e.g. ["plumber", "dentist"]
@@ -868,6 +872,92 @@ async def parse_reviews_endpoint(slug: str, request: Request):
     body = await request.json()
     raw = body.get("raw", "") if isinstance(body, dict) else ""
     return {"reviews": _parse_reviews(raw)}
+
+
+@app.post("/api/import-site")
+async def import_site(data: ImportSiteRequest, request: Request):
+    """Import an existing business website by URL and rebuild it — better.
+
+    Scrapes the prospect's current site to derive their name, contact details,
+    category and real photos, then runs Phase 2 (full profile) + Phase 3 (build)
+    as a background job. The new build reuses the prospect's own images so it
+    looks like *their* business, not a stock template. Registers a client record
+    so it shows up in the Clients / Customize tabs immediately.
+    """
+    require_auth(request)
+    from scrape import extract_business_from_url, build_profile
+
+    if not data.url or not data.url.strip():
+        raise HTTPException(status_code=400, detail="A website URL is required.")
+
+    business = extract_business_from_url(data.url.strip())
+    name = business.get("name") or "Imported Site"
+    slug = _slug(name)
+    business["slug"] = slug
+
+    job_id = _new_job(f"Import & rebuild: {name}")
+
+    def _go():
+        results = {"derived": {
+            "name":     name,
+            "slug":     slug,
+            "phone":    business.get("phone", ""),
+            "city":     business.get("city", ""),
+            "category": business.get("category", ""),
+            "url":      business.get("existing_website"),
+        }}
+        if business.get("_fetch_error"):
+            log.warning(f"[import] Limited data — could not fully fetch site: "
+                        f"{business['_fetch_error']}")
+        profile_dir = str(RESEARCH_DIR / slug)
+        site_dir    = str(OUTPUT_DIR / slug)
+        if 2 in data.phases:
+            log.info(f"[import] [Phase 2] Scraping {name} "
+                     f"({business.get('existing_website')})…")
+            profile_dir = str(build_profile(business, str(RESEARCH_DIR)))
+            results["profile_dir"] = profile_dir
+        if 3 in data.phases:
+            from build import build_website
+            log.info(f"[import] [Phase 3] Rebuilding {name} — premium version…")
+            site_dir = str(build_website(profile_dir, str(OUTPUT_DIR)))
+            results["site_dir"] = site_dir
+        if 4 in data.phases:
+            from audit import run_audit
+            log.info(f"[import] [Phase 4] Generating audit PDF for {name}…")
+            results["pdf_path"] = str(run_audit(profile_dir, str(OUTPUT_DIR)))
+        if 5 in data.phases:
+            from deploy import deploy_site
+            log.info(f"[import] [Phase 5] Deploying {name}…")
+            results["deployment"] = deploy_site(site_dir, business)
+
+        deployment = results.get("deployment") or {}
+        live_url   = deployment.get("live_url")
+        portal_url = deployment.get("portal_url") or (
+            f"{live_url}/portal.html" if live_url else f"/portal/{slug}")
+        _upsert_client({
+            "slug":          slug,
+            "name":          name,
+            "address":       business.get("address", ""),
+            "phone":         business.get("phone", ""),
+            "category":      business.get("category", ""),
+            "status":        "prospect",
+            "source":        "imported",
+            "imported_from": business.get("existing_website"),
+            "created_at":    datetime.now().isoformat(),
+            "has_site":      bool(results.get("site_dir")),
+            "has_pdf":       bool(results.get("pdf_path")),
+            "live_url":      live_url,
+            "portal_url":    portal_url,
+        })
+        log.info(f"[import] Done — '{name}' ready. Open the Customize tab to "
+                 "tweak theme, reviews and images, then deploy.")
+        return results
+
+    _run(job_id, _go)
+    return {"job_id": job_id, "name": name, "slug": slug,
+            "derived": {"phone": business.get("phone", ""),
+                        "city": business.get("city", ""),
+                        "category": business.get("category", "")}}
 
 
 @app.post("/api/customize/{slug}/rebuild")
