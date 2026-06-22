@@ -46,8 +46,10 @@ export interface ArbOpportunity {
 /** A logged bet for the tracker. */
 export interface TrackedBet {
   id: string;
+  marketId: string; // links the bet to its market chart
   question: string;
   type: ArbType;
+  auto?: boolean; // placed by the paper auto-trader vs. logged manually
   legs: { label: string; price: number; shares: number; cost: number }[];
   stake: number; // total USDC deployed
   expectedReturn: number; // guaranteed payout at resolution (= sets * $1)
