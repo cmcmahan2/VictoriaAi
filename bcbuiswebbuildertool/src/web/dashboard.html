@@ -339,6 +339,17 @@
         </div>
         <span id="cz-import-status" style="display:block;margin-top:0.6rem;font-size:0.8rem;color:var(--muted);"></span>
       </div>
+      <div class="cz-section" style="max-width:760px;background:var(--dark3);border:1px solid var(--border2);border-radius:10px;padding:1.1rem 1.25rem;">
+        <h3 style="color:var(--green);">🎨 Paste a site from Claude Design</h3>
+        <p style="font-size:0.82rem;color:var(--text);margin:-0.25rem 0 0.85rem;">Designed a site somewhere else (like Claude Design)? Paste the full page HTML below. We'll save it as this client's site, bundle its images so it's self-contained, and you can preview or push it live in one click. Rebuilds won't overwrite it.</p>
+        <input type="text" id="cz-paste-name" placeholder="Business name (e.g. Careful Painting)" style="width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border2);border-radius:6px;padding:0.6rem 0.7rem;color:var(--white);font-family:inherit;font-size:0.85rem;outline:none;margin-bottom:0.6rem;" />
+        <textarea id="cz-paste-html" rows="8" placeholder="Paste the full &lt;!DOCTYPE html&gt; … &lt;/html&gt; here" style="width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border2);border-radius:6px;padding:0.6rem 0.7rem;color:var(--white);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:0.78rem;outline:none;resize:vertical;"></textarea>
+        <div style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;margin-top:0.6rem;">
+          <button class="cz-btn" id="cz-paste-save" onclick="pasteCustomSite(false)">Save &amp; Preview</button>
+          <button class="cz-btn cz-btn-primary" id="cz-paste-deploy" onclick="pasteCustomSite(true)">Save &amp; Deploy Live</button>
+        </div>
+        <span id="cz-paste-status" style="display:block;margin-top:0.6rem;font-size:0.8rem;color:var(--muted);"></span>
+      </div>
       <div class="cz-section" style="max-width:420px;">
         <h3>Client</h3>
         <select id="cz-client" onchange="onCzClientChange()" style="width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border2);border-radius:6px;padding:0.55rem 0.7rem;color:var(--white);font-family:inherit;font-size:0.85rem;outline:none;">
@@ -1311,6 +1322,63 @@ hello@pacificwebbuilder.ca`
     }
   }
 
+  async function pasteCustomSite(deploy) {
+    const nameEl=document.getElementById('cz-paste-name');
+    const htmlEl=document.getElementById('cz-paste-html');
+    const saveBtn=document.getElementById('cz-paste-save');
+    const depBtn=document.getElementById('cz-paste-deploy');
+    const status=document.getElementById('cz-paste-status');
+    const html=(htmlEl.value||'').trim();
+    let name=(nameEl.value||'').trim();
+    // Fall back to the selected client's name if the field is empty.
+    if (!name) {
+      const sel=document.getElementById('cz-client');
+      if (sel && sel.value) name=sel.options[sel.selectedIndex].textContent.trim();
+    }
+    if (!html) { toast('Paste your site HTML first','error'); return; }
+    if (!name) { toast('Enter a business name for this site','error'); return; }
+    saveBtn.disabled=true; depBtn.disabled=true;
+    const btn=deploy?depBtn:saveBtn; const orig=btn.textContent;
+    btn.textContent=deploy?'Deploying…':'Saving…';
+    status.style.color='var(--muted)';
+    status.textContent=deploy?'Saving & deploying live…':'Saving & bundling images…';
+    try {
+      const res=await api('/api/custom-site',{method:'POST',body:{name,html,deploy}});
+      const data=await res.json();
+      if (!res.ok) throw new Error(data.detail||'Save failed');
+      const preview=`<a href="${esc(data.preview_url)}" target="_blank" style="color:var(--green)">Open preview ↗</a>`;
+      const done=()=>{ saveBtn.disabled=false; depBtn.disabled=false; btn.textContent=orig; };
+      loadClients();
+      loadCustomizeClients().then(()=>{
+        const sel=document.getElementById('cz-client');
+        if (sel && [...sel.options].some(o=>o.value===data.slug)) { sel.value=data.slug; onCzClientChange(); }
+      });
+      if (deploy && data.job_id) {
+        status.innerHTML=`Saved. Deploying “${esc(data.name)}” live… ${preview}`;
+        refreshSidebarJobs();
+        streamJob(data.job_id,(jobStatus)=>{
+          done();
+          if (jobStatus==='done') {
+            status.style.color='var(--green)';
+            status.innerHTML=`✓ “${esc(data.name)}” saved & deployed. ${preview} — live URL is on the Clients tab.`;
+            loadClients();
+          } else {
+            status.style.color='#f87171';
+            status.innerHTML=`Saved, but deploy hit an error (check NETLIFY token / Jobs tab). ${preview}`;
+          }
+        });
+      } else {
+        done();
+        status.style.color='var(--green)';
+        status.innerHTML=`✓ Saved as “${esc(data.name)}”. ${preview} — click “Save &amp; Deploy Live” when ready to publish.`;
+      }
+    } catch(e) {
+      saveBtn.disabled=false; depBtn.disabled=false; btn.textContent=orig;
+      status.style.color='#f87171'; status.textContent='Error: '+e.message;
+      toast('Could not save site: '+e.message,'error');
+    }
+  }
+
   async function loadCustomizeClients() {
     const sel=document.getElementById('cz-client');
     let clients=[];
@@ -1324,6 +1392,10 @@ hello@pacificwebbuilder.ca`
   async function onCzClientChange() {
     czSlug=document.getElementById('cz-client').value;
     const form=document.getElementById('cz-form');
+    // Prefill the "paste from Claude Design" name with the selected client.
+    const pasteName=document.getElementById('cz-paste-name');
+    const czSel=document.getElementById('cz-client');
+    if (pasteName && czSlug && czSel) pasteName.value=czSel.options[czSel.selectedIndex].textContent.trim();
     if (!czSlug) { form.style.display='none'; return; }
     form.style.display='block';
     document.getElementById('cz-status').textContent='Loading…';

@@ -385,6 +385,16 @@ def build_website(profile_dir: str, output_dir: str = "./output") -> Path:
     if customize:
         log.info(f"[build] Customizations found for {slug}")
 
+    # Hand-designed override: if the operator pasted their own site (e.g. built
+    # in Claude Design), preserve it verbatim instead of regenerating from the
+    # template — so "Rebuild all" and re-running Phase 3 never clobber it. We
+    # still localize images so the custom site is self-contained for deploy.
+    if customize.get("custom_html") and (site_dir / "index.html").exists():
+        log.info(f"[build] {slug} uses a custom hand-designed site — "
+                 "preserving index.html, skipping template generation")
+        _localize_images(site_dir)
+        return site_dir
+
     # Theme: customize override takes precedence over category-based selection
     theme = None
     ctheme = customize.get("theme")

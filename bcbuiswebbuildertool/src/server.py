@@ -1190,6 +1190,98 @@ async def import_site(data: ImportSiteRequest, request: Request):
                         "category": business.get("category", "")}}
 
 
+@app.post("/api/custom-site")
+async def custom_site(request: Request):
+    """Take a finished site the operator hand-built (e.g. in Claude Design) and
+    bring it into the tool as a client's live site.
+
+    Writes the pasted HTML as output/{slug}/index.html, bundles any remote
+    images locally so it's self-contained, flags the client so rebuilds never
+    clobber it, registers/updates the client record, and (optionally) deploys
+    it live to Netlify in the background.
+    """
+    require_auth(request)
+    body = await request.json()
+    html = (body.get("html") or "").strip()
+    name = (body.get("name") or "").strip()
+    slug = (body.get("slug") or "").strip() or _slug(name)
+    do_deploy = bool(body.get("deploy"))
+
+    if not html:
+        raise HTTPException(status_code=400, detail="Paste the site's HTML first.")
+    if "<" not in html or ">" not in html:
+        raise HTTPException(status_code=400,
+                            detail="That doesn't look like HTML. Paste the full page source.")
+    if not slug:
+        raise HTTPException(status_code=400,
+                            detail="A business name is required to file this site under a client.")
+
+    # Pull a friendly name from an existing client record if one wasn't typed.
+    if not name:
+        existing = next((c for c in _load_clients() if c.get("slug") == slug), None)
+        name = (existing or {}).get("name") or slug.replace("-", " ").title()
+
+    site_dir = OUTPUT_DIR / slug
+    site_dir.mkdir(parents=True, exist_ok=True)
+    (site_dir / "index.html").write_text(html, encoding="utf-8")
+
+    # Bundle remote images locally (real photo if reachable, placeholder if not)
+    try:
+        from build import _localize_images
+        _localize_images(site_dir)
+    except Exception as exc:
+        log.warning(f"[custom-site] image localization skipped ({exc})")
+
+    # Flag the client so Phase 3 / "Rebuild all" preserve this hand-built site.
+    cz_path = _customize_path(slug)
+    cz = {}
+    if cz_path.exists():
+        try:
+            cz = json.loads(cz_path.read_text(encoding="utf-8", errors="replace"))
+            if not isinstance(cz, dict):
+                cz = {}
+        except Exception:
+            cz = {}
+    cz["custom_html"] = True
+    cz_path.write_text(json.dumps(cz, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    _upsert_client({
+        "slug":       slug,
+        "name":       name,
+        "status":     "prospect",
+        "source":     "custom",
+        "has_site":   True,
+        "created_at": datetime.now().isoformat(),
+    })
+
+    result = {"ok": True, "slug": slug, "name": name,
+              "preview_url": f"/preview/{slug}/index.html"}
+
+    if do_deploy:
+        from deploy import deploy_site
+        business = {"name": name, "slug": slug}
+        job_id = _new_job(f"Deploy custom site: {name}")
+
+        def _go():
+            log.info(f"[custom-site] Deploying hand-built site for {name}…")
+            deployment = deploy_site(str(site_dir), business)
+            live_url = deployment.get("live_url")
+            if live_url:
+                _upsert_client({"slug": slug, "name": name,
+                                "live_url": live_url,
+                                "portal_url": deployment.get("portal_url")})
+                log.info(f"[custom-site] Live at {live_url}")
+            else:
+                log.warning("[custom-site] Deploy did not return a live URL — "
+                            "check NETLIFY_AUTH_TOKEN.")
+            return {"deployment": deployment}
+
+        _run(job_id, _go)
+        result["job_id"] = job_id
+
+    return result
+
+
 @app.post("/api/customize/{slug}/rebuild")
 async def rebuild_customize(slug: str, request: Request):
     require_auth(request)
