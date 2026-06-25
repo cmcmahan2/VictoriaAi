@@ -12,9 +12,11 @@ Set ADMIN_PASSWORD in .env before running.
 
 import asyncio
 import calendar
+import io
 import json
 import os
 import secrets
+import shutil
 import sys
 import threading
 import time
@@ -24,7 +26,7 @@ from pathlib import Path
 
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
@@ -40,6 +42,19 @@ OUTPUT_DIR   = Path("./output")
 RESEARCH_DIR = Path("./research")
 WEB_DIR      = Path(__file__).parent / "web"
 CLIENTS_FILE = OUTPUT_DIR / "clients.json"
+
+# Max accepted .zip upload (compressed). Also caps total *uncompressed* bytes to
+# guard against zip bombs. Override with MAX_UPLOAD_MB in the environment.
+MAX_UPLOAD_MB    = int(os.getenv("MAX_UPLOAD_MB", "50"))
+MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024
+# Files permitted inside an uploaded site zip. Anything else (executables,
+# archives, etc.) is rejected. Dotfiles and __MACOSX/ cruft are skipped, not
+# rejected, so macOS-created zips still import cleanly.
+ALLOWED_UPLOAD_EXTS = {
+    "html", "htm", "css", "js", "mjs", "json", "txt", "md", "xml",
+    "webmanifest", "map", "svg", "png", "jpg", "jpeg", "gif", "webp",
+    "avif", "ico", "bmp", "woff", "woff2", "ttf", "otf", "eot",
+}
 
 VALID_TOKENS: set[str] = set()
 JOBS: dict[str, dict]  = {}
@@ -1188,6 +1203,241 @@ async def import_site(data: ImportSiteRequest, request: Request):
             "derived": {"phone": business.get("phone", ""),
                         "city": business.get("city", ""),
                         "category": business.get("category", "")}}
+
+
+class ZipUploadError(Exception):
+    """Raised with a user-facing message when an uploaded zip is unusable."""
+
+
+def _is_symlink_zipinfo(zinfo) -> bool:
+    """True if a zip entry is a symlink (we never extract these)."""
+    return ((zinfo.external_attr >> 16) & 0o170000) == 0o120000
+
+
+def _safe_extract_zip(raw: bytes, dest: Path) -> list[str]:
+    """Validate and extract a site zip into dest, defending against zip-slip,
+    symlinks, zip bombs and disallowed file types.
+
+    Returns the list of extracted relative paths (POSIX style). Raises
+    ZipUploadError with a specific message for every rejectable condition.
+    """
+    import zipfile
+
+    if not zipfile.is_zipfile(io.BytesIO(raw)):
+        raise ZipUploadError("That file isn't a valid .zip archive.")
+
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(raw))
+    except zipfile.BadZipFile:
+        raise ZipUploadError("The .zip archive is corrupt or unreadable.")
+
+    with zf:
+        if zf.testzip() is not None:
+            raise ZipUploadError("The .zip archive is corrupt (failed CRC check).")
+
+        total_uncompressed = sum(i.file_size for i in zf.infolist())
+        if total_uncompressed > MAX_UPLOAD_BYTES:
+            raise ZipUploadError(
+                f"Uncompressed contents exceed the {MAX_UPLOAD_MB} MB limit "
+                "(possible zip bomb).")
+
+        dest_root = dest.resolve()
+        extracted: list[str] = []
+        for info in zf.infolist():
+            name = info.filename
+            # Skip directory entries.
+            if name.endswith("/"):
+                continue
+            parts = Path(name).parts
+
+            # Zip-slip guard FIRST (before any skip), so a traversal entry can
+            # never be quietly ignored: reject absolute paths, '..' segments,
+            # and anything whose resolved path escapes dest_root.
+            if os.path.isabs(name) or ".." in parts:
+                raise ZipUploadError(
+                    f"Refusing to extract '{name}' — it escapes the target "
+                    "directory (zip-slip).")
+            target = (dest_root / name).resolve()
+            if target != dest_root and dest_root not in target.parents:
+                raise ZipUploadError(
+                    f"Refusing to extract '{name}' — it escapes the target "
+                    "directory (zip-slip).")
+
+            # Skip macOS / dotfile cruft (genuine hidden files, not '..'/'.').
+            if any(p == "__MACOSX" for p in parts) or \
+                    any(p.startswith(".") and p not in (".", "..") for p in parts):
+                continue
+            if _is_symlink_zipinfo(info):
+                continue  # never extract symlinks
+
+            ext = target.suffix.lower().lstrip(".")
+            if ext not in ALLOWED_UPLOAD_EXTS:
+                raise ZipUploadError(
+                    f"Disallowed file type in zip: '{name}'. Allowed: "
+                    "html, css, js, json, images and fonts only.")
+
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with zf.open(info) as src, open(target, "wb") as out:
+                shutil.copyfileobj(src, out)
+            extracted.append(target.relative_to(dest_root).as_posix())
+
+    if not extracted:
+        raise ZipUploadError("The zip had no usable files in it.")
+    return extracted
+
+
+def _detect_entry_point(rel_paths: list[str], base_dir: Path | None = None) -> str:
+    """Pick the site's entry HTML from extracted relative paths.
+
+    Preference: a root-level index.html > any index.html (shallowest) > the
+    single top-level .html > the largest top-level .html (needs base_dir to
+    stat sizes). Raises ZipUploadError if there's no HTML at all; returns None
+    only when the choice is ambiguous and no base_dir was given to break the tie.
+    """
+    htmls = [p for p in rel_paths if p.lower().endswith((".html", ".htm"))]
+    if not htmls:
+        raise ZipUploadError(
+            "No HTML file found in the zip — a site needs at least one .html "
+            "page (ideally index.html).")
+
+    # 1) root index.html
+    for p in htmls:
+        if p.lower() == "index.html":
+            return p
+    # 2) any index.html, shallowest first
+    indexes = sorted((p for p in htmls if Path(p).name.lower() == "index.html"),
+                     key=lambda p: p.count("/"))
+    if indexes:
+        return indexes[0]
+    # 3) top-level html files
+    top = [p for p in htmls if "/" not in p]
+    if len(top) == 1:
+        return top[0]
+    if top and base_dir is not None:
+        # Multiple top-level pages, no index.html: the largest is almost always
+        # the real home page (component fragments are smaller).
+        return max(top, key=lambda p: (base_dir / p).stat().st_size
+                   if (base_dir / p).exists() else 0)
+    if base_dir is not None:
+        # No top-level html but nested ones exist — take the largest overall.
+        return max(htmls, key=lambda p: (base_dir / p).stat().st_size
+                   if (base_dir / p).exists() else 0)
+    return None  # ambiguous and no disk access to break the tie
+
+
+@app.post("/api/upload-site")
+async def upload_site(request: Request,
+                      file: UploadFile = File(...),
+                      name: str = Form("")):
+    """Ingest a hand-built site uploaded as a .zip and register it as a client
+    preview site — same storage, preview URL and tabs as generated sites.
+
+    The zip is validated (real zip, size limit, type allowlist, zip-slip /
+    symlink / zip-bomb guards), extracted into output/{slug}/ preserving its
+    folder structure, its images bundled locally, and the client flagged
+    custom_html so rebuilds never overwrite it.
+    """
+    require_auth(request)
+    import zipfile  # noqa: F401  (kept for symmetry; helpers import their own)
+
+    filename = (file.filename or "").strip()
+    if not filename.lower().endswith(".zip"):
+        raise HTTPException(status_code=400, detail="Please upload a .zip file.")
+
+    # Read with a hard cap so an oversized upload can't exhaust memory.
+    raw = await file.read(MAX_UPLOAD_BYTES + 1)
+    await file.close()
+    if not raw:
+        raise HTTPException(status_code=400, detail="The uploaded file was empty.")
+    if len(raw) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File is larger than the {MAX_UPLOAD_MB} MB limit.")
+
+    name = (name or "").strip() or Path(filename).stem
+    slug = _slug(name)
+    if not slug:
+        raise HTTPException(status_code=400,
+                            detail="Could not derive a name for this site.")
+
+    site_dir = OUTPUT_DIR / slug
+    # Duplicate guard: refuse to silently clobber an existing site.
+    if site_dir.exists() and (site_dir / "index.html").exists() and \
+            request.query_params.get("overwrite") != "true":
+        raise HTTPException(
+            status_code=409,
+            detail=f"A site named '{slug}' already exists. Re-upload with "
+                   "overwrite enabled to replace it.")
+
+    # Extract into a temp dir first; only swap into place on full success.
+    tmp_dir = OUTPUT_DIR / f".upload-{slug}-{secrets.token_hex(4)}"
+    try:
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            rel_paths = _safe_extract_zip(raw, tmp_dir)
+        except ZipUploadError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+
+        entry = _detect_entry_point(rel_paths, base_dir=tmp_dir)
+        if entry is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Multiple top-level HTML files and no index.html — "
+                       "rename your main page to index.html and re-upload.")
+
+        # Promote the extracted tree into output/{slug}/, replacing any prior.
+        if site_dir.exists():
+            shutil.rmtree(site_dir)
+        shutil.move(str(tmp_dir), str(site_dir))
+
+        # Ensure the preview's default file (index.html) resolves to the entry.
+        if entry.lower() != "index.html" and not (site_dir / "index.html").exists():
+            try:
+                shutil.copyfile(site_dir / entry, site_dir / "index.html")
+            except Exception as exc:
+                log.warning(f"[upload] could not alias entry to index.html ({exc})")
+
+        # Bundle any remote images locally so the preview is self-contained.
+        try:
+            from build import _localize_images
+            _localize_images(site_dir)
+        except Exception as exc:
+            log.warning(f"[upload] image localization skipped ({exc})")
+
+        # Flag custom so Phase 3 / "Rebuild all" preserve this uploaded site.
+        cz_path = _customize_path(slug)
+        cz = {}
+        if cz_path.exists():
+            try:
+                cz = json.loads(cz_path.read_text(encoding="utf-8", errors="replace"))
+                if not isinstance(cz, dict):
+                    cz = {}
+            except Exception:
+                cz = {}
+        cz["custom_html"] = True
+        cz_path.write_text(json.dumps(cz, indent=2, ensure_ascii=False),
+                           encoding="utf-8")
+
+        _upsert_client({
+            "slug":       slug,
+            "name":       name,
+            "status":     "prospect",
+            "source":     "uploaded",
+            "has_site":   True,
+            "created_at": datetime.now().isoformat(),
+        })
+
+        log.info(f"[upload] '{name}' ingested ({len(rel_paths)} files, "
+                 f"entry={entry}) -> {site_dir}")
+        return {
+            "ok": True, "slug": slug, "name": name,
+            "files": len(rel_paths), "entry": entry,
+            "preview_url": f"/preview/{slug}/index.html",
+        }
+    finally:
+        # Always clean up the temp dir (it's gone after a successful move).
+        if tmp_dir.exists():
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 @app.post("/api/custom-site")

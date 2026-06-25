@@ -350,6 +350,26 @@
         </div>
         <span id="cz-paste-status" style="display:block;margin-top:0.6rem;font-size:0.8rem;color:var(--muted);"></span>
       </div>
+      <div class="cz-section" style="max-width:760px;background:var(--dark3);border:1px solid var(--border2);border-radius:10px;padding:1.1rem 1.25rem;">
+        <h3 style="color:var(--green);">📦 Upload a site (.zip)</h3>
+        <p style="font-size:0.82rem;color:var(--text);margin:-0.25rem 0 0.85rem;">Have a whole site as a folder of files (HTML, CSS, JS, images)? Zip it and drop it here. We'll extract it, keep the folder structure, bundle its images, and give you a preview. Rebuilds won't overwrite it.</p>
+        <input type="text" id="cz-zip-name" placeholder="Business name (optional — defaults to the file name)" style="width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border2);border-radius:6px;padding:0.6rem 0.7rem;color:var(--white);font-family:inherit;font-size:0.85rem;outline:none;margin-bottom:0.6rem;" />
+        <div id="cz-zip-drop" tabindex="0"
+             style="border:1.5px dashed var(--border2);border-radius:8px;padding:1.6rem 1rem;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;background:rgba(255,255,255,0.02);">
+          <div style="font-size:1.6rem;line-height:1;margin-bottom:0.5rem;">⬆️</div>
+          <div style="font-size:0.86rem;color:var(--text);"><strong>Drag &amp; drop a .zip here</strong> or <span style="color:var(--green);text-decoration:underline;">browse</span></div>
+          <div id="cz-zip-file" style="font-size:0.78rem;color:var(--muted);margin-top:0.5rem;"></div>
+          <input type="file" id="cz-zip-input" accept=".zip,application/zip" style="display:none;" />
+        </div>
+        <div id="cz-zip-progress-wrap" style="display:none;height:7px;background:rgba(255,255,255,0.08);border-radius:99px;overflow:hidden;margin-top:0.7rem;">
+          <div id="cz-zip-progress" style="height:100%;width:0;background:var(--green);transition:width .12s;"></div>
+        </div>
+        <div style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;margin-top:0.7rem;">
+          <button class="cz-btn cz-btn-primary" id="cz-zip-upload" onclick="uploadSiteZip(false)" disabled>Upload &amp; Preview</button>
+          <label style="font-size:0.76rem;color:var(--muted);display:flex;align-items:center;gap:0.35rem;cursor:pointer;"><input type="checkbox" id="cz-zip-overwrite" /> Overwrite if it already exists</label>
+        </div>
+        <span id="cz-zip-status" style="display:block;margin-top:0.6rem;font-size:0.8rem;color:var(--muted);"></span>
+      </div>
       <div class="cz-section" style="max-width:420px;">
         <h3>Client</h3>
         <select id="cz-client" onchange="onCzClientChange()" style="width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border2);border-radius:6px;padding:0.55rem 0.7rem;color:var(--white);font-family:inherit;font-size:0.85rem;outline:none;">
@@ -557,7 +577,7 @@
     document.querySelectorAll('.tab-btn').forEach(b => { if (b.textContent.toLowerCase().includes(id)) b.classList.add('active'); });
     if (id==='jobs') renderJobsList();
     if (id==='clients') loadClients();
-    if (id==='customize') loadCustomizeClients();
+    if (id==='customize') { loadCustomizeClients(); initZipDrop(); }
     if (id==='projects') loadProjects();
     if (id==='leads') loadSubmissions();
     if (id==='monitor') loadMonitor();
@@ -1377,6 +1397,70 @@ hello@pacificwebbuilder.ca`
       status.style.color='#f87171'; status.textContent='Error: '+e.message;
       toast('Could not save site: '+e.message,'error');
     }
+  }
+
+  // ── Site .zip uploader ─────────────────────────────────────────────────
+  let czZipFile=null;
+  function _fmtSize(b){ if(b<1024)return b+' B'; if(b<1048576)return (b/1024).toFixed(1)+' KB'; return (b/1048576).toFixed(1)+' MB'; }
+  function czZipSelect(f){
+    const status=document.getElementById('cz-zip-status');
+    const upBtn=document.getElementById('cz-zip-upload');
+    if(!f){ czZipFile=null; document.getElementById('cz-zip-file').textContent=''; upBtn.disabled=true; return; }
+    if(!/\.zip$/i.test(f.name)){ status.style.color='#f87171'; status.textContent='Only .zip files are accepted.'; toast('Please choose a .zip file','error'); return; }
+    czZipFile=f;
+    document.getElementById('cz-zip-file').innerHTML='📄 '+esc(f.name)+' · '+_fmtSize(f.size);
+    status.style.color='var(--muted)'; status.textContent='Ready to upload.';
+    upBtn.disabled=false;
+  }
+  function initZipDrop(){
+    const drop=document.getElementById('cz-zip-drop');
+    const input=document.getElementById('cz-zip-input');
+    if(!drop||drop._wired) return; drop._wired=true;
+    drop.addEventListener('click',()=>input.click());
+    drop.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){e.preventDefault();input.click();} });
+    input.addEventListener('change',()=>{ if(input.files&&input.files[0]) czZipSelect(input.files[0]); });
+    ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{ e.preventDefault();e.stopPropagation(); drop.style.borderColor='var(--green)'; drop.style.background='rgba(43,212,127,0.06)'; }));
+    ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{ e.preventDefault();e.stopPropagation(); drop.style.borderColor='var(--border2)'; drop.style.background='rgba(255,255,255,0.02)'; }));
+    drop.addEventListener('drop',e=>{ const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) czZipSelect(f); });
+  }
+  function uploadSiteZip(){
+    const status=document.getElementById('cz-zip-status');
+    const upBtn=document.getElementById('cz-zip-upload');
+    const wrap=document.getElementById('cz-zip-progress-wrap');
+    const bar=document.getElementById('cz-zip-progress');
+    if(!czZipFile){ toast('Choose a .zip first','error'); return; }
+    const name=(document.getElementById('cz-zip-name').value||'').trim();
+    const overwrite=document.getElementById('cz-zip-overwrite').checked;
+    const fd=new FormData(); fd.append('file',czZipFile); if(name) fd.append('name',name);
+    const orig=upBtn.textContent; upBtn.disabled=true; upBtn.textContent='Uploading…';
+    wrap.style.display='block'; bar.style.width='0';
+    status.style.color='var(--muted)'; status.textContent='Uploading…';
+    // XHR (not fetch) so we get real upload-progress events.
+    const xhr=new XMLHttpRequest();
+    const url='/api/upload-site'+(overwrite?'?overwrite=true':'');
+    xhr.open('POST',url);
+    const tok=localStorage.getItem('bcbui_token'); if(tok) xhr.setRequestHeader('Authorization','Bearer '+tok);
+    xhr.upload.onprogress=e=>{ if(e.lengthComputable){ const p=Math.round(e.loaded/e.total*100); bar.style.width=p+'%'; if(p>=100) status.textContent='Extracting & processing…'; } };
+    xhr.onload=()=>{
+      upBtn.disabled=false; upBtn.textContent=orig;
+      let data={}; try{ data=JSON.parse(xhr.responseText);}catch{}
+      if(xhr.status>=200&&xhr.status<300){
+        bar.style.width='100%';
+        const preview=`<a href="${esc(data.preview_url)}" target="_blank" style="color:var(--green)">Open preview ↗</a>`;
+        status.style.color='var(--green)';
+        status.innerHTML=`✓ “${esc(data.name)}” uploaded — ${data.files} files, entry <code>${esc(data.entry)}</code>. ${preview}`;
+        czZipFile=null; document.getElementById('cz-zip-file').textContent=''; document.getElementById('cz-zip-input').value='';
+        loadClients();
+        loadCustomizeClients().then(()=>{ const sel=document.getElementById('cz-client'); if(sel&&[...sel.options].some(o=>o.value===data.slug)){ sel.value=data.slug; onCzClientChange(); } });
+      } else {
+        wrap.style.display='none';
+        status.style.color='#f87171';
+        status.textContent='Error: '+(data.detail||('Upload failed ('+xhr.status+')'));
+        toast('Upload failed: '+(data.detail||xhr.status),'error');
+      }
+    };
+    xhr.onerror=()=>{ upBtn.disabled=false; upBtn.textContent=orig; wrap.style.display='none'; status.style.color='#f87171'; status.textContent='Network error during upload.'; toast('Network error','error'); };
+    xhr.send(fd);
   }
 
   async function loadCustomizeClients() {

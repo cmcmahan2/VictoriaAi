@@ -56,6 +56,7 @@ Copy `.env.example` to `.env`:
 | `YELP_API_KEY` | Tier 2 discovery — free at yelp.com/developers |
 | `ANTHROPIC_API_KEY` | AI content generation |
 | `NETLIFY_AUTH_TOKEN` | Auto-deployment to Netlify |
+| `MAX_UPLOAD_MB` | Max size of an uploaded site `.zip` (default `50`) |
 
 **Start with `DEMO_MODE=true`** — you'll see 10 realistic fake BC leads immediately so you can test the full UI before adding API keys.
 
@@ -78,6 +79,52 @@ python src/cli.py audit --profile ./research/cedar-valley-plumbing/
 
 # Redeploy
 python src/cli.py deploy --site ./output/cedar-valley-plumbing/ --name "Cedar Valley Plumbing"
+```
+
+---
+
+## Bring your own site (Customize tab)
+
+Besides generating sites, you can bring in a site you built elsewhere (e.g. in
+Claude Design) and have it served + deployed like any generated one. Three ways,
+all in the **Customize** tab:
+
+- **Paste a site from Claude Design** — paste full-page HTML; saved as the
+  client's `index.html`.
+- **Upload a site (.zip)** — drag-and-drop a `.zip` of HTML/CSS/JS/images.
+- **Import an existing site** — paste a prospect's live URL to scrape + rebuild.
+
+Uploaded/pasted sites are flagged `custom_html` in `output/{slug}/customize.json`
+so **"Rebuild all" and Phase 3 never overwrite them**. Images referenced by the
+page are bundled locally so the result is self-contained.
+
+### `POST /api/upload-site`
+
+Multipart form upload. Auth required (same `Bearer` token as the dashboard).
+
+| Field | Type | Notes |
+|---|---|---|
+| `file` | file | The site `.zip` (required) |
+| `name` | text | Business name (optional; defaults to the zip's file name) |
+| `?overwrite=true` | query | Replace an existing site of the same slug |
+
+The zip is validated and safely extracted into `output/{slug}/`:
+
+- Rejects non-zips, corrupt zips, and uploads over `MAX_UPLOAD_MB` (default 50 MB).
+- Guards against **zip-slip** (path traversal), **symlinks**, and **zip bombs**
+  (total uncompressed size is also capped at `MAX_UPLOAD_MB`).
+- Allowlists file types (html, css, js, json, common image + font types);
+  rejects anything else (e.g. executables). Skips `__MACOSX/` and dotfile cruft.
+- Entry point: prefers `index.html`, else a nested `index.html`, else the single
+  / largest top-level `.html` (aliased to `index.html`). Errors if there's no HTML.
+
+Returns `{ slug, name, files, entry, preview_url }`. Preview at
+`/preview/{slug}/index.html`.
+
+Run the uploader tests with:
+
+```bash
+python src/test_upload_zip.py
 ```
 
 ---
