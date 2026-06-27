@@ -650,86 +650,90 @@ def _fetch_google_places_details(business: dict, profile_dir: Path) -> dict:
 
 
 def _places_api_details(api_key: str, place_id: str, profile_dir: Path) -> dict:
-    fields = ",".join([
-        "name", "formatted_address", "formatted_phone_number",
-        "website", "rating", "user_ratings_total", "opening_hours",
-        "photos", "reviews", "editorial_summary", "types",
-        "business_status", "price_level", "url", "place_id",
+    """Google Places API (New) place details — reviews, photos, hours, etc.
+
+    Migrated from the legacy Places API (disabled on this account) to the v1
+    Places API (New). Output shape is unchanged so build.py keeps working:
+    public photo URLs + downloaded copies, and dual-key reviews.
+    """
+    field_mask = ",".join([
+        "id", "displayName", "formattedAddress", "nationalPhoneNumber",
+        "internationalPhoneNumber", "websiteUri", "rating", "userRatingCount",
+        "regularOpeningHours.weekdayDescriptions", "photos", "reviews",
+        "editorialSummary", "types", "businessStatus", "priceLevel",
+        "googleMapsUri",
     ])
-    params = {
-        "place_id": place_id,
-        "fields":   fields,
-        "key":      api_key,
-        "language": "en",
-    }
+    headers = {"X-Goog-Api-Key": api_key, "X-Goog-FieldMask": field_mask}
+    name = place_id if str(place_id).startswith("places/") else f"places/{place_id}"
     try:
         resp = requests.get(
-            "https://maps.googleapis.com/maps/api/place/details/json",
-            params=params, timeout=10
+            f"https://places.googleapis.com/v1/{name}",
+            headers=headers, params={"languageCode": "en"}, timeout=15,
         )
-        data = resp.json()
-        if data.get("status") != "OK":
-            return {"error": "Places API: " + str(data.get("status"))}
+        if resp.status_code != 200:
+            try:
+                err = resp.json().get("error", {}).get("message", resp.text[:200])
+            except Exception:
+                err = resp.text[:200]
+            return {"error": f"Places API (New): HTTP {resp.status_code} - {err}"}
 
-        place = data.get("result", {})
+        place = resp.json()
 
-        # Build photo URLs using the Places Photo API (maxwidth=800) and also
-        # attempt to download local copies. Both the public URL and local path
-        # are stored so build.py can use the URL directly without serving files.
+        # New-API photo media URLs (maxWidthPx=800) + local downloaded copies.
         photos_urls = []
         photos_downloaded = []
-        for photo_ref in place.get("photos", [])[:MAX_PHOTOS]:
-            ref = photo_ref.get("photo_reference")
+        for ph in (place.get("photos") or [])[:MAX_PHOTOS]:
+            ref = ph.get("name")  # "places/{id}/photos/{photo_id}"
             if not ref:
                 continue
             photo_url = (
-                "https://maps.googleapis.com/maps/api/place/photo"
-                "?maxwidth=800"
-                "&photo_reference=" + str(ref) +
-                "&key=" + api_key
+                f"https://places.googleapis.com/v1/{ref}/media"
+                f"?maxWidthPx=800&key={api_key}"
             )
             photos_urls.append(photo_url)
             dest = profile_dir / "assets" / ("gmb_photo_" + str(len(photos_downloaded)+1) + ".jpg")
             try:
                 pr = requests.get(photo_url, timeout=15, stream=True)
                 if pr.status_code == 200:
+                    dest.parent.mkdir(parents=True, exist_ok=True)
                     dest.write_bytes(pr.content)
                     photos_downloaded.append(str(dest))
             except Exception:
                 pass
 
-        # Store up to 5 reviews in the shape expected by build.py:
-        # {author_name, rating, text, relative_time_description}
-        # build.py also normalises using _normalize_review which reads
-        # "author" or "name" and "time" — we store both keys for compat.
+        # Up to 5 reviews, keeping both author/author_name and time keys for
+        # build.py's _normalize_review compatibility.
         reviews = []
-        for rv in place.get("reviews", [])[:5]:
+        for rv in (place.get("reviews") or [])[:5]:
+            author = (rv.get("authorAttribution") or {}).get("displayName")
+            txt    = ((rv.get("text") or {}).get("text") or "")[:500]
+            when   = rv.get("relativePublishTimeDescription")
             reviews.append({
-                "author_name":              rv.get("author_name"),
-                "author":                   rv.get("author_name"),
+                "author_name":              author,
+                "author":                   author,
                 "rating":                   rv.get("rating"),
-                "text":                     rv.get("text", "")[:500],
-                "relative_time_description": rv.get("relative_time_description"),
-                "time":                     rv.get("relative_time_description"),
+                "text":                     txt,
+                "relative_time_description": when,
+                "time":                     when,
             })
 
-        hours = place.get("opening_hours", {}).get("weekday_text", [])
+        hours = (place.get("regularOpeningHours") or {}).get("weekdayDescriptions", [])
 
         return {
-            "name":               place.get("name"),
-            "address":            place.get("formatted_address"),
-            "phone":              place.get("formatted_phone_number"),
-            "website":            place.get("website"),
+            "name":               (place.get("displayName") or {}).get("text"),
+            "address":            place.get("formattedAddress"),
+            "phone":              place.get("nationalPhoneNumber") or place.get("internationalPhoneNumber"),
+            "website":            place.get("websiteUri"),
             "rating":             place.get("rating"),
-            "review_count":       place.get("user_ratings_total"),
+            "review_count":       place.get("userRatingCount"),
             "opening_hours":      hours,
             "types":              place.get("types", []),
-            "price_level":        place.get("price_level"),
-            "editorial_summary":  place.get("editorial_summary", {}).get("overview"),
-            "business_status":    place.get("business_status"),
-            "google_maps_url":    place.get("url"),
-            "place_id":           place.get("place_id") or place_id,
-            # Public Google Places photo URLs (up to 5) — used directly in HTML
+            "price_level":        place.get("priceLevel"),
+            "editorial_summary":  (place.get("editorialSummary") or {}).get("text"),
+            "business_status":    place.get("businessStatus"),
+            "google_maps_url":    place.get("googleMapsUri"),
+            "place_id":           place.get("id") or place_id,
+            # Public Google Places (New) photo media URLs (up to 5)
             "photos":             photos_urls[:5],
             # Local downloaded copies (may be fewer if downloads failed)
             "photos_downloaded":  photos_downloaded,

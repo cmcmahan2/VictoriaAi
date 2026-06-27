@@ -189,7 +189,9 @@ def _audit_automations(business: dict, profile: dict) -> dict:
     rc = _review_count(profile)
     if rc < 20:
         findings.append(
-            f"Only {rc} reviews found - no automated follow-up system detected."
+            "No customer reviews found yet, and no system in place to ask for them automatically."
+            if rc == 0 else
+            f"Just {rc} reviews so far, with no automated way to ask happy customers for more."
         )
         recs.append(
             "Set up an automated SMS or email request after each service. "
@@ -289,7 +291,9 @@ def _audit_marketing(business: dict, profile: dict) -> dict:
 
     if rc < 50:
         findings.append(
-            f"Only {rc} Google reviews - competitors with 100+ reviews earn far more clicks."
+            "No Google reviews yet — competitors with 100+ reviews earn far more clicks."
+            if rc == 0 else
+            f"Just {rc} Google reviews — competitors with 100+ reviews earn far more clicks."
         )
         recs.append(
             "Automate review requests via SMS immediately after each completed job. "
@@ -299,7 +303,9 @@ def _audit_marketing(business: dict, profile: dict) -> dict:
 
     if social < 2:
         findings.append(
-            f"Weak social media presence - only {social} active platform(s) detected."
+            "No active social media presence detected."
+            if social == 0 else
+            f"Limited social media presence — only {social} active platform detected."
         )
         recs.append(
             "Use an AI content calendar to generate and schedule 3 posts per week across "
@@ -466,12 +472,10 @@ def _build_executive_summary(business: dict, findings: dict) -> dict:
     hours_str = f"{total_hours:.0f}"
 
     summary = (
-        f"{name} operates in a competitive market where businesses that adopt AI tools "
-        "and automation are capturing market share from those that do not. "
-        f"This audit identified {count} specific opportunities across five dimensions. "
-        "Implementing the quick wins alone could save an estimated "
-        f"{hours_str} hours per week in manual work, time that translates directly "
-        "into more revenue and a better customer experience."
+        f"We looked at how {name} runs day to day and shows up online, and found "
+        f"{count} clear ways to save time and win more customers using simple, proven tools. "
+        f"Just the quick wins below could free up around {hours_str} hours a week — "
+        "time you can put straight back into the work that grows the business."
     )
 
     return {
@@ -599,6 +603,8 @@ if FPDF_AVAILABLE:
             pass
 
         def footer(self):
+            if self.page_no() == 1:
+                return
             self.set_y(-12)
             self.set_font("Helvetica", "", 7)
             self.set_text_color(*self.MGREY)
@@ -675,7 +681,7 @@ if FPDF_AVAILABLE:
             opps = self.executive.get("total_opportunities", 0)
             qw = len(self.executive.get("quick_wins", []))
             stats = [
-                (f"{total:.0f}+", "Hours Saved / Week"),
+                (f"{total:.0f}h", "Saved Per Week"),
                 (str(opps), "Opportunities Found"),
                 (str(qw), "Quick Wins"),
             ]
@@ -891,8 +897,8 @@ if FPDF_AVAILABLE:
             self.set_xy(20, 44)
             self.multi_cell(
                 w - 40, 7,
-                "You have seen the opportunities. The businesses winning market share in your "
-                "area are the ones that move first. Here is how to get started:",
+                "You've seen what's possible. The hardest part is starting — so keep it simple. "
+                "Here are three easy steps:",
                 align="C",
             )
 

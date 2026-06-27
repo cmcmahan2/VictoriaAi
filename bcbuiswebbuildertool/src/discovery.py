@@ -84,6 +84,9 @@ def is_province_wide(city: str) -> bool:
     return regions.resolve_region(city) is not None
 
 
+ANY_BUSINESS_TERMS = {"", "any", "all", "any business", "anything", "everything", "*"}
+
+
 def discover_businesses(
     city: str,
     business_type: str,
@@ -109,7 +112,9 @@ def discover_businesses(
 
     businesses: list[dict] = []
 
-    if google_key:
+    # "any business" search: Google text-search needs a specific type, so skip
+    # Tier 1 and let the broad OpenStreetMap search (below) handle it.
+    if google_key and business_type.strip().lower() not in ANY_BUSINESS_TERMS:
         if region:
             cities = region["cities"]
             log.info(f"[discovery] Tier 1 - Google Places API: {business_type} across {region['label']} ({len(cities)} cities, tier<= {max_tier})")
@@ -224,60 +229,78 @@ def _discover_via_places_api(city, business_type, radius_km, max_results, api_ke
 
 
 def _discover_via_places_api_live(city, business_type, radius_km, max_results, api_key):
-    """Tier 1: Google Maps Text Search + Place Details."""
-    # Note: city carries its own province via the registry sweep, so we anchor to
-    # "Canada" (not "BC") - hardcoding BC broke non-BC cities once we went national.
-    query      = f"{business_type} in {city}, Canada"
-    search_url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
-    detail_url = "https://maps.googleapis.com/maps/api/place/details/json"
-    # `reviews` rides along in the same (Atmosphere-tier) details call we already
-    # pay for, giving us the newest-review timestamp for the recency signal.
-    fields     = "name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,photos,reviews,opening_hours,business_status"
+    """Tier 1: Google Places API (New) Text Search.
 
-    place_ids = []
-    params = {"query": query, "key": api_key}
+    Migrated from the legacy Places API (disabled on this account) to the v1
+    places:searchText endpoint, which returns the place fields directly (no
+    separate Place Details round-trip). Output shape is unchanged for the rest
+    of the pipeline; `places.reviews` rides along for the recency signal.
+    """
+    # city carries its own province via the registry sweep, so anchor to Canada.
+    query = f"{business_type} in {city}, Canada"
+    url   = "https://places.googleapis.com/v1/places:searchText"
+    field_mask = ",".join([
+        "places.id", "places.displayName", "places.formattedAddress",
+        "places.nationalPhoneNumber", "places.internationalPhoneNumber",
+        "places.websiteUri", "places.rating", "places.userRatingCount",
+        "places.photos", "places.reviews", "places.businessStatus",
+        "nextPageToken",
+    ])
+    headers = {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": api_key,
+        "X-Goog-FieldMask": field_mask,
+    }
 
-    while len(place_ids) < max_results:
-        resp = requests.get(search_url, params=params, timeout=10)
-        resp.raise_for_status()
-        data = resp.json()
-        status = data.get("status")
-        if status not in ("OK", "ZERO_RESULTS"):
-            raise RuntimeError(f"Places API: {status} - {data.get('error_message', '')}")
-        for r in data.get("results", []):
-            place_ids.append(r["place_id"])
-            if len(place_ids) >= max_results:
-                break
-        token = data.get("next_page_token")
-        if not token or len(place_ids) >= max_results:
-            break
-        time.sleep(2)
-        params = {"pagetoken": token, "key": api_key}
-
-    log.info(f"[discovery] Fetching details for {len(place_ids)} places...")
-    businesses = []
-    for i, pid in enumerate(place_ids):
+    def _review_unix(rv):
+        pt = rv.get("publishTime")
+        if not pt:
+            return None
         try:
-            r = requests.get(detail_url, params={"place_id": pid, "fields": fields, "key": api_key}, timeout=10).json().get("result", {})
+            from datetime import datetime
+            return datetime.fromisoformat(pt.replace("Z", "+00:00")).timestamp()
+        except Exception:
+            return None
+
+    businesses = []
+    page_token = None
+    while len(businesses) < max_results:
+        body = {"textQuery": query, "pageSize": min(20, max_results - len(businesses))}
+        if page_token:
+            body["pageToken"] = page_token
+        resp = requests.post(url, headers=headers, json=body, timeout=15)
+        if resp.status_code != 200:
+            try:
+                err = resp.json().get("error", {}).get("message", resp.text[:200])
+            except Exception:
+                err = resp.text[:200]
+            raise RuntimeError(f"Places API (New): HTTP {resp.status_code} - {err}")
+        data = resp.json()
+        for p in data.get("places", []):
+            phone = p.get("nationalPhoneNumber") or p.get("internationalPhoneNumber") or ""
+            revs  = [{"time": _review_unix(rv)} for rv in (p.get("reviews") or [])]
             businesses.append({
-                "name":             r.get("name", ""),
-                "address":          r.get("formatted_address", ""),
-                "phone":            r.get("formatted_phone_number", ""),
-                "existing_website": r.get("website"),
-                "rating":           r.get("rating"),
-                "review_count":     r.get("user_ratings_total", 0),
-                "photos_count":     len(r.get("photos", [])),
-                "latest_review_age_days": _latest_review_age_days(r.get("reviews", [])),
+                "name":             (p.get("displayName") or {}).get("text", ""),
+                "address":          p.get("formattedAddress", ""),
+                "phone":            phone,
+                "existing_website": p.get("websiteUri"),
+                "rating":           p.get("rating"),
+                "review_count":     p.get("userRatingCount", 0),
+                "photos_count":     len(p.get("photos", []) or []),
+                "latest_review_age_days": _latest_review_age_days(revs),
+                "place_id":         p.get("id", ""),
                 "category":         business_type,
                 "city":             city,
                 "source":           "google_places",
             })
-            if (i + 1) % 5 == 0:
-                log.info(f"[discovery] Place details: {i + 1}/{len(place_ids)}")
-            time.sleep(0.1)
-        except Exception as exc:
-            log.warning(f"[discovery] Detail fetch failed for {pid}: {exc}")
+            if len(businesses) >= max_results:
+                break
+        page_token = data.get("nextPageToken")
+        if not page_token or len(businesses) >= max_results:
+            break
+        time.sleep(2)  # next-page token needs a moment to become valid
 
+    log.info(f"[discovery] Google Places (New): {len(businesses)} businesses in {city}")
     return businesses
 
 
@@ -612,6 +635,30 @@ def _osm_element_to_business(el: dict, business_type: str, city: str):
     }
 
 
+def _discover_any_osm(city, lat, lon, radius_m, max_results):
+    """Broad OSM search across ALL business categories (the 'any business'
+    search) — surfaces every named local business so the weakness scoring can
+    flag the ones with no/weak website. Free, no API key."""
+    amenities = ("restaurant|cafe|bar|pub|fast_food|veterinary|dentist|doctors|"
+                 "clinic|pharmacy|car_repair|car_wash|fuel|bank|fitness_centre")
+    parts = []
+    for typ in ("node", "way"):
+        for kv in ("shop", "craft", "office"):
+            parts.append(f'  {typ}["{kv}"]["name"](around:{radius_m},{lat},{lon});')
+        parts.append(f'  {typ}["amenity"~"^({amenities})$"]["name"](around:{radius_m},{lat},{lon});')
+    query = "[out:json][timeout:60];\n(\n" + "\n".join(parts) + "\n);\nout center tags;"
+    elements = _run_overpass(query)
+    businesses = []
+    for el in elements:
+        b = _osm_element_to_business(el, "business", city)
+        if b:
+            businesses.append(b)
+    log.info(f"[discovery] OSM 'any business' search: {len(businesses)} businesses")
+    if not businesses:
+        raise RuntimeError(f"No OSM businesses found near {city}. Try a larger radius.")
+    return _dedupe_businesses(businesses)
+
+
 def _discover_via_openstreetmap(city: str, business_type: str, radius_km: int, max_results: int) -> list[dict]:
     """Cached Tier 2 wrapper around the live OSM/Overpass search (see below)."""
     key = f"{city.strip().lower()}|{business_type.strip().lower()}|{radius_km}"
@@ -637,6 +684,10 @@ def _discover_via_openstreetmap_live(city: str, business_type: str, radius_km: i
     """
     lat, lon = _geocode_city(city)
     radius_m = radius_km * 1000
+
+    # "any business" → broad all-category search
+    if business_type.strip().lower() in ANY_BUSINESS_TERMS:
+        return _discover_any_osm(city, lat, lon, radius_m, max_results)
 
     # --- Structured tag search -------------------------------------------------
     tag_pairs = _osm_tags_for(business_type)
