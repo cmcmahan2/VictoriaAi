@@ -984,7 +984,9 @@
     catch(e){ toast('Failed: '+e.message,'error'); }
   }
 
+  let clientsCache=[];
   function renderClients(clients) {
+    clientsCache=clients||[];
     const el=document.getElementById('clients-list');
     const exportLink=document.getElementById('export-csv-link');
     const rebuildBtn=document.getElementById('rebuild-all-btn');
@@ -1000,9 +1002,9 @@
       const portalCell=c.portal_url?`<button class="btn-run" onclick="copyRawUrl('${esc(c.portal_url)}',this)">Copy Link</button>`:'';
       const previewCell=c.has_site?`<button class="btn-run" onclick="openPreview('${esc(c.slug)}')" title="Preview the site (desktop & mobile)">&#128064; Preview</button>`:'';
       const editCell=c.has_site?`<button class="btn-run" onclick="openEditor('${esc(c.slug)}')">Edit Site</button>`:'';
-      const onboardCell=`<button class="btn-run" onclick="openOnboardEmail(${JSON.stringify(c.name||'')})" title="Send onboarding email to client">&#128203; Onboard</button>`;
+      const onboardCell=`<button class="btn-run" onclick="openOnboardEmail('${esc(c.slug)}')" title="Send onboarding email to client">&#128203; Onboard</button>`;
       const shareCell=`<button class="btn-run" onclick="sharePortal('${esc(c.slug)}','${esc(c.live_url||'')}',this)" title="Open or copy client portal link">&#128228; Share Portal</button>`;
-      const removeCell=`<button class="btn-run btn-danger" onclick="removeClient('${esc(c.slug)}',${JSON.stringify(c.name||'')})" title="Remove this client">&#128465; Remove</button>`;
+      const removeCell=`<button class="btn-run btn-danger" onclick="removeClient('${esc(c.slug)}')" title="Remove this client">&#128465; Remove</button>`;
       const statusSel=`<select onchange="updateClientStatus('${esc(c.slug)}',this.value)" style="background:var(--dark2);border:1px solid var(--border2);color:${sc};border-radius:4px;padding:0.2rem 0.4rem;font-family:inherit;font-size:0.78rem;cursor:pointer;">
         ${['prospect','client','closed'].map(s=>`<option value="${s}" ${c.status===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('')}
       </select>`;
@@ -1026,8 +1028,9 @@
     await api(`/api/clients/${slug}`,{method:'PATCH',body:{status}});
     loadClients();
   }
-  async function removeClient(slug,name){
-    const label=name||slug;
+  async function removeClient(slug){
+    const c=clientsCache.find(x=>x.slug===slug);
+    const label=(c&&c.name)||slug;
     if(!confirm(`Remove "${label}"?\n\nThis deletes the client and its generated site files. This cannot be undone.`)) return;
     try {
       const res=await api(`/api/clients/${slug}`,{method:'DELETE'});
@@ -1042,7 +1045,9 @@
    * The subject and body prompt the business owner for everything needed to
    * personalise their generated site with real content.
    */
-  function openOnboardEmail(businessName) {
+  function openOnboardEmail(slug) {
+    const c = clientsCache.find(x=>x.slug===slug);
+    const businessName = (c&&c.name) || slug;
     const subject = encodeURIComponent(`Your website is ready — ${businessName}`);
     const body = encodeURIComponent(
 `Hi there,
