@@ -713,6 +713,33 @@ async def update_client(slug: str, data: ClientPatch, request: Request):
     _save_clients(clients)
     return client
 
+@app.delete("/api/clients/{slug}")
+async def delete_client(slug: str, request: Request, purge: bool = Query(default=True)):
+    """Remove a client from the registry.
+
+    By default also deletes the generated site (output/{slug}) and any
+    scraped research (research/{slug}) so the client is gone cleanly. Pass
+    ?purge=false to keep the files on disk and only drop the registry row.
+    """
+    require_auth(request)
+    clients = _load_clients()
+    client = next((c for c in clients if c.get("slug") == slug), None)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    clients = [c for c in clients if c.get("slug") != slug]
+    _save_clients(clients)
+    removed_files = False
+    if purge:
+        for base in (OUTPUT_DIR, RESEARCH_DIR):
+            target = base / slug
+            try:
+                if target.exists() and target.is_dir():
+                    shutil.rmtree(target, ignore_errors=True)
+                    removed_files = True
+            except Exception:
+                pass
+    return {"removed": slug, "name": client.get("name", ""), "files_deleted": removed_files}
+
 @app.get("/api/clients/export.csv")
 async def export_clients_csv(request: Request, token: str = Query(default="")):
     t = token or request.headers.get("Authorization", "").removeprefix("Bearer ").strip()

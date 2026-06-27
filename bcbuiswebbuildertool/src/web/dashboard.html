@@ -72,6 +72,8 @@
     .flag.bad { background: rgba(248,113,113,0.12); color: #f87171; }
     .btn-run { background: var(--green-xl); color: var(--green); border: 1px solid rgba(34,162,98,0.2); border-radius: 6px; padding: 0.35rem 0.75rem; font-family: inherit; font-size: 0.78rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
     .btn-run:hover { background: rgba(34,162,98,0.2); }
+    .btn-run.btn-danger { background: rgba(248,113,113,0.10); color: #f87171; border-color: rgba(248,113,113,0.28); }
+    .btn-run.btn-danger:hover { background: rgba(248,113,113,0.22); }
     .empty-state { text-align: center; padding: 4rem 2rem; color: var(--muted); }
     .empty-state p { font-size: 0.9rem; }
     .phase-checks { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
@@ -996,9 +998,11 @@
       const sc=statusColors[c.status]||'var(--muted)';
       const liveCell=c.live_url?`<a href="${esc(c.live_url)}" target="_blank" style="color:var(--green)">${esc(c.live_url)}</a>`:'<span style="color:var(--muted)">Not deployed</span>';
       const portalCell=c.portal_url?`<button class="btn-run" onclick="copyRawUrl('${esc(c.portal_url)}',this)">Copy Link</button>`:'';
+      const previewCell=c.has_site?`<button class="btn-run" onclick="openPreview('${esc(c.slug)}')" title="Preview the site (desktop & mobile)">&#128064; Preview</button>`:'';
       const editCell=c.has_site?`<button class="btn-run" onclick="openEditor('${esc(c.slug)}')">Edit Site</button>`:'';
       const onboardCell=`<button class="btn-run" onclick="openOnboardEmail(${JSON.stringify(c.name||'')})" title="Send onboarding email to client">&#128203; Onboard</button>`;
       const shareCell=`<button class="btn-run" onclick="sharePortal('${esc(c.slug)}','${esc(c.live_url||'')}',this)" title="Open or copy client portal link">&#128228; Share Portal</button>`;
+      const removeCell=`<button class="btn-run btn-danger" onclick="removeClient('${esc(c.slug)}',${JSON.stringify(c.name||'')})" title="Remove this client">&#128465; Remove</button>`;
       const statusSel=`<select onchange="updateClientStatus('${esc(c.slug)}',this.value)" style="background:var(--dark2);border:1px solid var(--border2);color:${sc};border-radius:4px;padding:0.2rem 0.4rem;font-family:inherit;font-size:0.78rem;cursor:pointer;">
         ${['prospect','client','closed'].map(s=>`<option value="${s}" ${c.status===s?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('')}
       </select>`;
@@ -1008,7 +1012,7 @@
         <td>${liveCell}</td>
         <td>${portalCell}</td>
         <td>${statusSel}</td>
-        <td style="display:flex;gap:0.35rem;flex-wrap:wrap">${editCell}${onboardCell}${shareCell}</td>
+        <td style="display:flex;gap:0.35rem;flex-wrap:wrap">${previewCell}${editCell}${onboardCell}${shareCell}${removeCell}</td>
       </tr>`;
     }).join('');
     el.innerHTML=`<div class="table-wrap"><table><thead><tr><th>Business</th><th>Type</th><th>Live Site</th><th>Share Link</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table></div>`;
@@ -1021,6 +1025,16 @@
   async function updateClientStatus(slug,status){
     await api(`/api/clients/${slug}`,{method:'PATCH',body:{status}});
     loadClients();
+  }
+  async function removeClient(slug,name){
+    const label=name||slug;
+    if(!confirm(`Remove "${label}"?\n\nThis deletes the client and its generated site files. This cannot be undone.`)) return;
+    try {
+      const res=await api(`/api/clients/${slug}`,{method:'DELETE'});
+      if(!res.ok){ let m='Could not remove client'; try{m=(await res.json()).detail||m;}catch{} toast(m,'error'); return; }
+      toast(`Removed ${label}`);
+      loadClients();
+    } catch(e){ toast('Error: '+e.message,'error'); }
   }
 
   /**

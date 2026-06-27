@@ -76,6 +76,25 @@
     /* ── Loading / error ── */
     .loading { text-align: center; padding: 6rem 2rem; color: var(--muted); font-size: 0.95rem; }
     .error-state { text-align: center; padding: 6rem 2rem; color: #e05252; }
+
+    /* ── Fullscreen viewer ── */
+    .view-full-btn { background: var(--navy); color: #fff; border: none; border-radius: 7px; padding: 0.45rem 1.1rem; font-family: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; margin-left: auto; transition: background 0.15s; }
+    .view-full-btn:hover { background: #14304f; }
+    .preview-toggle { align-items: center; }
+    .fs-overlay { position: fixed; inset: 0; z-index: 9999; background: #11202f; display: none; flex-direction: column; }
+    .fs-overlay.open { display: flex; }
+    .fs-bar { display: flex; align-items: center; gap: 0.6rem; padding: 0.6rem 1rem; background: var(--dark); color: #fff; flex: none; }
+    .fs-bar .fs-name { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 0.9rem; margin-right: auto; }
+    .fs-bar .fs-tg { background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.75); border: 1px solid rgba(255,255,255,0.18); border-radius: 7px; padding: 0.4rem 0.9rem; font-family: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+    .fs-bar .fs-tg.active { background: var(--green); color: #fff; border-color: var(--green); }
+    .fs-bar .fs-close { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.25); border-radius: 7px; padding: 0.4rem 0.9rem; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+    .fs-bar .fs-close:hover { background: rgba(255,255,255,0.10); }
+    .fs-stage { flex: 1; display: flex; align-items: stretch; justify-content: center; overflow: auto; padding: 0; background: #11202f; }
+    .fs-stage.mobile { align-items: flex-start; padding: 1.25rem 0; }
+    .fs-wrap { width: 100%; height: 100%; background: #fff; }
+    .fs-stage.mobile .fs-wrap { width: 390px; max-width: 92vw; height: auto; min-height: calc(100vh - 120px); border-radius: 28px; border: 9px solid #000; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+    .fs-wrap iframe { width: 100%; height: 100%; min-height: calc(100vh - 56px); border: 0; display: block; }
+    .fs-stage.mobile .fs-wrap iframe { min-height: calc(100vh - 150px); }
   </style>
 </head>
 <body>
@@ -95,7 +114,7 @@
     <p class="hero-sub">We built this site specifically for <strong id="biz-name-sub"></strong>. No templates, no compromises. Take a look, then let us know you want it.</p>
     <div class="cta-group">
       <a href="#get-started" class="btn-primary" id="cta-top">Get Started &rarr;</a>
-      <a href="#preview" class="btn-secondary">See the Site</a>
+      <button type="button" class="btn-secondary" onclick="openFullSite()">See the Site</button>
     </div>
   </section>
 
@@ -105,6 +124,7 @@
     <div class="preview-toggle">
       <button class="toggle-btn active" id="btn-desktop" onclick="setMode('desktop')">Desktop</button>
       <button class="toggle-btn" id="btn-mobile" onclick="setMode('mobile')">Mobile</button>
+      <button class="view-full-btn" onclick="openFullSite()">&#9974; View full screen</button>
     </div>
     <div class="preview-stage">
       <div class="frame-wrap" id="frame-wrap">
@@ -150,8 +170,24 @@
 
 </div>
 
+<!-- Fullscreen site viewer -->
+<div class="fs-overlay" id="fs-overlay">
+  <div class="fs-bar">
+    <span class="fs-name" id="fs-name">Your website</span>
+    <button class="fs-tg active" id="fs-desktop" onclick="fsMode('desktop')">&#128421; Desktop</button>
+    <button class="fs-tg" id="fs-mobile" onclick="fsMode('mobile')">&#128241; Mobile</button>
+    <button class="fs-close" onclick="closeFullSite()">&#10005; Close</button>
+  </div>
+  <div class="fs-stage" id="fs-stage">
+    <div class="fs-wrap" id="fs-wrap">
+      <iframe id="fs-frame" src="about:blank" title="Full website preview" scrolling="yes"></iframe>
+    </div>
+  </div>
+</div>
+
 <script>
   const slug = location.pathname.split('/').filter(Boolean).pop();
+  let SITE_URL = '';
 
   async function load() {
     try {
@@ -191,7 +227,9 @@
 
     // Preview iframe
     if (d.has_site) {
+      SITE_URL = d.preview_url;
       document.getElementById('preview-frame').src = d.preview_url + '?t=' + Date.now();
+      document.getElementById('fs-name').textContent = d.name + ' — your website';
     } else {
       document.querySelector('.preview-section').style.display = 'none';
     }
@@ -209,6 +247,32 @@
     document.getElementById('btn-desktop').classList.toggle('active', mode === 'desktop');
     document.getElementById('btn-mobile').classList.toggle('active', mode === 'mobile');
   }
+
+  // ── Fullscreen site viewer ──
+  function openFullSite() {
+    if (!SITE_URL) { document.getElementById('preview')?.scrollIntoView({behavior:'smooth'}); return; }
+    const overlay = document.getElementById('fs-overlay');
+    const frame = document.getElementById('fs-frame');
+    if (frame.src === 'about:blank') frame.src = SITE_URL + '?t=' + Date.now();
+    fsMode('desktop');
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    if (overlay.requestFullscreen) { overlay.requestFullscreen().catch(()=>{}); }
+  }
+  function closeFullSite() {
+    document.getElementById('fs-overlay').classList.remove('open');
+    document.body.style.overflow = '';
+    if (document.fullscreenElement) { document.exitFullscreen().catch(()=>{}); }
+  }
+  function fsMode(mode) {
+    document.getElementById('fs-stage').classList.toggle('mobile', mode === 'mobile');
+    document.getElementById('fs-desktop').classList.toggle('active', mode === 'desktop');
+    document.getElementById('fs-mobile').classList.toggle('active', mode === 'mobile');
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeFullSite(); });
+  document.addEventListener('fullscreenchange', () => {
+    // If the user exits native fullscreen (Esc/F11), keep the overlay until they Close.
+  });
 
   load();
 </script>
