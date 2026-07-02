@@ -395,6 +395,11 @@ def build_website(profile_dir: str, output_dir: str = "./output") -> Path:
         _localize_images(site_dir)
         return site_dir
 
+    # Quick-edit overrides: a corrected phone number applies everywhere the
+    # templates read business["phone"] (nav CTA, contact page, schema).
+    if customize.get("phone_override"):
+        business["phone"] = customize["phone_override"]
+
     # Theme: customize override takes precedence over category-based selection
     theme = None
     ctheme = customize.get("theme")
@@ -471,6 +476,13 @@ def build_website(profile_dir: str, output_dir: str = "./output") -> Path:
     # Generate content via Claude (or fall back to templates)
     log.info("[build] Generating page content...")
     content = _generate_content(business, profile, customize)
+
+    # Quick-edit overrides beat generated copy: the operator typed these by
+    # hand in the dashboard (Customize → Quick edits), so they always win.
+    overrides = customize.get("content_overrides")
+    if isinstance(overrides, dict):
+        content.update({k: v for k, v in overrides.items()
+                        if isinstance(v, str) and v.strip()})
 
     log.info("[build] Building static site...")
     _write_css(site_dir, content, theme)

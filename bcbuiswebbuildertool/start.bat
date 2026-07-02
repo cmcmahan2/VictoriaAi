@@ -32,10 +32,18 @@ REM 3) Wait for the server to come up, then start the tunnel on HTTP/2
 timeout /t 6 /nobreak >nul
 where cloudflared >nul 2>nul
 if %errorlevel%==0 (
-  echo Starting public HTTPS tunnel ^(HTTP/2^)...
-  start "Pacific Web Builder - TUNNEL" cmd /k cloudflared tunnel --url http://localhost:%PORT% --protocol http2
+  if not "%TUNNEL_NAME%"=="" (
+    echo Starting NAMED tunnel "%TUNNEL_NAME%" - your permanent URL...
+    start "Pacific Web Builder - TUNNEL" cmd /k cloudflared tunnel run --url http://localhost:%PORT% %TUNNEL_NAME%
+  ) else (
+    echo Starting public HTTPS tunnel ^(HTTP/2^)...
+    start "Pacific Web Builder - TUNNEL" cmd /k cloudflared tunnel --url http://localhost:%PORT% --protocol http2
+    echo.
+    echo NOTE: this quick-tunnel URL changes on every restart.
+    echo For a PERMANENT URL, see "Stable public URL" in the README.
+  )
   echo.
-  echo Your public https://...trycloudflare.com link will appear in the TUNNEL window.
+  echo Your public link will appear in the TUNNEL window.
 ) else (
   echo.
   echo cloudflared not installed - running LOCAL ONLY.

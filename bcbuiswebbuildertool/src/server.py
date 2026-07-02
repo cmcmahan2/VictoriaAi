@@ -111,7 +111,11 @@ def _upsert_client(record: dict):
         slug = record["slug"]
         existing = next((c for c in clients if c.get("slug") == slug), None)
         if existing:
-            existing.update({k: v for k, v in record.items() if v is not None})
+            # Never rewind the follow-up clock on a re-save of the same client.
+            updates = {k: v for k, v in record.items() if v is not None}
+            if "created_at" in existing:
+                updates.pop("created_at", None)
+            existing.update(updates)
         else:
             clients.append(record)
         _save_clients(clients)
@@ -604,6 +608,12 @@ async def run_pipeline(slug: str, data: PipelineRequest, request: Request):
             results["pdf_path"] = str(run_audit(profile_dir, str(OUTPUT_DIR)))
         if 5 in data.phases:
             from deploy import deploy_site
+            readiness = deploy_readiness(slug)
+            for issue in readiness["issues"]:
+                log.warning(f"[Phase 5] ⚠ {issue['label']}: {issue['hint']}")
+            if readiness["issues"]:
+                log.warning("[Phase 5] Deploying anyway — fix the above in the "
+                            "Customize tab and redeploy before showing the client.")
             log.info(f"[Phase 5] Deploying {data.name}...")
             results["deployment"] = deploy_site(site_dir, business)
         # Persist client record
@@ -812,6 +822,12 @@ class ClientPatch(BaseModel):
     name: str | None = None
     phone: str | None = None
     address: str | None = None
+    # Follow-up engine
+    portal_sent_at: str | None = None        # ISO datetime — set when portal link is shared
+    last_contact_at: str | None = None       # ISO datetime — set by "Mark contacted"
+    followup_snooze_until: str | None = None  # ISO date — hide from follow-ups until then
+    # Payments
+    payment_link: str | None = None          # e.g. a Stripe Payment Link
 
 @app.patch("/api/clients/{slug}")
 async def update_client(slug: str, data: ClientPatch, request: Request):
@@ -1021,6 +1037,7 @@ class BillingPatch(BaseModel):
     billing_status: str | None = None   # active | paused | free
     next_due: str | None = None         # ISO date (YYYY-MM-DD)
     billing_notes: str | None = None
+    payment_link: str | None = None     # Stripe Payment Link the client pays through
 
 
 def _add_month(d):
@@ -1055,6 +1072,7 @@ async def get_billing(request: Request):
             "plan": c.get("plan", ""), "monthly_fee": fee,
             "billing_status": status, "next_due": nd,
             "billing_notes": c.get("billing_notes", ""),
+            "payment_link": c.get("payment_link", ""),
             "last_paid": c.get("last_paid"), "is_overdue": is_overdue,
         })
     # Overdue first, then by name
@@ -1242,13 +1260,25 @@ async def get_customize(slug: str, request: Request):
         return {}
 
 
+_CUSTOMIZE_INTERNAL_KEYS = ("custom_html", "_gp_extra_photos")
+
+
 @app.put("/api/customize/{slug}")
 async def save_customize(slug: str, request: Request):
     require_auth(request)
     slug = _safe_slug(slug)
     body = await request.json()
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="Expected a JSON object")
     site_dir = OUTPUT_DIR / slug
     site_dir.mkdir(parents=True, exist_ok=True)
+    # Preserve internal flags the customize form doesn't round-trip —
+    # dropping custom_html here would let "Rebuild all" overwrite an
+    # uploaded/hand-designed site.
+    existing = _load_customize(slug)
+    for key in _CUSTOMIZE_INTERNAL_KEYS:
+        if key in existing and key not in body:
+            body[key] = existing[key]
     _customize_path(slug).write_text(
         json.dumps(body, indent=2, ensure_ascii=False), encoding="utf-8")
     return {"ok": True, "slug": slug}
@@ -1654,6 +1684,14 @@ async def custom_site(request: Request):
               "preview_url": f"/preview/{slug}/index.html"}
 
     if do_deploy:
+        readiness = deploy_readiness(slug)
+        if not readiness["ready"] and not body.get("force"):
+            # Site saved fine — but don't publish placeholder content to a
+            # real client. The dashboard shows the issues and can re-send
+            # with force=true after an explicit "deploy anyway".
+            result["blocked"] = True
+            result["readiness"] = readiness
+            return result
         from deploy import deploy_site
         business = {"name": name, "slug": slug}
         job_id = _new_job(f"Deploy custom site: {name}")
@@ -1727,6 +1765,176 @@ async def rebuild_all(request: Request):
 
     _run(job_id, _go)
     return {"job_id": job_id, "buildable": len(buildable), "skipped": len(skipped)}
+
+
+# ── Pre-deploy readiness check ───────────────────────────────────────────────
+#
+# Blocks embarrassing deploys: a site full of "Representative reviews —
+# replace with your own" placeholder content going live on a client's real
+# domain is the fastest way to lose the deal.
+
+_PLACEHOLDER_MARKERS = [
+    "representative reviews",
+    "replace with your own",
+    "replace with real",
+    "lorem ipsum",
+    "your business name",
+    "placeholder",
+]
+
+
+def deploy_readiness(slug: str) -> dict:
+    """Checklist for whether output/{slug} is fit to publish."""
+    site_dir = OUTPUT_DIR / slug
+    cz = _load_customize(slug)
+    client = next((c for c in _load_clients() if c.get("slug") == slug), {})
+
+    html = ""
+    index = site_dir / "index.html"
+    if index.exists():
+        try:
+            html = index.read_text(encoding="utf-8", errors="replace").lower()
+        except Exception:
+            html = ""
+
+    found_markers = [m for m in _PLACEHOLDER_MARKERS if m in html]
+
+    img_dir = site_dir / "assets" / "img"
+    real_photo_files = []
+    if img_dir.exists():
+        # Placeholder art is generated as .svg; real photos land as jpg/png/webp.
+        real_photo_files = [p for p in img_dir.iterdir()
+                            if p.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp", ".avif")]
+    has_real_photos = bool(cz.get("hero_image") or cz.get("service_images")
+                           or real_photo_files)
+    # Hand-built/uploaded sites bring their own imagery — don't flag them.
+    if cz.get("custom_html"):
+        has_real_photos = True
+
+    has_reviews = bool(cz.get("reviews")) or (
+        html and "representative reviews" not in html and "review" in html)
+    has_phone = bool(client.get("phone")) or ("tel:" in html)
+
+    checks = [
+        {"key": "built", "label": "Site is built",
+         "ok": index.exists(),
+         "hint": "Run Phase 3, or upload/paste a site in Customize."},
+        {"key": "no_placeholders", "label": "No placeholder text",
+         "ok": not found_markers,
+         "hint": ("Found: " + ", ".join(f'"{m}"' for m in found_markers))
+                 if found_markers else ""},
+        {"key": "real_reviews", "label": "Real customer reviews",
+         "ok": has_reviews,
+         "hint": "Paste their Google reviews in Customize → Reviews."},
+        {"key": "real_photos", "label": "Real photos (not placeholders)",
+         "ok": has_real_photos,
+         "hint": "Add a hero image / service photos in Customize."},
+        {"key": "phone", "label": "Phone number present",
+         "ok": has_phone,
+         "hint": "Set the business phone so the call buttons work."},
+    ]
+    ready = all(c["ok"] for c in checks)
+    return {"slug": slug, "ready": ready, "checks": checks,
+            "issues": [c for c in checks if not c["ok"]]}
+
+
+@app.get("/api/deploy-check/{slug}")
+async def deploy_check(slug: str, request: Request):
+    require_auth(request)
+    slug = _safe_slug(slug)
+    return deploy_readiness(slug)
+
+
+# ── Follow-up engine ─────────────────────────────────────────────────────────
+#
+# Surfaces prospects that have gone quiet: you shared their portal (or created
+# them) N days ago and nothing has moved. Each row comes with a ready-to-send
+# email draft so the follow-up takes one click, not ten minutes.
+
+FOLLOWUP_AFTER_DAYS = int(os.getenv("FOLLOWUP_AFTER_DAYS", "3"))
+
+
+def _parse_iso(value):
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).replace(tzinfo=None)
+    except Exception:
+        return None
+
+
+def _followup_email(client: dict) -> dict:
+    name = client.get("name") or client.get("slug", "")
+    first_line = f"Hi — just checking in about the new website we built for {name}."
+    portal = client.get("live_url") or client.get("portal_url") or ""
+    pay = client.get("payment_link") or ""
+    body_lines = [
+        first_line,
+        "",
+        "You can see it live here (works great on your phone too):",
+        portal or "[paste their portal link]",
+        "",
+        "Quick recap of the offer:",
+        "  • $0 setup — the site is already built",
+        "  • $99/month covers hosting, updates and maintenance",
+        "  • No contract, cancel anytime",
+    ]
+    if pay:
+        body_lines += ["", "Ready to go? You can start here:", pay]
+    body_lines += ["", "Happy to make any tweaks you'd like — just reply to this email.", ""]
+    return {
+        "subject": f"Your new website — quick question ({name})",
+        "body": "\n".join(body_lines),
+    }
+
+
+@app.get("/api/followups")
+async def list_followups(request: Request):
+    require_auth(request)
+    now = datetime.now()
+    due, upcoming = [], []
+    for c in _load_clients():
+        if c.get("status") != "prospect":
+            continue  # clients are already won; closed are lost
+        snooze = _parse_iso(c.get("followup_snooze_until"))
+        if snooze and snooze > now:
+            continue
+        ref = max(filter(None, [
+            _parse_iso(c.get("last_contact_at")),
+            _parse_iso(c.get("portal_sent_at")),
+            _parse_iso(c.get("created_at")),
+        ]), default=None)
+        if ref is None:
+            continue
+        days = (now - ref).days
+        row = {
+            "slug": c.get("slug"), "name": c.get("name"),
+            "days_since_contact": days,
+            "portal_sent_at": c.get("portal_sent_at"),
+            "last_contact_at": c.get("last_contact_at"),
+            "live_url": c.get("live_url"),
+            "portal_url": c.get("portal_url"),
+            "payment_link": c.get("payment_link"),
+            "email": _followup_email(c),
+        }
+        (due if days >= FOLLOWUP_AFTER_DAYS else upcoming).append(row)
+    due.sort(key=lambda r: -r["days_since_contact"])
+    return {"due": due, "upcoming_count": len(upcoming),
+            "after_days": FOLLOWUP_AFTER_DAYS}
+
+
+@app.post("/api/clients/{slug}/mark-contacted")
+async def mark_contacted(slug: str, request: Request):
+    require_auth(request)
+    slug = _safe_slug(slug)
+    with _CLIENTS_LOCK:
+        clients = _load_clients()
+        client = next((c for c in clients if c.get("slug") == slug), None)
+        if not client:
+            raise HTTPException(status_code=404)
+        client["last_contact_at"] = datetime.now().isoformat()
+        _save_clients(clients)
+    return client
 
 
 # ── Public client portal (no auth — shareable with prospects) ────────────────

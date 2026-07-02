@@ -18,6 +18,22 @@ It automatically creates a `.env` (default login password **`careful2026`**) if 
 
 To stop, just close the two windows it opened.
 
+### Stable public URL (recommended once you have clients)
+
+The default quick-tunnel URL **changes on every restart**. For a permanent
+URL, create a free named Cloudflare tunnel once:
+
+```bash
+cloudflared tunnel login                 # opens browser — pick any domain/zone
+cloudflared tunnel create pacific        # one-time; prints the tunnel id
+cloudflared tunnel route dns pacific pacific.yourdomain.com
+```
+
+Then set `TUNNEL_NAME=pacific` before running `start.bat` (or add it to your
+system environment variables). Your dashboard is now always at the same URL.
+No domain? A $10/yr domain — or a $5/mo VPS running the server directly — ends
+the "link died" problem for good.
+
 ---
 
 ## Manual Start (run on your PC)

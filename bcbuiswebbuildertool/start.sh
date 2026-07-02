@@ -32,8 +32,14 @@ trap 'echo; echo "Stopping..."; kill $SERVER_PID 2>/dev/null; exit 0' INT TERM
 # 3) Wait, then start the tunnel on HTTP/2 (foreground so you see the URL)
 sleep 6
 if command -v cloudflared >/dev/null 2>&1; then
-  echo "Starting public HTTPS tunnel (HTTP/2)..."
-  cloudflared tunnel --url "http://localhost:$PORT" --protocol http2
+  if [ -n "$TUNNEL_NAME" ]; then
+    echo "Starting NAMED tunnel '$TUNNEL_NAME' — your permanent URL..."
+    cloudflared tunnel run --url "http://localhost:$PORT" "$TUNNEL_NAME"
+  else
+    echo "Starting public HTTPS tunnel (HTTP/2)... (URL changes each restart —"
+    echo "see 'Stable public URL' in the README for a permanent one)"
+    cloudflared tunnel --url "http://localhost:$PORT" --protocol http2
+  fi
 else
   echo "cloudflared not installed - running LOCAL ONLY at http://localhost:$PORT"
   wait $SERVER_PID

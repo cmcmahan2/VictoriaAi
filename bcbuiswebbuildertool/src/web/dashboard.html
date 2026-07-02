@@ -406,6 +406,15 @@
           <textarea id="cz-voice" placeholder="Free text: tone &amp; style, e.g. 'friendly and down-to-earth, no jargon'…"></textarea>
         </div>
         <div class="cz-section">
+          <h3>✏️ Quick edits (no HTML needed)</h3>
+          <p style="font-size:0.78rem;color:var(--muted);margin:-0.2rem 0 0.7rem;">Type exactly what the site should say — these beat the AI copy on the next rebuild. Leave a field blank to keep the generated text.</p>
+          <div class="field" style="margin-bottom:0.6rem;"><label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:0.3rem;">Headline (top of home page)</label><input type="text" id="cz-qe-headline" placeholder="e.g. Vancouver's most careful painters" /></div>
+          <div class="field" style="margin-bottom:0.6rem;"><label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:0.3rem;">Tagline (under the headline)</label><input type="text" id="cz-qe-tagline" placeholder="One friendly sentence" /></div>
+          <div class="field" style="margin-bottom:0.6rem;"><label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:0.3rem;">Button text (call to action)</label><input type="text" id="cz-qe-cta" placeholder="e.g. Get a free estimate" /></div>
+          <div class="field" style="margin-bottom:0.6rem;"><label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:0.3rem;">About paragraph</label><textarea id="cz-qe-about" rows="3" placeholder="Their story, in their words"></textarea></div>
+          <div class="field"><label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:0.3rem;">Phone number (overrides everywhere on the site)</label><input type="text" id="cz-qe-phone" placeholder="604-555-1234" /></div>
+        </div>
+        <div class="cz-section">
           <div class="cz-actions">
             <button class="cz-btn cz-btn-primary" onclick="saveCustomize()">Save Customizations</button>
             <button class="cz-btn cz-btn-primary" onclick="saveAndRebuild()">Save &amp; Rebuild Site</button>
@@ -427,6 +436,11 @@
     <div class="tab-panel" id="tab-clients">
       <div class="panel-title">Clients</div>
       <p class="panel-sub" style="margin-bottom:1rem;">All businesses you&rsquo;ve built sites for. Persists across server restarts.</p>
+      <!-- Follow-up queue: prospects going quiet -->
+      <div id="followups-panel" style="display:none;background:rgba(240,169,64,0.06);border:1px solid rgba(240,169,64,0.35);border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.5rem;">
+        <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#f0a940;margin-bottom:0.6rem;">⏰ Follow-ups due</div>
+        <div id="followups-list"></div>
+      </div>
       <!-- Value Ladder quick-reference card -->
       <div style="background:var(--dark3);border:1px solid var(--border);border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.5rem;">
         <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem;">Value Ladder — Upsell Reference</div>
@@ -847,6 +861,7 @@
 
   // ── Clients tab ────────────────────────────────────────────────────────────
   async function loadClients() {
+    loadFollowups();
     try {
       const res=await api('/api/clients'); const {clients}=await res.json();
       renderClients(clients);
@@ -957,7 +972,7 @@
       if(!d.clients||!d.clients.length){ el.innerHTML='<div class="empty-state"><p>No clients yet.</p></div>'; return; }
       el.innerHTML=`<div class="table-wrap"><table>
         <thead><tr style="text-align:left;color:var(--muted);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.05em;">
-          <th style="padding:0.5rem;">Client</th><th style="padding:0.5rem;">Plan</th><th style="padding:0.5rem;">$/mo</th><th style="padding:0.5rem;">Status</th><th style="padding:0.5rem;">Next due</th><th style="padding:0.5rem;"></th>
+          <th style="padding:0.5rem;">Client</th><th style="padding:0.5rem;">Plan</th><th style="padding:0.5rem;">$/mo</th><th style="padding:0.5rem;">Status</th><th style="padding:0.5rem;">Next due</th><th style="padding:0.5rem;">Payment link</th><th style="padding:0.5rem;"></th>
         </tr></thead><tbody>
         ${d.clients.map(c=>`<tr style="border-top:1px solid var(--border);">
           <td style="padding:0.55rem 0.5rem;"><strong style="color:var(--white);">${esc(c.name||c.slug)}</strong></td>
@@ -965,6 +980,7 @@
           <td style="padding:0.55rem 0.5rem;"><input type="number" value="${c.monthly_fee||''}" placeholder="0" data-slug="${esc(c.slug)}" data-field="monthly_fee" class="bill-in" style="width:70px;background:rgba(255,255,255,0.05);border:1px solid var(--border2);border-radius:5px;padding:0.3rem 0.45rem;color:var(--white);font-size:0.8rem;" /></td>
           <td style="padding:0.55rem 0.5rem;"><select data-slug="${esc(c.slug)}" data-field="billing_status" class="bill-in" style="background:rgba(255,255,255,0.05);border:1px solid var(--border2);border-radius:5px;padding:0.3rem 0.45rem;color:var(--white);font-size:0.8rem;">${BILLING_STATUSES.map(s=>`<option value="${s}" ${s===c.billing_status?'selected':''}>${s}</option>`).join('')}</select></td>
           <td style="padding:0.55rem 0.5rem;"><input type="date" value="${esc(c.next_due||'')}" data-slug="${esc(c.slug)}" data-field="next_due" class="bill-in" style="background:rgba(255,255,255,0.05);border:1px solid var(--border2);border-radius:5px;padding:0.3rem 0.45rem;color:${c.is_overdue?'#f87171':'var(--white)'};font-size:0.8rem;" />${c.is_overdue?' <span style="color:#f87171;font-size:0.7rem;">overdue</span>':''}</td>
+          <td style="padding:0.55rem 0.5rem;white-space:nowrap;"><input value="${esc(c.payment_link||'')}" placeholder="Stripe link…" data-slug="${esc(c.slug)}" data-field="payment_link" class="bill-in" style="width:130px;background:rgba(255,255,255,0.05);border:1px solid var(--border2);border-radius:5px;padding:0.3rem 0.45rem;color:var(--white);font-size:0.76rem;" />${c.payment_link?` <button onclick="copyRawUrl('${esc(c.payment_link)}',this)" class="btn-run" style="padding:0.25rem 0.5rem;font-size:0.7rem;" title="Copy payment link">📋</button>`:''}</td>
           <td style="padding:0.55rem 0.5rem;white-space:nowrap;"><button onclick="markPaid('${esc(c.slug)}')" style="background:var(--green);border:none;border-radius:5px;padding:0.32rem 0.7rem;color:#fff;font-size:0.75rem;font-weight:600;cursor:pointer;">Mark paid</button></td>
         </tr>`).join('')}
         </tbody></table></div>
@@ -981,6 +997,38 @@
   }
   async function markPaid(slug){
     try{ const res=await api('/api/clients/'+slug+'/billing/mark-paid',{method:'POST'}); if(res.ok){ toast('Marked paid'); loadBilling(); } else toast('Failed','error'); }
+    catch(e){ toast('Failed: '+e.message,'error'); }
+  }
+
+  async function loadFollowups(){
+    const panel=document.getElementById('followups-panel');
+    const list=document.getElementById('followups-list');
+    try{
+      const res=await api('/api/followups');
+      if(!res.ok){ panel.style.display='none'; return; }
+      const d=await res.json();
+      if(!d.due||!d.due.length){ panel.style.display='none'; return; }
+      panel.style.display='block';
+      list.innerHTML=d.due.map(f=>{
+        const mail='mailto:?subject='+encodeURIComponent(f.email.subject)+'&body='+encodeURIComponent(f.email.body);
+        return `<div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;padding:0.45rem 0;border-top:1px solid rgba(240,169,64,0.15);">
+          <strong style="color:var(--white);min-width:160px;">${esc(f.name||f.slug)}</strong>
+          <span style="font-size:0.76rem;color:#f0a940;">${f.days_since_contact} day${f.days_since_contact===1?'':'s'} since last touch</span>
+          <span style="flex:1;"></span>
+          <a href="${mail}" class="btn-run" onclick="markContacted('${esc(f.slug)}',true)" title="Opens a pre-written follow-up email">✉️ Send follow-up</a>
+          <button class="btn-run" onclick="markContacted('${esc(f.slug)}')" title="Record that you contacted them today">✓ Contacted</button>
+          <button class="btn-run" onclick="snoozeFollowup('${esc(f.slug)}')" title="Hide for 3 days">💤 Snooze</button>
+        </div>`;
+      }).join('');
+    }catch{ panel.style.display='none'; }
+  }
+  async function markContacted(slug,silent){
+    try{ await api('/api/clients/'+slug+'/mark-contacted',{method:'POST'}); if(!silent)toast('Marked contacted'); loadFollowups(); }
+    catch(e){ if(!silent)toast('Failed: '+e.message,'error'); }
+  }
+  async function snoozeFollowup(slug){
+    const until=new Date(Date.now()+3*24*3600*1000).toISOString();
+    try{ await api('/api/clients/'+slug,{method:'PATCH',body:{followup_snooze_until:until}}); toast('Snoozed 3 days'); loadFollowups(); }
     catch(e){ toast('Failed: '+e.message,'error'); }
   }
 
@@ -1096,6 +1144,8 @@ hello@pacificwebbuilder.ca`
    * otherwise copies the localhost portal link to the clipboard.
    */
   function sharePortal(slug, liveUrl, btn) {
+    // Start the follow-up clock: sharing the portal counts as first contact.
+    api('/api/clients/'+slug,{method:'PATCH',body:{portal_sent_at:new Date().toISOString()}}).catch(()=>{});
     if (liveUrl) {
       const portalUrl = liveUrl.replace(/\/$/, '') + '/portal.html';
       window.open(portalUrl, '_blank');
@@ -1362,7 +1412,7 @@ hello@pacificwebbuilder.ca`
     }
   }
 
-  async function pasteCustomSite(deploy) {
+  async function pasteCustomSite(deploy, force) {
     const nameEl=document.getElementById('cz-paste-name');
     const htmlEl=document.getElementById('cz-paste-html');
     const saveBtn=document.getElementById('cz-paste-save');
@@ -1383,9 +1433,20 @@ hello@pacificwebbuilder.ca`
     status.style.color='var(--muted)';
     status.textContent=deploy?'Saving & deploying live…':'Saving & bundling images…';
     try {
-      const res=await api('/api/custom-site',{method:'POST',body:{name,html,deploy}});
+      const res=await api('/api/custom-site',{method:'POST',body:{name,html,deploy,force:!!force}});
       const data=await res.json();
       if (!res.ok) throw new Error(data.detail||'Save failed');
+      if (data.blocked) {
+        // Saved, but the pre-deploy checklist failed — confirm before publishing.
+        saveBtn.disabled=false; depBtn.disabled=false; btn.textContent=orig;
+        const issues=(data.readiness&&data.readiness.issues||[]).map(i=>'• '+i.label+(i.hint?' — '+i.hint:'')).join('\n');
+        status.style.color='#f0a940';
+        status.textContent='Saved, but not deployed — the site isn\u2019t client-ready yet.';
+        if (confirm('Hold on — this site isn\u2019t client-ready yet:\n\n'+issues+'\n\nDeploy anyway?')) {
+          pasteCustomSite(true, true);
+        }
+        return;
+      }
       const preview=`<a href="${esc(data.preview_url)}" target="_blank" style="color:var(--green)">Open preview ↗</a>`;
       const done=()=>{ saveBtn.disabled=false; depBtn.disabled=false; btn.textContent=orig; };
       loadClients();
@@ -1511,6 +1572,7 @@ hello@pacificwebbuilder.ca`
     document.getElementById('cz-svc-images').innerHTML='';
     document.getElementById('cz-facts').value='';
     document.getElementById('cz-voice').value='';
+    ['cz-qe-headline','cz-qe-tagline','cz-qe-cta','cz-qe-about','cz-qe-phone'].forEach(id=>{ document.getElementById(id).value=''; });
     try {
       const res=await api('/api/customize/'+czSlug);
       const d=res.ok ? await res.json() : {};
@@ -1520,6 +1582,12 @@ hello@pacificwebbuilder.ca`
       Object.entries(d.service_images||{}).forEach(([n,u])=>addServiceImageRow(n,u));
       document.getElementById('cz-facts').value=d.facts||'';
       document.getElementById('cz-voice').value=d.voice||'';
+      const ov=d.content_overrides||{};
+      document.getElementById('cz-qe-headline').value=ov.headline||'';
+      document.getElementById('cz-qe-tagline').value=ov.tagline||'';
+      document.getElementById('cz-qe-cta').value=ov.cta_text||'';
+      document.getElementById('cz-qe-about').value=ov.about_paragraph||'';
+      document.getElementById('cz-qe-phone').value=d.phone_override||'';
     } catch{}
     renderThemeGrid();
     document.getElementById('cz-status').textContent='';
@@ -1587,6 +1655,14 @@ hello@pacificwebbuilder.ca`
   }
 
   function buildCustomizePayload(){
+    const qe=id=>document.getElementById(id).value.trim();
+    const overrides={
+      headline: qe('cz-qe-headline'),
+      tagline: qe('cz-qe-tagline'),
+      cta_text: qe('cz-qe-cta'),
+      about_paragraph: qe('cz-qe-about'),
+    };
+    Object.keys(overrides).forEach(k=>{ if(!overrides[k]) delete overrides[k]; });
     return {
       theme: czSelectedTheme||null,
       reviews: collectReviews(),
@@ -1594,6 +1670,8 @@ hello@pacificwebbuilder.ca`
       service_images: collectServiceImages(),
       facts: document.getElementById('cz-facts').value.trim(),
       voice: document.getElementById('cz-voice').value.trim(),
+      content_overrides: overrides,
+      phone_override: qe('cz-qe-phone')||null,
     };
   }
 
