@@ -57,5 +57,6 @@ export interface TrackedBet {
   status: "open" | "won" | "lost";
   actualProfit?: number; // filled in when resolved
   placedAt: string; // ISO
+  resolvedAt?: string; // ISO, set when won/lost
   note?: string;
 }

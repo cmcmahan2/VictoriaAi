@@ -4,13 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArbCard } from "@/components/ArbCard";
 import { ArbDetail } from "@/components/ArbDetail";
 import { ChartPanel, type TradeMarker } from "@/components/ChartPanel";
+import { EquityChart } from "@/components/EquityChart";
 import type { Candle } from "@/lib/priceHistory";
 import { buildStakePlan } from "@/lib/arbitrage";
+import { computeAnalytics, type Analytics } from "@/lib/analytics";
 import type { ArbOpportunity, TrackedBet } from "@/lib/types";
 import { pct, usd } from "@/lib/utils";
 import { Activity, Pause, Play, RefreshCw, Trash2, Wifi, WifiOff, Zap } from "lucide-react";
-
-const LS_KEY = "polybot.bets.v1";
 
 type ScanResponse = {
   source: "live" | "demo";
@@ -22,9 +22,10 @@ type ScanResponse = {
 };
 
 type FeedEntry = { id: string; ts: number; kind: "scan" | "trade" | "info"; text: string };
+type Tab = "finder" | "live" | "dashboard" | "tracker";
 
 export default function Home() {
-  const [tab, setTab] = useState<"finder" | "live" | "tracker">("finder");
+  const [tab, setTab] = useState<Tab>("finder");
   const [data, setData] = useState<ScanResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [bankroll, setBankroll] = useState(100);
@@ -33,23 +34,25 @@ export default function Home() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [bets, setBets] = useState<TrackedBet[]>([]);
 
-  // Live / bot state
   const [botRunning, setBotRunning] = useState(false);
   const [feed, setFeed] = useState<FeedEntry[]>([]);
   const betsRef = useRef<TrackedBet[]>([]);
   betsRef.current = bets;
 
-  useEffect(() => {
+  // ---- Track record is server-authoritative (survives resets). ----
+  const loadBets = useCallback(async () => {
     try {
-      const raw = localStorage.getItem(LS_KEY);
-      if (raw) setBets(JSON.parse(raw));
-    } catch {}
+      const res = await fetch("/api/bets", { cache: "no-store" });
+      const json = await res.json();
+      if (Array.isArray(json.bets)) setBets(json.bets);
+    } catch (err) {
+      console.error("loadBets failed", err);
+    }
   }, []);
 
-  const persist = useCallback((next: TrackedBet[]) => {
-    setBets(next);
-    localStorage.setItem(LS_KEY, JSON.stringify(next));
-  }, []);
+  useEffect(() => {
+    loadBets();
+  }, [loadBets]);
 
   const pushFeed = useCallback((kind: FeedEntry["kind"], text: string) => {
     setFeed((f) => [{ id: `${Date.now()}-${Math.random()}`, ts: Date.now(), kind, text }, ...f].slice(0, 60));
@@ -74,29 +77,38 @@ export default function Home() {
   }, [bankroll, minRoi]);
 
   const placeBet = useCallback(
-    (arb: ArbOpportunity, plan: ReturnType<typeof buildStakePlan>, auto: boolean) => {
+    async (arb: ArbOpportunity, plan: ReturnType<typeof buildStakePlan>, auto: boolean) => {
       if (plan.sets <= 0) return;
-      const bet: TrackedBet = {
-        id: `${arb.id}-${Date.now()}`,
-        marketId: arb.id,
-        question: arb.question,
-        type: arb.type,
-        auto,
-        legs: plan.legs,
-        stake: plan.stake,
-        expectedReturn: plan.guaranteedReturn,
-        expectedProfit: plan.profit,
-        status: "open",
-        placedAt: new Date().toISOString(),
-      };
-      persist([bet, ...betsRef.current]);
-      pushFeed("trade", `${auto ? "🤖 Auto" : "Manual"} buy · ${arb.question} · ${usd(plan.stake)} → +${usd(plan.profit)} locked (${pct(arb.roiPct)})`);
+      try {
+        const res = await fetch("/api/bets", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            marketId: arb.id,
+            question: arb.question,
+            type: arb.type,
+            auto,
+            legs: plan.legs,
+            stake: plan.stake,
+            expectedReturn: plan.guaranteedReturn,
+            expectedProfit: plan.profit,
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error ?? "create failed");
+        setBets((prev) => [json.bet as TrackedBet, ...prev]);
+        pushFeed(
+          "trade",
+          `${auto ? "🤖 Auto" : "Manual"} buy · ${arb.question} · ${usd(plan.stake)} → +${usd(plan.profit)} locked (${pct(arb.roiPct)})`,
+        );
+      } catch (err) {
+        pushFeed("info", `Trade failed: ${(err as Error).message}`);
+      }
     },
-    [persist, pushFeed],
+    [pushFeed],
   );
 
-  // ---- Paper auto-trader: while running, scan on an interval and execute the
-  // best qualifying arb we don't already hold an open position in. ----
+  // ---- Paper auto-trader ----
   useEffect(() => {
     if (!botRunning) return;
     let cancelled = false;
@@ -107,11 +119,8 @@ export default function Home() {
       pushFeed("scan", `Scanned ${json.scanned} markets · ${json.found} arb${json.found === 1 ? "" : "s"} ≥ ${pct(minRoi)}`);
       const held = new Set(betsRef.current.filter((b) => b.status === "open").map((b) => b.marketId));
       const target = json.arbs.find((a) => !held.has(a.id));
-      if (target) {
-        placeBet(target, buildStakePlan(target, stake), true);
-      } else if (json.arbs.length > 0) {
-        pushFeed("info", "All current arbs already held — holding.");
-      }
+      if (target) await placeBet(target, buildStakePlan(target, stake), true);
+      else if (json.arbs.length > 0) pushFeed("info", "All current arbs already held — holding.");
     };
 
     pushFeed("info", "Bot started (paper mode).");
@@ -126,18 +135,30 @@ export default function Home() {
 
   const selected = useMemo(() => data?.arbs.find((a) => a.id === selectedId) ?? null, [data, selectedId]);
 
-  function resolveBet(id: string, status: "won" | "lost") {
-    persist(
-      bets.map((b) =>
-        b.id === id ? { ...b, status, actualProfit: status === "won" ? b.expectedProfit : -b.stake } : b,
-      ),
-    );
-  }
-  function removeBet(id: string) {
-    persist(bets.filter((b) => b.id !== id));
-  }
+  const resolveBet = useCallback(async (id: string, status: "won" | "lost") => {
+    try {
+      const res = await fetch(`/api/bets/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      const json = await res.json();
+      if (res.ok) setBets((prev) => prev.map((b) => (b.id === id ? (json.bet as TrackedBet) : b)));
+    } catch (err) {
+      console.error("resolveBet failed", err);
+    }
+  }, []);
 
-  const stats = useMemo(() => summarize(bets), [bets]);
+  const removeBet = useCallback(async (id: string) => {
+    try {
+      await fetch(`/api/bets/${id}`, { method: "DELETE" });
+      setBets((prev) => prev.filter((b) => b.id !== id));
+    } catch (err) {
+      console.error("removeBet failed", err);
+    }
+  }, []);
+
+  const analytics = useMemo(() => computeAnalytics(bets), [bets]);
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-6">
@@ -148,7 +169,7 @@ export default function Home() {
           </div>
           <div>
             <h1 className="text-xl font-bold">Polybot</h1>
-            <p className="text-xs text-muted">Polymarket-internal arbitrage · Phase 1–2 (read-only + paper)</p>
+            <p className="text-xs text-muted">Polymarket arbitrage engine · tracked track record</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -166,12 +187,13 @@ export default function Home() {
       </div>
 
       <div className="mb-5 flex gap-1 rounded-lg border border-edge bg-panel p-1 text-sm">
-        <TabBtn active={tab === "finder"} onClick={() => setTab("finder")}>Arbitrage finder</TabBtn>
+        <TabBtn active={tab === "finder"} onClick={() => setTab("finder")}>Finder</TabBtn>
         <TabBtn active={tab === "live"} onClick={() => setTab("live")}>
           Live chart {botRunning && <span className="ml-1 inline-block h-2 w-2 animate-pulse rounded-full bg-pos align-middle" />}
         </TabBtn>
+        <TabBtn active={tab === "dashboard"} onClick={() => setTab("dashboard")}>Dashboard</TabBtn>
         <TabBtn active={tab === "tracker"} onClick={() => setTab("tracker")}>
-          Bet tracker {bets.length > 0 && <span className="text-muted">({bets.length})</span>}
+          Tracker {bets.length > 0 && <span className="text-muted">({bets.length})</span>}
         </TabBtn>
       </div>
 
@@ -187,31 +209,53 @@ export default function Home() {
       )}
       {tab === "live" && (
         <LiveView
-          arbs={data?.arbs ?? []}
-          selected={selected}
-          selectedId={selectedId}
-          setSelectedId={setSelectedId}
-          bets={bets}
-          stake={stake}
-          botRunning={botRunning}
-          setBotRunning={setBotRunning}
-          feed={feed}
+          arbs={data?.arbs ?? []} selected={selected} selectedId={selectedId} setSelectedId={setSelectedId}
+          bets={bets} botRunning={botRunning} setBotRunning={setBotRunning} feed={feed}
         />
       )}
-      {tab === "tracker" && <TrackerView bets={bets} stats={stats} onResolve={resolveBet} onRemove={removeBet} />}
+      {tab === "dashboard" && <DashboardView a={analytics} />}
+      {tab === "tracker" && <TrackerView bets={bets} a={analytics} onResolve={resolveBet} onRemove={removeBet} />}
     </main>
   );
 }
 
+function DashboardView({ a }: { a: Analytics }) {
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Kpi label="Realized P&L" value={usd(a.realized)} tone={a.realized > 0 ? "pos" : a.realized < 0 ? "neg" : "flat"} />
+        <Kpi label="ROI (resolved)" value={a.roi == null ? "—" : pct(a.roi)} tone={(a.roi ?? 0) > 0 ? "pos" : (a.roi ?? 0) < 0 ? "neg" : "flat"} />
+        <Kpi label="Win rate" value={a.winRate == null ? "—" : pct(a.winRate, 1)} />
+        <Kpi label="Bets (resolved)" value={`${a.total} (${a.resolved})`} />
+        <Kpi label="Total staked" value={usd(a.staked)} />
+        <Kpi label="Open exposure" value={usd(a.openExposure)} />
+        <Kpi label="Expected open profit" value={usd(a.openExpectedProfit)} tone="pos" />
+        <Kpi label="Placed by bot" value={a.autoShare == null ? "—" : pct(a.autoShare, 0)} />
+      </div>
+
+      {a.equity.length === 0 ? (
+        <Empty>No resolved bets yet. Resolve bets in the Tracker to build your equity curve.</Empty>
+      ) : (
+        <EquityChart points={a.equity} />
+      )}
+
+      <p className="text-xs leading-relaxed text-muted">
+        This is the record a paying subscriber would judge you on — the same transparency lcslarry
+        sells against. Every number here is derived from the server-side bet log, not cherry-picked.
+        Currently all bets are <span className="text-slate-300">paper</span> until Phase 3 live execution is enabled.
+      </p>
+    </div>
+  );
+}
+
 function LiveView({
-  arbs, selected, selectedId, setSelectedId, bets, stake, botRunning, setBotRunning, feed,
+  arbs, selected, selectedId, setSelectedId, bets, botRunning, setBotRunning, feed,
 }: {
   arbs: ArbOpportunity[];
   selected: ArbOpportunity | null;
   selectedId: string | null;
   setSelectedId: (id: string) => void;
   bets: TrackedBet[];
-  stake: number;
   botRunning: boolean;
   setBotRunning: (b: boolean) => void;
   feed: FeedEntry[];
@@ -219,7 +263,6 @@ function LiveView({
   const [candles, setCandles] = useState<Candle[]>([]);
   const [chartLoading, setChartLoading] = useState(false);
 
-  // Default the chart to the top opportunity.
   useEffect(() => {
     if (!selectedId && arbs[0]) setSelectedId(arbs[0].id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -243,16 +286,11 @@ function LiveView({
     if (!selected) return [];
     return bets
       .filter((b) => b.marketId === selected.id)
-      .map((b) => ({
-        time: Math.floor(new Date(b.placedAt).getTime() / 1000),
-        text: `BUY ${usd(b.stake, 0)}`,
-        side: "buy" as const,
-      }));
+      .map((b) => ({ time: Math.floor(new Date(b.placedAt).getTime() / 1000), text: `BUY ${usd(b.stake, 0)}`, side: "buy" as const }));
   }, [bets, selected]);
 
   return (
     <div className="space-y-4">
-      {/* Bot control bar */}
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-edge bg-card p-4">
         <button
           onClick={() => setBotRunning(!botRunning)}
@@ -272,9 +310,7 @@ function LiveView({
             <button
               key={a.id}
               onClick={() => setSelectedId(a.id)}
-              className={`rounded-lg border px-2.5 py-1 text-xs ${
-                a.id === selectedId ? "border-pos/70 text-pos" : "border-edge text-muted hover:text-slate-300"
-              }`}
+              className={`rounded-lg border px-2.5 py-1 text-xs ${a.id === selectedId ? "border-pos/70 text-pos" : "border-edge text-muted hover:text-slate-300"}`}
             >
               {a.question.length > 28 ? a.question.slice(0, 28) + "…" : a.question}
             </button>
@@ -283,15 +319,7 @@ function LiveView({
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_minmax(320px,380px)]">
-        {/* Chart (left) */}
-        <ChartPanel
-          candles={candles}
-          markers={markers}
-          loading={chartLoading}
-          label={selected ? `${selected.legs[0].label} · ${selected.question}` : "Select a market"}
-        />
-
-        {/* Bot activity feed (right) */}
+        <ChartPanel candles={candles} markers={markers} loading={chartLoading} label={selected ? `${selected.legs[0].label} · ${selected.question}` : "Select a market"} />
         <div className="rounded-xl border border-edge bg-panel">
           <div className="border-b border-edge px-4 py-2.5 text-sm font-medium text-slate-200">Bot activity</div>
           <div className="max-h-[360px] overflow-y-auto p-3">
@@ -302,9 +330,7 @@ function LiveView({
                 {feed.map((e) => (
                   <li key={e.id} className="flex gap-2 text-xs">
                     <span className="shrink-0 font-mono text-muted">{new Date(e.ts).toLocaleTimeString()}</span>
-                    <span className={e.kind === "trade" ? "text-pos" : e.kind === "scan" ? "text-slate-300" : "text-muted"}>
-                      {e.text}
-                    </span>
+                    <span className={e.kind === "trade" ? "text-pos" : e.kind === "scan" ? "text-slate-300" : "text-muted"}>{e.text}</span>
                   </li>
                 ))}
               </ul>
@@ -336,10 +362,7 @@ function FinderView(props: {
         <NumField label="Min ROI (%)" value={props.minRoi} onChange={props.setMinRoi} step={0.5} />
         <div className="ml-auto text-xs text-muted">
           {data && (
-            <span>
-              scanned {data.scanned} markets · {data.found} arb{data.found === 1 ? "" : "s"} · fee {pct(data.feePct * 100)} ·{" "}
-              {new Date(data.asOf).toLocaleTimeString()}
-            </span>
+            <span>scanned {data.scanned} markets · {data.found} arb{data.found === 1 ? "" : "s"} · fee {pct(data.feePct * 100)} · {new Date(data.asOf).toLocaleTimeString()}</span>
           )}
         </div>
       </div>
@@ -365,20 +388,20 @@ function FinderView(props: {
 }
 
 function TrackerView({
-  bets, stats, onResolve, onRemove,
+  bets, a, onResolve, onRemove,
 }: {
   bets: TrackedBet[];
-  stats: ReturnType<typeof summarize>;
+  a: Analytics;
   onResolve: (id: string, s: "won" | "lost") => void;
   onRemove: (id: string) => void;
 }) {
   return (
     <>
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Kpi label="Bets logged" value={String(stats.count)} />
-        <Kpi label="Total staked" value={usd(stats.staked)} />
-        <Kpi label="Realized P&L" value={usd(stats.realized)} tone={stats.realized > 0 ? "pos" : stats.realized < 0 ? "neg" : "flat"} />
-        <Kpi label="Win rate" value={stats.resolved ? pct((stats.wins / stats.resolved) * 100, 0) : "—"} />
+        <Kpi label="Bets logged" value={String(a.total)} />
+        <Kpi label="Total staked" value={usd(a.staked)} />
+        <Kpi label="Realized P&L" value={usd(a.realized)} tone={a.realized > 0 ? "pos" : a.realized < 0 ? "neg" : "flat"} />
+        <Kpi label="Win rate" value={a.winRate == null ? "—" : pct(a.winRate, 0)} />
       </div>
 
       {bets.length === 0 ? (
@@ -470,16 +493,4 @@ function Kpi({ label, value, tone = "flat" }: { label: string; value: string; to
 
 function Empty({ children }: { children: React.ReactNode }) {
   return <div className="rounded-xl border border-dashed border-edge bg-card/50 p-8 text-center text-sm text-muted">{children}</div>;
-}
-
-function summarize(bets: TrackedBet[]) {
-  const resolved = bets.filter((b) => b.status !== "open");
-  const wins = bets.filter((b) => b.status === "won").length;
-  return {
-    count: bets.length,
-    staked: bets.reduce((s, b) => s + b.stake, 0),
-    realized: resolved.reduce((s, b) => s + (b.actualProfit ?? 0), 0),
-    resolved: resolved.length,
-    wins,
-  };
 }
