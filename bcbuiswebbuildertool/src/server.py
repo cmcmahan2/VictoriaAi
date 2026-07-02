@@ -614,7 +614,28 @@ async def preview_site(slug: str, file_path: str = "index.html"):
     if not str(target).startswith(str(site_root)):
         raise HTTPException(status_code=403)
     if not target.exists():
-        raise HTTPException(status_code=404, detail="File not found - run Phase 3 first")
+        # Friendly page (instead of raw JSON) so the preview iframe is helpful.
+        return HTMLResponse(f"""<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body{{margin:0;font-family:system-ui,Segoe UI,sans-serif;background:#0f1720;color:#e6edf3;
+    display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center}}
+  .box{{max-width:440px;padding:2rem}}
+  h1{{font-size:1.3rem;margin:0 0 .6rem}} p{{color:#9fb0c0;line-height:1.6;margin:0 0 1rem}}
+  .slug{{font-family:monospace;background:#1c2733;padding:.15rem .4rem;border-radius:5px;color:#7ee2b8}}
+  .steps{{text-align:left;background:#1c2733;border-radius:10px;padding:1rem 1.25rem;font-size:.92rem}}
+  .steps li{{margin:.35rem 0}}
+</style></head><body><div class="box">
+  <div style="font-size:2.4rem;margin-bottom:.5rem">🖌️</div>
+  <h1>No site built yet for <span class="slug">{slug}</span></h1>
+  <p>This client doesn't have a website in <code>output/{slug}/</code> yet. To add one:</p>
+  <ol class="steps">
+    <li>Go to the <b>Customize</b> tab</li>
+    <li>Use <b>Upload a site (.zip)</b> or <b>Paste a site from Claude Design</b></li>
+    <li>Type the name so the slug matches <span class="slug">{slug}</span>, tick <b>Overwrite</b></li>
+    <li>Or run the pipeline (<b>Build</b>) to generate one</li>
+  </ol>
+</div></body></html>""", status_code=404)
     return FileResponse(str(target))
 
 
@@ -1668,13 +1689,18 @@ async def portal_pdf(slug: str):
 if __name__ == "__main__":
     setup_logging()
     port = int(os.getenv("PORT", 5000))
+    pw = os.getenv("ADMIN_PASSWORD", "changeme")
     log.info(f"""
-+----------------------------------------------+
-|   BCBUISWEBBUILDERTOOL  Admin Server         |
-+----------------------------------------------+
-|   Open:  http://localhost:{port}                 |
-|   Password: set ADMIN_PASSWORD in .env       |
-+----------------------------------------------+
+==============================================================
+   PACIFIC WEB BUILDER  —  Admin Server
+==============================================================
+   Open in browser:   http://localhost:{port}
+   Login password:    {pw}
+   (set ADMIN_PASSWORD in .env to change it)
+
+   To share a public link, open a SECOND terminal and run:
+   cloudflared tunnel --url http://localhost:{port} --protocol http2
+==============================================================
 """)
     uvicorn.run("server:app", host="0.0.0.0", port=port, reload=True,
                 reload_dirs=[str(Path(__file__).parent)])

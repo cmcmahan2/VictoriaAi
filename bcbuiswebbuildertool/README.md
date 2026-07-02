@@ -7,7 +7,20 @@ Netlify automatically.
 
 ---
 
-## Quick Start (run on your PC)
+## Easiest start — one click
+
+Inside the `bcbuiswebbuildertool` folder:
+
+- **Windows:** double‑click **`start.bat`**
+- **macOS / Linux / Git Bash:** run **`bash start.sh`**
+
+It automatically creates a `.env` (default login password **`careful2026`**) if you don't have one, starts the server, and opens a public HTTPS tunnel on the stable HTTP/2 protocol. The server window prints your **login password** and local URL; the tunnel window prints your public `https://…trycloudflare.com` link.
+
+To stop, just close the two windows it opened.
+
+---
+
+## Manual Start (run on your PC)
 
 ```bash
 # 1. Clone the repo
@@ -17,18 +30,20 @@ cd victoriaai/bcbuiswebbuildertool
 # 2. Install Python dependencies
 pip install -r requirements.txt
 
-# 3. Configure environment
+# 3. Configure environment (optional — login defaults to "changeme")
 cp .env.example .env
 # Open .env and set ADMIN_PASSWORD (and API keys when ready)
 
 # 4. Start the admin server
-python src/server.py
+python src/server.py    # prints your login password + a ready-to-copy tunnel command
 
 # 5. Open in browser
 # http://localhost:5000
 ```
 
-Log in with your `ADMIN_PASSWORD`, type a business type + BC city in the sidebar, and click Search.
+> **Forgot your password?** The server window prints it on startup. With no `.env`, it's `changeme`.
+
+Log in with your `ADMIN_PASSWORD`, type a business type + city in the sidebar, and click Search.
 
 ---
 
