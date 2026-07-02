@@ -999,7 +999,13 @@ def _check_website_health_uncached(url):
         url = "https://" + url
     health["ssl"] = url.startswith("https://")
     try:
-        resp = requests.get(url, timeout=8, allow_redirects=True, headers=_HEADERS, verify=False)
+        try:
+            resp = requests.get(url, timeout=8, allow_redirects=True, headers=_HEADERS)
+        except requests.exceptions.SSLError:
+            # Broken/expired cert — a strong "needs help" signal. Still fetch
+            # the content (unverified) so the other checks run.
+            health["ssl"] = False
+            resp = requests.get(url, timeout=8, allow_redirects=True, headers=_HEADERS, verify=False)
         health["status_code"] = resp.status_code
         health["broken"]      = resp.status_code >= 400
         if resp.status_code < 400:
@@ -1008,7 +1014,7 @@ def _check_website_health_uncached(url):
             health["parked"]            = any(s in text for s in _PARKED_SIGNALS)
             health["mobile_responsive"] = bool(re.search(r'<meta[^>]+name=["\']viewport["\']', resp.text, re.I))
             health["has_booking"]       = any(s in text for s in _BOOKING_SIGNALS)
-            years = re.findall(r"(?:copyright|\xa9)\s*(?:\d{4}\s*[-]\s*)?(\d{4})", text)
+            years = re.findall(r"(?:copyright|&copy;|\xa9)\s*(?:\d{4}\s*[-]\s*)?(\d{4})", text)
             if years:
                 latest = max((int(y) for y in years if 1990 < int(y) <= CURRENT_YEAR + 1), default=None)
                 if latest:
@@ -1184,6 +1190,6 @@ def save_leads(leads, output_dir="./output"):
     out  = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
     path = out / "leads.json"
-    path.write_text(json.dumps(leads, indent=2, ensure_ascii=False))
+    path.write_text(json.dumps(leads, indent=2, ensure_ascii=False), encoding="utf-8")
     log.info(f"[discovery] Saved {len(leads)} leads -> {path}")
     return path

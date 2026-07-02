@@ -83,6 +83,12 @@ app = FastAPI(title="BCBUISWEBBUILDERTOOL Admin", docs_url=None, redoc_url=None,
               lifespan=lifespan)
 
 
+# Guards read-modify-write cycles on clients.json: pipeline jobs finish on
+# worker threads while dashboard PATCH/DELETE requests run on the event loop,
+# so unsynchronized writes can silently drop a client record.
+_CLIENTS_LOCK = threading.Lock()
+
+
 def _load_clients() -> list:
     if CLIENTS_FILE.exists():
         try:
@@ -94,18 +100,21 @@ def _load_clients() -> list:
 
 def _save_clients(clients: list):
     OUTPUT_DIR.mkdir(exist_ok=True)
-    CLIENTS_FILE.write_text(json.dumps(clients, indent=2), encoding="utf-8")
+    tmp = CLIENTS_FILE.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(clients, indent=2), encoding="utf-8")
+    tmp.replace(CLIENTS_FILE)  # atomic — a crash mid-write can't corrupt the db
 
 
 def _upsert_client(record: dict):
-    clients = _load_clients()
-    slug = record["slug"]
-    existing = next((c for c in clients if c["slug"] == slug), None)
-    if existing:
-        existing.update({k: v for k, v in record.items() if v is not None})
-    else:
-        clients.append(record)
-    _save_clients(clients)
+    with _CLIENTS_LOCK:
+        clients = _load_clients()
+        slug = record["slug"]
+        existing = next((c for c in clients if c.get("slug") == slug), None)
+        if existing:
+            existing.update({k: v for k, v in record.items() if v is not None})
+        else:
+            clients.append(record)
+        _save_clients(clients)
 
 
 class LoginRequest(BaseModel):
@@ -173,14 +182,55 @@ class _JobLogger:
             self._since_flush = 0
 
 
+class _ThreadStdoutRouter:
+    """A process-wide stdout proxy that routes writes per-thread.
+
+    The old approach swapped sys.stdout globally per job, so two concurrent
+    jobs cross-contaminated each other's logs, and whichever finished first
+    restored stdout out from under the other. This router is installed once;
+    each job thread registers its own _JobLogger and unrelated threads
+    (uvicorn, other jobs) keep writing to the real stdout.
+    """
+
+    def __init__(self, real):
+        self.real = real
+        self._routes: dict[int, object] = {}
+
+    def register(self, logger):
+        self._routes[threading.get_ident()] = logger
+
+    def unregister(self):
+        self._routes.pop(threading.get_ident(), None)
+
+    def _target(self):
+        return self._routes.get(threading.get_ident()) or self.real
+
+    def write(self, text):
+        self._target().write(text)
+
+    def flush(self):
+        self._target().flush()
+
+    def __getattr__(self, name):  # delegate isatty(), encoding, etc.
+        return getattr(self.real, name)
+
+
+_stdout_router: _ThreadStdoutRouter | None = None
+
+
 @contextmanager
 def _capture(job_id):
-    old = sys.stdout
-    sys.stdout = _JobLogger(job_id, old)
+    global _stdout_router
+    if _stdout_router is None or sys.stdout is not _stdout_router:
+        _stdout_router = _ThreadStdoutRouter(sys.stdout)
+        sys.stdout = _stdout_router
+    logger = _JobLogger(job_id, _stdout_router.real)
+    _stdout_router.register(logger)
     try:
         yield
     finally:
-        sys.stdout = old
+        logger.flush()  # persist any buffered log entries
+        _stdout_router.unregister()
 
 
 def _new_job(description):
@@ -240,13 +290,44 @@ def _slug(name: str) -> str:
     return s.strip("-")[:60]
 
 
+import re as _re_slug
+
+_SLUG_RE = _re_slug.compile(r"^[\w-]{1,80}$")
+
+
+def _safe_slug(slug: str) -> str:
+    """Validate a slug from a URL/body before it is used in a filesystem path.
+
+    Slugs are single path segments, but '..', '.', '~' or empty values could
+    still escape output/ or research/. 400 on anything suspicious.
+    """
+    if not slug or slug in (".", "..") or not _SLUG_RE.match(slug):
+        raise HTTPException(status_code=400, detail="Invalid client slug.")
+    return slug
+
+
+_PROVINCES = {"BC", "B.C.", "AB", "SK", "MB", "ON", "QC", "NB", "NS", "PE",
+              "NL", "YT", "NT", "NU"}
+
+
 def _city_from_address(address: str) -> str:
-    """Extract the city from an address like '4493 Boundary Road, Vancouver, BC'."""
+    """Extract the city from an address like '4493 Boundary Rd, Vancouver, BC'.
+
+    Handles every Canadian province/territory code (with or without a trailing
+    postal code) and 'Canada' — not just BC.
+    """
     if not address:
         return ""
     parts = [p.strip() for p in address.split(",")]
-    # Drop a trailing province/postal token like 'BC' or 'BC V5K 1A1'
-    parts = [p for p in parts if p and p.upper() not in ("BC", "B.C.") and not p.upper().startswith("BC ")]
+
+    def _is_region_token(p: str) -> bool:
+        up = p.upper()
+        if up in _PROVINCES or up == "CANADA":
+            return True
+        first = up.split()[0] if up.split() else ""
+        # 'BC V5K 1A1' / 'ON M5V 2T6' style tokens
+        return first in _PROVINCES
+    parts = [p for p in parts if p and not _is_region_token(p)]
     return parts[-1] if parts else ""
 
 
@@ -260,7 +341,8 @@ async def serve_dashboard():
 
 @app.post("/auth/login")
 async def login(data: LoginRequest):
-    if data.password != os.getenv("ADMIN_PASSWORD", "changeme"):
+    expected = os.getenv("ADMIN_PASSWORD", "changeme")
+    if not secrets.compare_digest(data.password.encode(), expected.encode()):
         raise HTTPException(status_code=401, detail="Wrong password")
     token = secrets.token_hex(32)
     VALID_TOKENS.add(token)
@@ -484,6 +566,11 @@ async def resume_job(job_id: str, request: Request):
 @app.post("/api/pipeline/{slug}")
 async def run_pipeline(slug: str, data: PipelineRequest, request: Request):
     require_auth(request)
+    # Canonicalize: the build/scrape phases derive their folder names from the
+    # business name, so the client record MUST use the same slug or the
+    # dashboard registers a client whose Preview/PDF/portal point at a folder
+    # that doesn't exist ("careful-painting-vancouver" bug).
+    slug = _slug(data.name) or slug
     job_id   = _new_job(f"Pipeline: {data.name}")
     business = {
         "name": data.name,
@@ -583,7 +670,7 @@ async def stream_job(job_id: str, token: str = Query(...)):
             for entry in logs[last:]:
                 yield f"data: {json.dumps({'type': 'log', 'entry': entry})}\n\n"
             last = len(logs)
-            if job["status"] in ("done", "error", "not_implemented"):
+            if job["status"] in ("done", "error", "not_implemented", "interrupted"):
                 yield f"data: {json.dumps({'type': 'done', 'status': job['status'], 'result': job.get('result'), 'error': job.get('error')})}\n\n"
                 break
             await asyncio.sleep(0.3)
@@ -593,6 +680,7 @@ async def stream_job(job_id: str, token: str = Query(...)):
 @app.get("/api/output/{slug}/pdf")
 async def download_pdf(slug: str, request: Request):
     require_auth(request)
+    slug = _safe_slug(slug)
     path = OUTPUT_DIR / slug / "ai_opportunity_report.pdf"
     if not path.exists(): raise HTTPException(status_code=404, detail="PDF not found - run Phase 4 first")
     return FileResponse(str(path), media_type="application/pdf", filename=f"{slug}-ai-opportunity-report.pdf")
@@ -600,18 +688,21 @@ async def download_pdf(slug: str, request: Request):
 @app.get("/api/output/{slug}/deployment")
 async def get_deployment(slug: str, request: Request):
     require_auth(request)
+    slug = _safe_slug(slug)
     path = OUTPUT_DIR / slug / "deployment.json"
     return json.loads(path.read_text()) if path.exists() else {"live_url": None}
 
 @app.get("/preview/{slug}/{file_path:path}")
 async def preview_site(slug: str, file_path: str = "index.html"):
     """Serve a generated site's files for in-dashboard preview (localhost only)."""
+    slug = _safe_slug(slug)
     site_root = (OUTPUT_DIR / slug).resolve()
     target = (site_root / (file_path or "index.html")).resolve()
     if target.is_dir():
         target = target / "index.html"
-    # Block path traversal outside the site directory
-    if not str(target).startswith(str(site_root)):
+    # Block path traversal outside the site directory (is_relative_to avoids
+    # the classic prefix bug where /output/foo-evil passes for slug 'foo')
+    if not target.is_relative_to(site_root):
         raise HTTPException(status_code=403)
     if not target.exists():
         # Friendly page (instead of raw JSON) so the preview iframe is helpful.
@@ -1014,6 +1105,7 @@ async def mark_paid(slug: str, request: Request):
 @app.get("/api/output/{slug}/site")
 async def get_site_html(slug: str, request: Request):
     require_auth(request)
+    slug = _safe_slug(slug)
     path = OUTPUT_DIR / slug / "index.html"
     if not path.exists():
         raise HTTPException(status_code=404, detail="Site not built yet")
@@ -1022,6 +1114,7 @@ async def get_site_html(slug: str, request: Request):
 @app.put("/api/output/{slug}/site")
 async def save_site_html(slug: str, request: Request):
     require_auth(request)
+    slug = _safe_slug(slug)
     body = await request.json()
     html = body.get("html", "")
     path = OUTPUT_DIR / slug / "index.html"
@@ -1139,6 +1232,7 @@ def _parse_reviews(raw: str) -> list:
 @app.get("/api/customize/{slug}")
 async def get_customize(slug: str, request: Request):
     require_auth(request)
+    slug = _safe_slug(slug)
     path = _customize_path(slug)
     if not path.exists():
         return {}
@@ -1151,6 +1245,7 @@ async def get_customize(slug: str, request: Request):
 @app.put("/api/customize/{slug}")
 async def save_customize(slug: str, request: Request):
     require_auth(request)
+    slug = _safe_slug(slug)
     body = await request.json()
     site_dir = OUTPUT_DIR / slug
     site_dir.mkdir(parents=True, exist_ok=True)
@@ -1422,7 +1517,7 @@ async def upload_site(request: Request,
     try:
         tmp_dir.mkdir(parents=True, exist_ok=True)
         try:
-            rel_paths = _safe_extract_zip(raw, tmp_dir)
+            rel_paths = await asyncio.to_thread(_safe_extract_zip, raw, tmp_dir)
         except ZipUploadError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
 
@@ -1446,9 +1541,10 @@ async def upload_site(request: Request,
                 log.warning(f"[upload] could not alias entry to index.html ({exc})")
 
         # Bundle any remote images locally so the preview is self-contained.
+        # Off the event loop: downloads images over the network.
         try:
             from build import _localize_images
-            _localize_images(site_dir)
+            await asyncio.to_thread(_localize_images, site_dir)
         except Exception as exc:
             log.warning(f"[upload] image localization skipped ({exc})")
 
@@ -1502,7 +1598,7 @@ async def custom_site(request: Request):
     body = await request.json()
     html = (body.get("html") or "").strip()
     name = (body.get("name") or "").strip()
-    slug = (body.get("slug") or "").strip() or _slug(name)
+    slug = _slug((body.get("slug") or "").strip() or name)
     do_deploy = bool(body.get("deploy"))
 
     if not html:
@@ -1523,10 +1619,12 @@ async def custom_site(request: Request):
     site_dir.mkdir(parents=True, exist_ok=True)
     (site_dir / "index.html").write_text(html, encoding="utf-8")
 
-    # Bundle remote images locally (real photo if reachable, placeholder if not)
+    # Bundle remote images locally (real photo if reachable, placeholder if not).
+    # Runs in a worker thread: it downloads images over the network and would
+    # otherwise freeze every dashboard request until it finishes.
     try:
         from build import _localize_images
-        _localize_images(site_dir)
+        await asyncio.to_thread(_localize_images, site_dir)
     except Exception as exc:
         log.warning(f"[custom-site] image localization skipped ({exc})")
 
@@ -1583,13 +1681,15 @@ async def custom_site(request: Request):
 @app.post("/api/customize/{slug}/rebuild")
 async def rebuild_customize(slug: str, request: Request):
     require_auth(request)
+    slug = _safe_slug(slug)
     profile_dir = RESEARCH_DIR / slug
     if not (profile_dir / "profile.json").exists():
         raise HTTPException(
             status_code=400,
             detail=f"No research profile found for '{slug}'. Run Phase 2 first.")
     from build import build_website
-    site_dir = build_website(str(profile_dir), str(OUTPUT_DIR))
+    # Full rebuild does AI calls + image downloads — never block the event loop.
+    site_dir = await asyncio.to_thread(build_website, str(profile_dir), str(OUTPUT_DIR))
     return {"ok": True, "site_dir": str(site_dir),
             "preview_url": f"/preview/{slug}/index.html"}
 
@@ -1643,6 +1743,7 @@ def _portal_business_name(slug: str) -> str:
 
 @app.get("/portal/{slug}", response_class=HTMLResponse)
 async def serve_portal(slug: str):
+    _safe_slug(slug)
     portal = WEB_DIR / "portal.html"
     if not portal.exists():
         raise HTTPException(status_code=404, detail="Portal page not found")
@@ -1651,6 +1752,7 @@ async def serve_portal(slug: str):
 
 @app.get("/api/portal/{slug}")
 async def portal_info(slug: str):
+    slug = _safe_slug(slug)
     site_dir   = OUTPUT_DIR / slug
     pdf_path   = site_dir / "ai_opportunity_report.pdf"
     deploy_path = site_dir / "deployment.json"
@@ -1679,6 +1781,7 @@ async def portal_info(slug: str):
 
 @app.get("/portal/{slug}/pdf")
 async def portal_pdf(slug: str):
+    slug = _safe_slug(slug)
     path = OUTPUT_DIR / slug / "ai_opportunity_report.pdf"
     if not path.exists():
         raise HTTPException(status_code=404, detail="PDF not found")

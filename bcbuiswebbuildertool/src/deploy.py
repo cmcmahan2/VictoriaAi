@@ -76,9 +76,14 @@ def _create_site(slug, headers):
     """Create a Netlify site, retrying with a random suffix if the name is taken."""
     team = os.getenv("NETLIFY_TEAM_SLUG", "").strip()
     base = f"{API}/{team}/sites" if team else f"{API}/sites"
+    # Netlify site names are DNS labels: ASCII a-z0-9- only, max 63 chars.
+    # (Unicode like "café" or an over-long name gets a 422 that the retry loop
+    # would misread as "name taken", failing all attempts.)
+    import re as _re
+    base_slug = _re.sub(r"[^a-z0-9-]", "", slug.lower())[:40].strip("-") or "site"
     for attempt in range(3):
-        name = f"{slug}-bcbuiswebbuildertool" if attempt == 0 else \
-               f"{slug}-{''.join(random.choices(string.ascii_lowercase + string.digits, k=4))}"
+        name = f"{base_slug}-pwb" if attempt == 0 else \
+               f"{base_slug}-{''.join(random.choices(string.ascii_lowercase + string.digits, k=4))}"
         log.info(f"[deploy] Creating site '{name}'...")
         try:
             r = requests.post(base, headers=headers, json={"name": name}, timeout=30)
@@ -100,7 +105,7 @@ def _deploy_zip(site, site_path, headers):
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for f in site_path.rglob("*"):
-            if f.is_file() and f.name != "deployment.json":
+            if f.is_file() and f.name not in ("deployment.json", "customize.json"):
                 zf.write(f, f.relative_to(site_path).as_posix())
     buf.seek(0)
 
@@ -134,6 +139,9 @@ def _deploy_zip(site, site_path, headers):
         except requests.RequestException:
             break
 
+    if deploy.get("state") != "ready":
+        log.warning(f"[deploy] Deploy still '{deploy.get('state')}' after polling — "
+                    "the URL may take another minute to go live.")
     live_url = site.get("ssl_url") or site.get("url") or deploy.get("ssl_url")
     return {
         "live_url": live_url,
@@ -149,9 +157,10 @@ def _deploy_zip(site, site_path, headers):
 
 def _write_portal_html(site_path: Path, business: dict):
     """Generate a public-facing client portal page baked into the Netlify deploy."""
-    name     = business.get("name", "Your Business")
-    city     = business.get("city", "British Columbia")
-    agency   = os.getenv("AGENCY_NAME", "Victoria AI")
+    import html as _html
+    name     = _html.escape(business.get("name") or "Your Business")
+    city     = _html.escape(business.get("city") or "British Columbia")
+    agency   = _html.escape(os.getenv("AGENCY_NAME", "Victoria AI"))
     booking  = os.getenv("PORTAL_BOOKING_URL", "")
     email    = os.getenv("PORTAL_CONTACT_EMAIL", "")
     cta_href = booking or (f"mailto:{email}" if email else "#contact")
@@ -217,7 +226,7 @@ def _write_portal_html(site_path: Path, business: dict):
   </style>
 </head>
 <body>
-<nav class="topbar"><div class="brand">{agency.rsplit(" ",1)[0]} <span>{agency.rsplit(" ",1)[-1]}</span></div></nav>
+<nav class="topbar"><div class="brand">{agency.rsplit(" ",1)[0] if " " in agency else agency} <span>{agency.rsplit(" ",1)[-1] if " " in agency else ""}</span></div></nav>
 <section class="hero">
   <div class="eyebrow">Your free website preview</div>
   <h1>{name} &mdash; your site is ready</h1>

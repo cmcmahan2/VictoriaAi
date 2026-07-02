@@ -481,7 +481,7 @@ def build_website(profile_dir: str, output_dir: str = "./output") -> Path:
     _write_contact(business, content, site_dir)
     _write_reviews(business, profile, content, site_dir, customize)
     _write_sitemap(business, site_dir)
-    _write_robots(site_dir)
+    _write_robots(site_dir, business)
     _copy_logo(profile_dir, site_dir)
     _localize_images(site_dir)
 
@@ -492,10 +492,18 @@ def build_website(profile_dir: str, output_dir: str = "./output") -> Path:
 
 # ── Stack selection ───────────────────────────────────────────────────────────
 
+def _safe_int(val, default=0) -> int:
+    """Coerce scraped values like "27", 27.0 or None to an int without crashing."""
+    try:
+        return int(float(val))
+    except (TypeError, ValueError):
+        return default
+
+
 def _select_stack(business: dict) -> StackType:
     cats = business.get("categories") or [business.get("category", "")]
     for cat in cats:
-        key = cat.lower().strip()
+        key = (cat or "").lower().strip()
         if key in STACK_BY_CATEGORY:
             return STACK_BY_CATEGORY[key]
         for k, v in STACK_BY_CATEGORY.items():
@@ -528,7 +536,7 @@ def _generate_content(business: dict, profile: dict, customize: dict | None = No
         phone    = business.get("phone", "")
         address  = business.get("address", "")
         rating   = business.get("rating", "")
-        reviews  = business.get("review_count", 0)
+        reviews  = _safe_int(business.get("review_count"))
 
         # Pull any real text from Phase 2
         website_text = ""
@@ -1621,7 +1629,10 @@ document.querySelectorAll('.faq-q').forEach(q => {
 
 // Contact forms — Netlify Forms handles the actual POST submission natively.
 // We only intercept to show a "Sending..." state for 600ms, then let it submit.
-['contact-form', 'contact-form-index'].forEach(id => {
+// NOTE: #contact-form (contact.html) has its own inline AJAX handler that shows
+// an inline thank-you; binding here too double-submits the lead and then
+// navigates away from the success message.
+['contact-form-index'].forEach(id => {
   const form = document.getElementById(id);
   if (form) {
     form.addEventListener('submit', e => {
@@ -1683,7 +1694,7 @@ def _nav(business: dict, active: str) -> str:
     )
     cta = f'<a href="tel:{phone}" class="btn btn-primary btn-sm nav-cta">📞 Call Now</a>' if phone else \
           '<a href="contact.html" class="btn btn-primary btn-sm nav-cta">Get a Quote</a>'
-    short = name.split()[0] if name else "Business"
+    short = name.split()[0] if name.split() else "Business"
     return f"""<nav>
   <div class="container nav-inner">
     <a href="index.html" class="nav-logo">{_esc(short)}<span>.</span></a>
@@ -1712,7 +1723,7 @@ def _footer(business: dict) -> str:
   <div class="container">
     <div class="footer-grid">
       <div>
-        <div class="footer-brand">{_esc(name.split()[0])}<span>.</span></div>
+        <div class="footer-brand">{_esc(name.split()[0] if name.split() else "Business")}<span>.</span></div>
         <p class="footer-desc">Professional {_esc(cat)} services in {_esc(city)}, BC. Licensed, insured, and committed to quality work.</p>
       </div>
       <div class="footer-col">
@@ -1782,6 +1793,10 @@ def _head(title: str, description: str, business: dict) -> str:
     if business.get("address"):
         schema["address"]["streetAddress"] = business["address"]
 
+    # Escape "</" so a scraped name/description can't close the JSON-LD script
+    # tag and inject markup into every generated page.
+    schema_json = json.dumps(schema).replace("</", "<\\/")
+
     return f"""<!DOCTYPE html>
 <html lang="en-CA">
 <head>
@@ -1797,7 +1812,7 @@ def _head(title: str, description: str, business: dict) -> str:
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=Fraunces:wght@500;600;700&family=Poppins:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Playfair+Display:wght@500;600;700&family=Cormorant+Garamond:wght@500;600;700&family=Anton&family=Spectral:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
-  <script type="application/ld+json">{json.dumps(schema)}</script>
+  <script type="application/ld+json">{schema_json}</script>
   <!-- GA4: replace G-XXXXXXXXXX with your Measurement ID -->
   <!-- <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script> -->
 </head>
@@ -2236,7 +2251,12 @@ def _localize_images(site_dir: Path) -> None:
         except Exception as exc:
             log.warning(f"[build] image download failed ({exc}) - using local placeholder for {token[:70]}")
             qs = parse_qs(urlparse(real_url).query)
-            w = int(qs.get("w", ["800"])[0]); h = int(qs.get("h", ["600"])[0])
+            def _dim(key, default):
+                try:
+                    return max(16, min(4000, int(float(qs.get(key, [default])[0]))))
+                except (ValueError, TypeError):
+                    return int(default)
+            w = _dim("w", "800"); h = _dim("h", "600")
             svg_name = hashlib.md5(token.encode("utf-8")).hexdigest()[:16] + ".svg"
             svg_dest = img_dir / svg_name
             svg_dest.write_bytes(_placeholder_svg(token, w, h))
@@ -2248,8 +2268,8 @@ def _localize_images(site_dir: Path) -> None:
         text = f.read_text(encoding="utf-8", errors="replace")
         prefix = "../" if f.suffix == ".css" else ""
         new = text
-        for token, rel in mapping.items():
-            new = new.replace(token, prefix + rel)
+        for token in sorted(mapping, key=len, reverse=True):
+            new = new.replace(token, prefix + mapping[token])
         if new != text:
             f.write_text(new, encoding="utf-8")
 
@@ -2266,7 +2286,7 @@ def _write_index(business: dict, profile: dict, content: dict, site_dir: Path,
     city     = business.get("city", "BC")
     phone    = business.get("phone", "")
     rating   = business.get("rating", "")
-    reviews  = business.get("review_count", 0)
+    reviews  = _safe_int(business.get("review_count"))
     headline = content.get("headline", f"Trusted Services in {city}")
     tagline  = content.get("tagline", "")
     cta      = content.get("cta_text", "Get a Free Quote")
@@ -2666,7 +2686,7 @@ def _write_about(business: dict, content: dict, site_dir: Path) -> None:
     city    = business.get("city", "BC")
     phone   = business.get("phone", "")
     rating  = business.get("rating", "")
-    reviews = business.get("review_count", 0)
+    reviews = _safe_int(business.get("review_count"))
     about   = content.get("about_paragraph", f"{name} proudly serves the {city} community.")
     tagline = content.get("tagline", f"Your trusted local service experts in {city}, BC.")
     trust   = content.get("trust_line", "")
@@ -3003,7 +3023,7 @@ def _write_reviews(business: dict, profile: dict, content: dict, site_dir: Path,
     name    = business.get("name", "Our Business")
     city    = business.get("city", "BC")
     rating  = business.get("rating", "")
-    reviews = business.get("review_count", 0)
+    reviews = _safe_int(business.get("review_count"))
     meta    = f"Reviews for {name} in {city}, BC. See what our customers say."
 
     maps_query    = urllib.parse.quote_plus(f"{name} {city} BC")
@@ -3159,9 +3179,11 @@ def _write_sitemap(business: dict, site_dir: Path) -> None:
     (site_dir / "sitemap.xml").write_text(xml, encoding="utf-8")
 
 
-def _write_robots(site_dir: Path) -> None:
+def _write_robots(site_dir: Path, business: dict | None = None) -> None:
+    slug = _slugify((business or {}).get("name", "")) or site_dir.name
+    base = f"https://{slug}.netlify.app"
     (site_dir / "robots.txt").write_text(
-        "User-agent: *\nAllow: /\nSitemap: /sitemap.xml\n",
+        f"User-agent: *\nAllow: /\nSitemap: {base}/sitemap.xml\n",
         encoding="utf-8"
     )
 

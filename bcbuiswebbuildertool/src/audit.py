@@ -102,27 +102,46 @@ def _analyse_all_dimensions(business: dict, profile: dict) -> dict:
 
 # ── Profile signal helpers ──────────────────────────────────────────────────
 
+def _site(profile: dict) -> dict:
+    """The scraper's website-analysis block. scrape.py stores it under
+    "website"; older/other profiles may use "website_analysis"."""
+    w = profile.get("website") or profile.get("website_analysis") or {}
+    return w if isinstance(w, dict) else {}
+
+
 def _website_text(profile: dict) -> str:
-    return profile.get("website_analysis", {}).get("text_content", "").lower()
+    tc = _site(profile).get("text_content") or {}
+    if isinstance(tc, dict):  # scrape.py stores a dict of page sections
+        return " ".join(str(v) for v in tc.values() if v).lower()
+    return str(tc).lower()
+
+
+def _site_pages(profile: dict) -> list[str]:
+    """Internal page URLs as plain strings (scrape.py's page_inventory)."""
+    pages = _site(profile).get("page_inventory") or         _site(profile).get("internal_pages") or []
+    out = []
+    for p in pages:
+        if isinstance(p, dict):
+            out.append((str(p.get("url", "")) + str(p.get("title", ""))).lower())
+        else:
+            out.append(str(p).lower())
+    return out
 
 
 def _has_booking_system(profile: dict) -> bool:
     text = _website_text(profile)
-    pages = profile.get("website_analysis", {}).get("internal_pages", [])
     keywords = ["book now", "book an appointment", "schedule", "booking",
                 "calendly", "acuity", "setmore", "jane app", "online booking"]
     if any(k in text for k in keywords):
         return True
-    for p in pages:
-        slug = (p.get("url", "") + p.get("title", "")).lower()
-        if any(k in slug for k in ["book", "schedul", "appoint", "reserv"]):
-            return True
-    return False
+    return any(any(k in p for k in ["book", "schedul", "appoint", "reserv"])
+               for p in _site_pages(profile))
 
 
 def _has_live_chat(profile: dict) -> bool:
     text = _website_text(profile)
-    tech = str(profile.get("website_analysis", {}).get("technology_signals", [])).lower()
+    tech = str(_site(profile).get("tech_signals")
+               or _site(profile).get("technology_signals") or []).lower()
     signals = ["intercom", "drift", "zendesk", "tidio", "tawk", "crisp",
                "livechat", "chat widget", "chat with us"]
     return any(s in text or s in tech for s in signals)
@@ -137,23 +156,31 @@ def _has_email_capture(profile: dict) -> bool:
 
 def _has_pricing_page(profile: dict) -> bool:
     text = _website_text(profile)
-    pages = profile.get("website_analysis", {}).get("internal_pages", [])
     if any(c in text for c in ["starting at", "per hour", "flat rate"]):
         return True
-    for p in pages:
-        slug = (p.get("url", "") + p.get("title", "")).lower()
-        if any(k in slug for k in ["pric", "rate", "cost", "fee"]):
-            return True
-    return False
+    return any(any(k in p for k in ["pric", "rate", "cost", "fee"])
+               for p in _site_pages(profile))
 
 
 def _review_count(profile: dict) -> int:
-    return profile.get("reviews", {}).get("total_reviews", 0) or 0
+    try:
+        return int(float(profile.get("reviews", {}).get("total_reviews", 0) or 0))
+    except (TypeError, ValueError):
+        return 0
 
 
 def _social_score(profile: dict) -> int:
-    detected = profile.get("social_media", {}).get("detected_profiles", {})
-    return len([v for v in detected.values() if v])
+    social = profile.get("social_media") or {}
+    detected = social.get("detected_profiles") if "detected_profiles" in social else social
+    if not isinstance(detected, dict):
+        return 0
+    count = 0
+    for v in detected.values():
+        if isinstance(v, dict):
+            count += 1 if v.get("found") else 0
+        elif v:
+            count += 1
+    return count
 
 
 # ── Audit dimensions ────────────────────────────────────────────────────────
@@ -164,8 +191,9 @@ def _audit_automations(business: dict, profile: dict) -> dict:
     hours = 0.0
 
     has_booking = _has_booking_system(profile)
-    phone = profile.get("website_analysis", {}).get("contact_info", {}).get("phone")
-    has_site = bool(profile.get("website_analysis", {}).get("url"))
+    contact = _site(profile).get("contact") or {}
+    phone = contact.get("phone") or (contact.get("phones") or [None])[0]
+    has_site = bool(_site(profile).get("url"))
 
     if phone and not has_booking:
         findings.append(
@@ -224,7 +252,7 @@ def _audit_customer_service(business: dict, profile: dict) -> dict:
     hours = 0.0
 
     has_chat = _has_live_chat(profile)
-    has_site = bool(profile.get("website_analysis", {}).get("url"))
+    has_site = bool(_site(profile).get("url"))
     neg = str(profile.get("reviews", {}).get("negative_keywords", [])).lower()
     category = business.get("category", "").lower()
 
@@ -285,7 +313,7 @@ def _audit_marketing(business: dict, profile: dict) -> dict:
     social = _social_score(profile)
     rc = _review_count(profile)
     has_email = _has_email_capture(profile)
-    has_site = bool(profile.get("website_analysis", {}).get("url"))
+    has_site = bool(_site(profile).get("url"))
     city = business.get("city", "your area")
     category = business.get("category", "services")
 
@@ -575,7 +603,7 @@ def _write_text_report(business: dict, findings: dict, executive: dict, path: Pa
         "Contact us to build a custom implementation plan.",
         "victoriaai.ca  |  hello@victoriaai.ca",
     ]
-    path.write_text("\n".join(lines))
+    path.write_text("\n".join(lines), encoding="utf-8")
 
 
 # ── PDF class ────────────────────────────────────────────────────────────────
@@ -999,4 +1027,12 @@ else:
 
 
 def _slugify(name: str) -> str:
-    return name.lower().replace(" ", "-").replace("/", "-")
+    """Match scrape.py/_slugify exactly — a different slug would put the audit
+    PDF in a folder the dashboard never looks in, and Windows rejects names
+    containing : ? " * | or trailing dots."""
+    import re
+    slug = name.lower()
+    slug = re.sub(r"[^\w\s-]", "", slug)
+    slug = re.sub(r"[\s_]+", "-", slug)
+    slug = re.sub(r"-+", "-", slug)
+    return slug.strip("-")[:60]
