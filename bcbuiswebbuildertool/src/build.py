@@ -484,6 +484,28 @@ def build_website(profile_dir: str, output_dir: str = "./output") -> Path:
         content.update({k: v for k, v in overrides.items()
                         if isinstance(v, str) and v.strip()})
 
+    # Template style: "premium" (default) is the hand-designed editorial
+    # one-pager modeled on the Careful Painting site — desktop AND mobile.
+    # Set customize.template_style="classic" (or TEMPLATE_STYLE=classic) to
+    # fall back to the original 5-page template.
+    style = (customize.get("template_style")
+             or os.getenv("TEMPLATE_STYLE", "premium")).lower()
+    if style == "premium":
+        from template_premium import render_premium_site
+        log.info("[build] Building premium one-page site (Careful Painting style)...")
+        cats = business.get("categories") or [business.get("category", "")]
+        cat_kw = _img_keywords((cats[0] or "") if cats else "")
+        html = render_premium_site(business, profile, content, customize,
+                                   img_fn=_img, svc_kw_fn=_service_img_keywords,
+                                   cat_kw=cat_kw)
+        (site_dir / "index.html").write_text(html, encoding="utf-8")
+        _write_premium_sitemap(business, site_dir)
+        _write_robots(site_dir, business)
+        _copy_logo(profile_dir, site_dir)
+        _localize_images(site_dir)
+        log.info(f"[build] Site complete: {site_dir}")
+        return site_dir
+
     log.info("[build] Building static site...")
     _write_css(site_dir, content, theme)
     _write_js(site_dir)
@@ -3187,6 +3209,17 @@ def _write_sitemap(business: dict, site_dir: Path) -> None:
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 {urls}
+</urlset>"""
+    (site_dir / "sitemap.xml").write_text(xml, encoding="utf-8")
+
+
+def _write_premium_sitemap(business: dict, site_dir: Path) -> None:
+    slug = _slugify(business.get("name", "")) or site_dir.name
+    base = f"https://{slug}.netlify.app"
+    today = datetime.now().strftime("%Y-%m-%d")
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>{base}/</loc><lastmod>{today}</lastmod><changefreq>monthly</changefreq></url>
 </urlset>"""
     (site_dir / "sitemap.xml").write_text(xml, encoding="utf-8")
 
