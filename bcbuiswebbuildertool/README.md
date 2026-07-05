@@ -1,4 +1,6 @@
-# BCBUISWEBBUILDERTOOL
+# Pacific Web Builder
+
+*(repo folder name: `bcbuiswebbuildertool`)*
 
 Autonomous BC business web presence pipeline. Discovers weak-presence businesses
 in British Columbia, scrapes intelligence profiles, generates production-ready

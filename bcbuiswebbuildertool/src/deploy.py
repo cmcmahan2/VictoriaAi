@@ -289,7 +289,7 @@ def _manual_instructions(site_dir, business):
 def _print_summary(business, site_dir, deployment):
     log.info(f"""
 ====================================================
-  BCBUISWEBBUILDERTOOL - JOB COMPLETE
+  PACIFIC WEB BUILDER - JOB COMPLETE
 ====================================================
 Business:  {business.get('name')}
 LIVE:      {deployment.get('live_url')}

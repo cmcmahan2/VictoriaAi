@@ -1,5 +1,5 @@
 """
-BCBUISWEBBUILDERTOOL - Admin Web Server
+Pacific Web Builder - Admin Web Server
 
 FastAPI backend serving the admin dashboard and pipeline API.
 
@@ -79,7 +79,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="BCBUISWEBBUILDERTOOL Admin", docs_url=None, redoc_url=None,
+app = FastAPI(title="Pacific Web Builder Admin", docs_url=None, redoc_url=None,
               lifespan=lifespan)
 
 
@@ -1773,13 +1773,14 @@ async def rebuild_all(request: Request):
 # replace with your own" placeholder content going live on a client's real
 # domain is the fastest way to lose the deal.
 
+# Specific phrases only — a bare "placeholder" would false-positive on
+# legitimate <input placeholder="..."> attributes in every generated form.
 _PLACEHOLDER_MARKERS = [
     "representative reviews",
     "replace with your own",
     "replace with real",
     "lorem ipsum",
     "your business name",
-    "placeholder",
 ]
 
 
