@@ -1,0 +1,23 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# Data lake & results (large binaries stay local; regenerate from collectors/backtests)
+data/
+!data/.gitkeep
+results/
+!results/.gitkeep
+
+# Logs
+logs/
+*.log

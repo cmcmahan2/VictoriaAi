@@ -1,0 +1,58 @@
+# POLYFUNNEL cost model — imported by the Phase 3 backtester.
+# Companion to docs/GROUND_TRUTH.md § Fees. Every figure below carries a
+# verification status; the backtester refuses to run in "trusted" mode unless
+# fee rates have been refreshed from the live CLOB GET /fee-rate endpoint
+# within `max_fee_staleness_days`.
+#
+# Fee formula (Fee Structure V2, effective 2026-03-30, doc-derived):
+#   taker_fee_usdc = shares * base_rate * price * (1 - price)
+#   maker_fee_usdc = 0
+# Symmetric around p=0.5 (max at 0.5). A trade at 30c costs the same as at 70c.
+# The CLOB order API expresses the market's rate as fee_rate_bps per token and
+# REJECTS orders whose feeRateBps mismatches GET /fee-rate — so runtime fetch
+# is mandatory for execution anyway; the backtester must use the same source.
+
+meta:
+  schema: 2
+  fee_structure_version: "V2 (2026-03-30)"
+  last_verified_live: null        # set by scripts/phase0_recon.py on a successful run
+  max_fee_staleness_days: 7
+  sources:
+    - "https://docs.polymarket.com/trading/fees (accessed via search 2026-07-06)"
+    - "https://docs.polymarket.com/polymarket-learn/trading/fees"
+    - "py-clob-client v0.34.6 source: get_fee_rate_bps() -> GET /fee-rate"
+
+fees:
+  formula: "shares * base_rate * p * (1 - p)"
+  maker_rate: 0.0                  # makers pay zero; 20-25% of taker fees rebated to makers
+  taker_base_rates:                # doc-derived category rates, VERIFY AT RUNTIME per market
+    crypto: 0.07                   # sources disagree 0.07 vs 0.072 ($1.75 vs $1.80 per 100 sh @ p=.5) — resolve live
+    sports: 0.03
+    finance: 0.04
+    politics: 0.04
+    mentions: 0.04
+    tech: 0.04
+    economics: 0.05
+    culture: 0.05
+    weather: 0.05
+    other: 0.05
+    geopolitics: 0.00              # only fee-free category as of 2026-03-30
+  dynamic_fee_note: >
+    Short-horizon crypto markets (15-minute up/down) carry the platform's
+    highest taker fees explicitly to break latency arbitrage. Family A
+    (underlying-leads-market) must clear this bar; do not test it fee-free.
+
+# Non-fee frictions
+frictions:
+  gas_per_trade_usdc: 0.0          # orders are relayed/gasless on Polygon (operator pays) — VERIFY
+  redemption_cost_usdc: 0.0        # claiming resolved winnings, relayer-covered in app — VERIFY
+  withdrawal_cost_usdc: 0.0        # USDC withdrawal gas on Polygon, negligible but nonzero — VERIFY
+  min_tick: 0.001                  # per-market: GET /tick-size; 0.01 on most, 0.001 near extremes — VERIFY
+
+# Spread model used where only trade/price history exists (no book snapshots).
+# Calibrated per-bucket from live-collected books in Phase 1; placeholders here
+# are deliberately conservative and flagged low-confidence by the backtester.
+spread_model:
+  calibrated: false
+  default_half_spread: 0.01        # 1c each side until per-bucket calibration exists
+  per_bucket: {}                   # filled by Phase 1 calibration job
