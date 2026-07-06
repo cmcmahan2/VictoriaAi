@@ -83,7 +83,9 @@ Bell curve, max at p=0.5, symmetric (30¢ trade costs the same as 70¢).
 - **Crypto up/down recurrence is now 5-minute**, not 15-minute: series `btc-up-or-down-5m` (~$24M vol/24h) and `eth-up-or-down-5m` (~$2.4M), plus `btc-up-or-down-15m` (~$3.2M). Slug format is `btc-updown-5m-<unix_ts>` (period-end epoch). A new market every 5 minutes = ~288 BTC markets/day — enormous variant sample sizes for Phase 3, and collectors must auto-discover new tokens continuously (`GET /events?series_slug=btc-up-or-down-5m&end_date_min=<now>`).
 - Gamma `/series` exposes `recurrence` directly (`5m`, `15m`, `daily`, `monthly`) — cleaner recurrence source than slug regexes; report includes the top-15 series table.
 - Sports game markets dominate headline volume in-season (FIFA World Cup 2026 + Wimbledon + MLB while scanning).
-- Zombie markets (past `endDate`, still `active=true&closed=false`) pollute naive scans — flagged per-row as `expired`.
+- Zombie markets (past `endDate`, still `active=true&closed=false`) pollute naive scans — flagged per-row as `expired`. 2026-07-06 scan: 4,358 of 46,816 (9.3%).
+- **Market-level 24h volume understates recurrer series.** Resolved 5m/15m markets flip to `closed=true` and drop out of an active-market scan, so the `crypto_btc_updown` bucket sums to only ~$149k vol24 while the `btc-up-or-down-5m` *series* reports ~$24M vol24. For recurrence buckets, Gamma `/series` volume is authoritative; the per-market scan measures the standing (active) book only. **[LIVE 2026-07-06]**
+- Fee-table anomaly seen in the wild: one zombie market (`xrp-updown-5m-1771916400`, expired, zero volume) carries feeType `crypto_15_min` with rate **0.25** — a legacy artifact. Reinforces the rule: never hardcode category fee tables; fetch per-market at runtime. **[LIVE 2026-07-06]**
 
 ## 5. Sources
 - https://docs.polymarket.com/trading/fees · https://docs.polymarket.com/polymarket-learn/trading/fees (fee formula, V2 schedule)

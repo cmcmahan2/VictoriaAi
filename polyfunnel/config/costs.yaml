@@ -15,7 +15,7 @@
 meta:
   schema: 2
   fee_structure_version: "V2 (2026-03-30)"
-  last_verified_live: null        # set by scripts/phase0_recon.py on a successful run
+  last_verified_live: 2026-07-06
   max_fee_staleness_days: 7
   sources:
     - "https://docs.polymarket.com/trading/fees (accessed via search 2026-07-06)"
