@@ -25,8 +25,8 @@ meta:
 fees:
   formula: "shares * base_rate * p * (1 - p)"
   maker_rate: 0.0                  # makers pay zero; 20-25% of taker fees rebated to makers
-  taker_base_rates:                # doc-derived category rates, VERIFY AT RUNTIME per market
-    crypto: 0.07                   # sources disagree 0.07 vs 0.072 ($1.75 vs $1.80 per 100 sh @ p=.5) — resolve live
+  taker_base_rates:                # category rates; crypto/sports/politics/economics LIVE-verified 2026-07-06 via gamma feeSchedule.rate
+    crypto: 0.07                   # RESOLVED live 2026-07-06: 0.07 (not 0.072) on btc-updown-5m feeSchedule; rebateRate 0.2
     sports: 0.03
     finance: 0.04
     politics: 0.04

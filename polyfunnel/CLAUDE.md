@@ -29,4 +29,4 @@ Polymarket day-trading research pipeline: mass backtest → brutal filter → kn
 - Run from `polyfunnel/` directory: `PYTHONPATH=src .venv/bin/python scripts/<script>.py`.
 
 ## Environment caveat (Claude Code on the web)
-This container's network policy blocks all non-package-registry hosts (Polymarket APIs, exchanges). Scripts that need live data must be run locally or after the environment's network policy is widened. WebSearch works for docs recon. See `docs/GROUND_TRUTH.md` § Verification status.
+As of 2026-07-06 the network policy allowlists `*.polymarket.com` (live probes work) but **blocks PyPI/npm** — third-party packages cannot be installed, so no `.venv` here. The API clients fall back to a stdlib HTTP shim (`src/polyfunnel/api/_compat.py`) when httpx is missing, and `phase0_recon.py` aggregates without polars (universe file becomes `data/universe.ndjson.gz`). Anything needing compiled deps (polars/pyarrow/ccxt backtests, pytest runs) must run locally or after PyPI is added to the environment's network egress allowlist. See `docs/GROUND_TRUTH.md` § Environment status.

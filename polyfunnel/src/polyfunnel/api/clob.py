@@ -8,14 +8,18 @@ from __future__ import annotations
 
 from typing import Any
 
-import httpx
+try:
+    import httpx
+    _Client = httpx.Client
+except ModuleNotFoundError:  # containers with Polymarket egress but no PyPI
+    from ._compat import StdlibClient as _Client
 
 BASE = "https://clob.polymarket.com"
 
 
 class ClobPublic:
     def __init__(self, timeout: float = 30.0):
-        self._http = httpx.Client(base_url=BASE, timeout=timeout)
+        self._http = _Client(base_url=BASE, timeout=timeout)
 
     def get(self, path: str, **params: Any) -> Any:
         r = self._http.get(path, params=params)
