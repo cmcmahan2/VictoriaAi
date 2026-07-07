@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# POLYFUNNEL secret scan — blocks commits containing likely credentials.
+# Installed into .git/hooks by scripts/install_hooks.sh. Dependency-free by
+# design so it works in restricted-network environments where gitleaks
+# binaries can't be downloaded.
+set -euo pipefail
+
+PATTERNS=(
+  # Ethereum/Polygon private key (64 hex chars, optionally 0x-prefixed)
+  '(^|[^0-9a-fA-F])0x[0-9a-fA-F]{64}([^0-9a-fA-F]|$)'
+  '(PRIVATE_KEY|SECRET|PASSPHRASE|API_KEY)[[:space:]]*[=:][[:space:]]*["'"'"']?[A-Za-z0-9+/_-]{16,}'
+  # Anthropic / OpenAI / GitHub / AWS token shapes
+  'sk-ant-[A-Za-z0-9_-]{20,}'
+  'sk-[A-Za-z0-9]{32,}'
+  'ghp_[A-Za-z0-9]{30,}'
+  'github_pat_[A-Za-z0-9_]{30,}'
+  'AKIA[0-9A-Z]{16}'
+  # Generic long base64 secrets assigned in env-style files
+  '^[A-Z_]*(TOKEN|CRED)[A-Z_]*=[A-Za-z0-9+/=]{24,}$'
+)
+
+fail=0
+# Scan only staged additions, never the whole tree (fast + no false alarms on docs)
+while IFS= read -r file; do
+  [ -f "$file" ] || continue
+  case "$file" in
+    *.parquet|*.png|*.jpg|*.db|*.duckdb) continue ;;
+    *.env.example) continue ;;
+  esac
+  staged=$(git show ":$file" 2>/dev/null || true)
+  for pat in "${PATTERNS[@]}"; do
+    if printf '%s' "$staged" | grep -qE "$pat"; then
+      echo "BLOCKED: possible secret in staged file '$file' (pattern: $pat)" >&2
+      fail=1
+    fi
+  done
+done < <(git diff --cached --name-only --diff-filter=ACM)
+
+if [ "$fail" -ne 0 ]; then
+  echo "" >&2
+  echo "Commit rejected by POLYFUNNEL secret scan." >&2
+  echo "If this is a false positive, review the file, then commit with" >&2
+  echo "SKIP_SECRET_SCAN=1 git commit ... (and say why in the commit message)." >&2
+  [ "${SKIP_SECRET_SCAN:-0}" = "1" ] && { echo "SKIP_SECRET_SCAN=1 set — allowing." >&2; exit 0; }
+  exit 1
+fi
+exit 0

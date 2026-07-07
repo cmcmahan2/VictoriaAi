@@ -1,0 +1,24 @@
+[project]
+name = "polyfunnel"
+version = "0.0.1"
+description = "Polymarket day-trading research & execution pipeline: mass backtest, brutal filter, knowledge vault"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx",
+    "websockets",
+    "polars",
+    "pandas",
+    "numpy",
+    "pyarrow",
+    "duckdb",
+    "pyyaml",
+    "py-clob-client",
+    "ccxt",
+    "matplotlib",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
