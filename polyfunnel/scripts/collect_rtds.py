@@ -192,6 +192,7 @@ def run(minutes: float, probe: bool, data_dir: Path) -> int:
     counts: dict[str, int] = {}
     reconnects = 0
     probe_left = 5
+    probe_deadline = time.time() + 15 if probe else float("inf")
     while not stop["flag"] and (deadline is None or time.time() < deadline):
         try:
             ws = MiniWebSocket(HOST)
@@ -199,6 +200,8 @@ def run(minutes: float, probe: bool, data_dir: Path) -> int:
                 {"action": "subscribe", "subscriptions": SUBSCRIPTIONS}))
             print(f"connected + subscribed ({HOST})")
             reconnects = 0
+            if probe:
+                probe_deadline = time.time() + 15
             ws.sock.settimeout(PING_EVERY_S)
             next_ping = time.time() + PING_EVERY_S
             next_status = time.time() + STATUS_EVERY_S
@@ -219,16 +222,25 @@ def run(minutes: float, probe: bool, data_dir: Path) -> int:
                     parsed = json.loads(msg)
                 except ValueError:
                     parsed = {"raw": msg[:2000]}
-                topic = parsed.get("topic", "unknown")
+                topic = parsed.get("topic") or ("server_hello" if
+                        parsed.get("raw") == "" else "unknown")
                 counts[topic] = counts.get(topic, 0) + 1
                 writer.write({"recv_ts": round(now, 4), **parsed})
                 if probe:
-                    print(json.dumps(parsed)[:300])
-                    probe_left -= 1
-                    if probe_left <= 0:
-                        print("probe OK — both feeds visible above" if
-                              len(counts) > 1 else
-                              f"probe: messages from {list(counts)} only")
+                    if probe_left > 0:
+                        print(json.dumps(parsed)[:240])
+                        probe_left -= 1
+                    if now >= probe_deadline:
+                        chain = counts.get("crypto_prices_chainlink", 0)
+                        binance = counts.get("crypto_prices", 0)
+                        print(f"\nprobe census (15s): {counts}")
+                        print(f"  Chainlink (referee) feed: "
+                              f"{'OK, ~%.1f/s' % (chain/15) if chain else 'MISSING'}")
+                        print(f"  Binance (leading) feed:   "
+                              f"{'OK, ~%.1f/s' % (binance/15) if binance else 'MISSING'}")
+                        print("PROBE PASS — run without --probe to record"
+                              if chain and binance else
+                              "PROBE PARTIAL — send this output to Claude")
                         ws.close()
                         writer.close()
                         return 0
@@ -239,15 +251,22 @@ def run(minutes: float, probe: bool, data_dir: Path) -> int:
                     next_status = time.time() + STATUS_EVERY_S
         except (ConnectionError, OSError, ssl.SSLError) as e:
             reconnects += 1
+            throttled = "429" in str(e)
             print(f"WARN connection lost ({reconnects}/"
-                  f"{MAX_CONSEC_RECONNECTS}): {e}", file=sys.stderr)
+                  f"{MAX_CONSEC_RECONNECTS}): {str(e)[:160]}", file=sys.stderr)
             if reconnects >= MAX_CONSEC_RECONNECTS:
                 print("FATAL: cannot hold RTDS connection — stopping loudly. "
                       "(This host is blocked in the Claude-web sandbox; run "
                       "on a normal machine.)", file=sys.stderr)
                 writer.close()
                 return 2
-            time.sleep(min(60, 2 ** reconnects))
+            if throttled:
+                # server-side rate limit on connects: back way off, quietly
+                print("  (rate-limited: waiting 90s before reconnecting — "
+                      "this is normal after several quick restarts)")
+                time.sleep(90)
+            else:
+                time.sleep(min(60, 2 ** reconnects))
     writer.close()
     print("done:", counts)
     return 0
