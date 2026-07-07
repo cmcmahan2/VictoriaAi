@@ -46,6 +46,12 @@ Compiled 2026-07-06. Every claim carries a verification status:
 ### Data-API
 - `https://data-api.polymarket.com` — holders/positions/activity analytics. Lower priority for us. **[DOC, UNVERIFIED]**
 
+### RTDS — the resolution feed relay (critical for 5m up/down)
+- 5m up/down markets resolve on the **Chainlink BTC/USD data stream** — confirmed verbatim in live market rules, which disclaim "other sources or spot markets". **Ties (flat window) resolve Up** ("greater than or equal to"). **[LIVE 2026-07-07]**
+- `wss://ws-live-data.polymarket.com` (no auth) relays that exact feed: topic `crypto_prices_chainlink` (symbols like `btc/usd`) = resolution feed / strike capture; topic `crypto_prices` (symbols like `btcusdt`) = Binance-sourced leading feed. Subscribe: `{"action":"subscribe","subscriptions":[{"topic":...,"type":"*","filters":"{\"symbol\":\"btc/usd\"}"}]}` — note `filters` is a JSON **string**. PING every 5s. **[DOC + official TS client; host FIREWALLED in this sandbox — collector `scripts/collect_rtds.py` runs locally]**
+- 5m slugs are deterministic: `btc-updown-5m-<unix_ts>` with ts divisible by 300 (window end). **[LIVE 2026-07-07]**
+- Fee/rebate regime (user research 2026-07-07, `vault/research/`): taker fees on crypto since Jan 6 2026; maker rebates = 20% of crypto taker fees, pro-rata by **filled** maker fee-equivalent, daily; **Taker Rebate Program since May 28 2026** — 30-day weighted-volume tiers, crypto weighted 2.3×, refunds 12–50% of taker fees (effective crypto fee at top tier ≈ 0.035·p(1−p)). Community consensus: post-fee profitability migrated to **maker-side execution**. **[DOC — verify tiers live before relying]**
+
 ## 2. Fee structure (Fee Structure V2, effective 2026-03-30)
 
 **Formula [DOC, cross-checked 3 sources]:**

@@ -1,5 +1,13 @@
 # PROGRESS
 
+## Session 2026-07-07 (later) — research integrated: the referee is Chainlink
+
+- User deep-research PDF archived to vault/research/ (load-bearing claims live-verified where possible).
+- CONFIRMED from live market rules: 5m markets settle on the **Chainlink BTC/USD data stream** (not Binance/spot), ties resolve **Up**.
+- Polymarket relays the exact resolution feed on a free WebSocket (RTDS). Built `scripts/collect_rtds.py`: stdlib-only mini-RFC6455 client (codec loopback-tested in-session; host firewalled in sandbox), records chainlink + binance BTC ticks hour-partitioned. Runs on the user's machine next to collect_updown.py.
+- Strategy implications adopted: (1) strike/settlement must be computed from the Chainlink feed, never Binance; (2) Binance-vs-Chainlink basis in final 30s is both the main failure mode of naive bots and a measurable edge candidate; (3) maker-first execution is the working default (community post-mortems + our T-60 study agree takers face a fee wall); (4) fee params change silently — read feeSchedule live per market.
+- T-60 calibration study (earlier today, vault/studies/): market well-calibrated at n=200; no naive taker edge; faint longshot-overpricing hint.
+
 ## Session 2026-07-07 — Phase 1 started: up/down collector built + live-validated
 
 User go-ahead: focus on the 5-minute BTC up/down series.
