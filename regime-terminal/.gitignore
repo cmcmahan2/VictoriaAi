@@ -1,0 +1,13 @@
+cache/*.csv
+reports/
+*.html
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+.advisor_state.json
+alerts_state.json
+paper_state.json
+*.log
+*.err
