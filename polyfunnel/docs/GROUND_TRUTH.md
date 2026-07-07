@@ -18,6 +18,9 @@ Compiled 2026-07-06. Every claim carries a verification status:
   - **`offset` > 2000 returns 422** `"offset too large, use /markets/keyset"`, but `/markets/keyset`'s `next_cursor` is not accepted back via any obvious query param (`cursor`/`next_cursor`/`after` all ignored, garbage values not rejected). Full enumeration: order by `endDate` ascending and advance `end_date_min` windows, dedupe on id — implemented in `GammaClient.iter_markets`. **[LIVE 2026-07-06]**
   - `GET /markets` returns `category: null` on live data; the server-side taxonomy now lives in `feeType` (`crypto_fees_v2`, `sports_fees_v2`, `politics_fees`, …) and `feeSchedule` per market. **[LIVE 2026-07-06]**
   - `active=true&closed=false` includes "zombie" markets whose `endDate` is months in the past (e.g. stale politics markets from 2025-10) — filter/flag on `endDate` explicitly. **[LIVE 2026-07-06]**
+  - `?id=<id>` returns `[]` for recent market ids (~2.8M range) while working for old ones — look markets up **by slug**. **[LIVE 2026-07-07]**
+  - Settled markets disappear from the default (`closed=false`-behaving) listing; query with `closed=true` to retrieve them (`outcomePrices` become exact `"1"`/`"0"`). **[LIVE 2026-07-07]**
+  - 5m up/down settlement (exact outcomePrices + closed=true) lags the window end by **~6–30 minutes**; in the interim the market shows near-terminal prices (e.g. 0.005/0.995) with `closed=false`. Outcome capture must poll patiently — handled in `scripts/collect_updown.py`. **[LIVE 2026-07-07]**
 - `GET /events` — event-level (an event page contains ≥1 markets); common discovery: `?active=true&closed=false&order=volume24hr&ascending=false` **[DOC]**
 - Also: `/series`, `/tags`, `/search` **[DOC]**
 - No auth for reads. Cache-Control headers 30–60s — honor them. **[DOC]**

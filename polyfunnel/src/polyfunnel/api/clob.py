@@ -32,6 +32,14 @@ class ClobPublic:
     def book(self, token_id: str) -> dict:
         return self.get("/book", token_id=token_id)
 
+    def books(self, token_ids: list[str]) -> list[dict]:
+        """Batch book snapshots. Each book carries bids/asks plus
+        last_trade_price, tick_size, min_order_size, neg_risk and a content
+        `hash` (stable while the book is unchanged — usable for dedupe)."""
+        r = self._http.post("/books", json=[{"token_id": t} for t in token_ids])
+        r.raise_for_status()
+        return r.json()
+
     def spreads(self, token_ids: list[str]) -> Any:
         # POST /spreads accepts a body of {token_id} params objects
         r = self._http.post("/spreads", json=[{"token_id": t} for t in token_ids])
