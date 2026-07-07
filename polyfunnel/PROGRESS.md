@@ -1,5 +1,23 @@
 # PROGRESS
 
+## Session 2026-07-07 — Phase 1 started: up/down collector built + live-validated
+
+User go-ahead: focus on the 5-minute BTC up/down series.
+
+**Done**
+- `scripts/collect_updown.py` — Phase 1 collector (books ~1 Hz w/ hash-dedupe + provable-gap heartbeats, series auto-discovery every 30s, settled-outcome capture). Stdlib-only so it runs in this restricted container AND on any local machine with no installs. `ClobPublic.books()` batch endpoint added.
+- Live validation (25 min + 13 min runs): 8 markets, 7,466 book rows at median 1.00s cadence, full 1 Hz coverage of each market's final 60s, 4/4 in-window settlements captured with official winners. Full stats + runbook: `docs/DATA_REPORT.md`.
+- New Gamma quirks discovered and documented in GROUND_TRUTH (§ API): settlement lags window end ~6–30 min; settled markets vanish from default listing (need `closed=true` by slug); `?id=` broken for recent market ids.
+- Branch: `claude/new-session-v5f8js` = prior polyfunnel work + main (Trading Hub merge, which also brought in `polybot/` — a BTC-5m bot spec + backtest scaffold from another session).
+
+**Known issue logged (not yet fixed)**
+- `polybot/config.py` has `POLYMARKET_FEE = 0.0` ("no trading fee today") — contradicted by live-verified 0.07 crypto taker rate. Its backtests overstate PnL until aligned with `config/costs.yaml`.
+
+**Next**
+- Durable multi-day collection on the user's local machine (runbook in DATA_REPORT) — container data dies with the session.
+- Then: calibration + microstructure analysis on real books; wire real data into polybot's backtest engine (replaces its synthetic orderbook caveat); maker-vs-taker execution study (fee wall: 0.07 × p(1−p) taker, maker free + rebates).
+- Account/credentials: user exported wallet key to local `.env` (never in repo/chat). Execution stays unbuilt per Phase 7 gate.
+
 ## Session 2026-07-06 (retry) — Phase 0 recon COMPLETE
 
 **Environment re-check (all three prior blockers cleared)**
@@ -45,7 +63,7 @@
 
 ## Phase status
 - [x] Phase 0 recon — COMPLETE 2026-07-06: live universe scan (46,816 markets), fees verified, costs.yaml stamped. Awaiting CHECKPOINT review before Phase 1.
-- [ ] Phase 1 data engine — top priority: live collectors (5m crypto series need continuous token auto-discovery)
+- [~] Phase 1 data engine — collector built + live-validated 2026-07-07; durable multi-day collection pending (runs on user's machine)
 - [ ] Phase 2 strategy grid
 - [ ] Phase 3 backtest engine
 - [ ] Phase 4 filter gauntlet
