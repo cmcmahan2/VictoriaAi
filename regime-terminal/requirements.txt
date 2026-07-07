@@ -1,0 +1,7 @@
+# Regime Terminal runs on the Python 3.11 standard library — no required deps.
+# The HMM, stats, and reports are hand-rolled so it runs anywhere, incl. sandboxes.
+
+# Optional (real data + production-grade HMM; recommended on your own machine):
+#   yfinance>=0.2      # hourly OHLCV from Yahoo Finance (the video's data source)
+#   hmmlearn>=0.3      # battle-tested GaussianHMM; cross-check against hmm.py
+#   numpy, scipy       # pulled in by hmmlearn

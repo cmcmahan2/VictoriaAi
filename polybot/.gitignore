@@ -1,0 +1,17 @@
+# caches & generated artifacts
+backtest/cache/*.csv
+backtest/cache/*.csv.gz
+backtest/cache/*.parquet
+*.db
+*.db-journal
+reports/
+*.html
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# secrets
+.env
