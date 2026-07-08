@@ -39,6 +39,30 @@ window end; official winners from Gamma `outcomePrices`.
   markets** — decision-time *price* datasets can be extended retroactively
   for at least ~17h back (books still cannot).
 
+## Follow-up 2026-07-08 (~05:40 UTC): n=400 rerun
+
+Fresh sample (400 settled markets, ~33h window, again 400/400 with usable
+minute history):
+
+- **Calibration still holds globally; taker favorite strategy exactly zero**
+  (382 trades, avg PnL −0.0000/share before spread — i.e. clearly negative
+  after spread).
+- **Longshot overpricing strengthened:** sides priced ≤0.15 at T-60
+  (avg implied 6.4%) won **2.5%** (n=162, CI [0.01,0.06] — upper bound now
+  at/below implied). Pooled with 2026-07-07: ~7 wins in 239 ≈ **2.9% realized
+  vs ~6.2% implied**.
+- Shape detail: mid-favorites (0.6–0.8) ran slightly *below* implied while
+  extreme favorites (0.9+) ran above — the mispricing concentrates in the
+  tails (classic favorite-longshot bias).
+- Candidate expression (NOT validated): **maker-sell the ≤15¢ longshot side
+  near T-60** — zero fee, rebate-eligible, gross EV ≈ +3.5¢/share sold *if*
+  fills are not adversely selected. The adverse-selection question (are
+  longshot buyers in the final minute the informed ones catching reversals?)
+  is unanswerable from price history — it needs the collector's book data +
+  the Chainlink/Binance basis. This is now the #1 question for Phase 3.
+- Still one-ish regime, ~2 days, and a post-hoc bucket choice — Phase 4
+  deflation applies. Do not size anything on this yet.
+
 ## Implications for the funnel
 
 - Fee + spread + calibrated prices ⇒ any real edge must come from
