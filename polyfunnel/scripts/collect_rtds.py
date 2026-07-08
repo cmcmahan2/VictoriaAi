@@ -47,6 +47,10 @@ WS_MAGIC = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 PING_EVERY_S = 5.0          # per RTDS docs
 STATUS_EVERY_S = 60
 MAX_CONSEC_RECONNECTS = 20  # then die loudly
+DATA_STALL_S = 30.0         # feeds tick ~1/s; silence this long = dead session.
+                            # Known server behavior (official client issue #26):
+                            # stream can stop while ping/pong stays healthy, and
+                            # sessions are recycled with a 1001 "Going away".
 
 SUBSCRIPTIONS = [
     {"topic": "crypto_prices_chainlink", "type": "*",
@@ -205,7 +209,13 @@ def run(minutes: float, probe: bool, data_dir: Path) -> int:
             ws.sock.settimeout(PING_EVERY_S)
             next_ping = time.time() + PING_EVERY_S
             next_status = time.time() + STATUS_EVERY_S
+            last_data = time.time()
             while not stop["flag"] and (deadline is None or time.time() < deadline):
+                if time.time() - last_data > DATA_STALL_S:
+                    ws.close()
+                    raise ConnectionError(
+                        f"no data for {DATA_STALL_S:.0f}s — stale session, "
+                        "reconnecting (known RTDS behavior)")
                 if time.time() >= next_ping:
                     ws.ping()
                     next_ping = time.time() + PING_EVERY_S
@@ -218,6 +228,7 @@ def run(minutes: float, probe: bool, data_dir: Path) -> int:
                 if msg is None:
                     continue
                 now = time.time()
+                last_data = now
                 try:
                     parsed = json.loads(msg)
                 except ValueError:
@@ -265,6 +276,8 @@ def run(minutes: float, probe: bool, data_dir: Path) -> int:
                 print("  (rate-limited: waiting 90s before reconnecting — "
                       "this is normal after several quick restarts)")
                 time.sleep(90)
+            elif "Going away" in str(e) or "stale session" in str(e):
+                time.sleep(0.5)  # routine server recycle — minimize the gap
             else:
                 time.sleep(min(60, 2 ** reconnects))
     writer.close()
