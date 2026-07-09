@@ -12,10 +12,16 @@ gives us (a) each window's exact strike ("price to beat"), (b) settlement
 direction ground truth, and (c) the Binance-vs-Chainlink basis that decides
 15-20% of windows in the final seconds (community estimate — measure it!).
 
-Subscribe format (docs + official TS client; filters is a JSON *string*):
+Subscribe format (LIVE-VERIFIED 2026-07-08 — do NOT send `filters`; it silently
+kills the stream, leaving at most a one-time snapshot. This was the RTDS ~0-bytes bug):
   {"action":"subscribe","subscriptions":[
-    {"topic":"crypto_prices_chainlink","type":"*","filters":"{\\"symbol\\":\\"btc/usd\\"}"}]}
-Messages: {"topic","type":"update","timestamp",payload:{symbol,timestamp,value}}
+    {"topic":"crypto_prices_chainlink","type":"*"},   # Chainlink referee feed
+    {"topic":"crypto_prices","type":"*"}]}            # Binance leading feed
+Each topic then streams per-second ticks for ALL symbols:
+  {"topic","type":"update","timestamp",payload:{symbol,value}}
+Chainlink symbols look like "btc/usd"; Binance like "btcusdt". We keep BTC only
+(client-side) unless --all-symbols. The referee feed is topic crypto_prices_chainlink
+symbol btc/usd; crypto_prices/btcusdt is Binance.
 
 Stdlib-only, including a minimal RFC-6455 WebSocket client (this repo's
 containers can't pip-install; the client covers exactly what RTDS needs:
@@ -52,12 +58,18 @@ DATA_STALL_S = 30.0         # feeds tick ~1/s; silence this long = dead session.
                             # stream can stop while ping/pong stays healthy, and
                             # sessions are recycled with a 1001 "Going away".
 
+# LIVE-VERIFIED 2026-07-08: a `filters` field SUPPRESSES the stream — you get at
+# most a one-time snapshot (type=subscribe) then silence. Subscribing WITHOUT
+# filters delivers the live per-second tick stream (type=update) for every symbol
+# on each topic; we filter to BTC client-side. (Corrects the earlier [DOC] claim
+# that `filters` was required — that claim was wrong and is why RTDS logged ~0.)
 SUBSCRIPTIONS = [
-    {"topic": "crypto_prices_chainlink", "type": "*",
-     "filters": json.dumps({"symbol": "btc/usd"})},   # the resolution feed
-    {"topic": "crypto_prices", "type": "*",
-     "filters": json.dumps({"symbol": "btcusdt"})},   # Binance leading feed
+    {"topic": "crypto_prices_chainlink", "type": "*"},  # resolution feed (Chainlink)
+    {"topic": "crypto_prices", "type": "*"},            # Binance leading feed
 ]
+# Referee feed uses "btc/usd"; Binance feed uses "btcusdt". Keep only these unless
+# --all-symbols is passed. Both are needed for strike capture + the CL-vs-Binance basis.
+BTC_SYMBOLS = {"btc/usd", "btcusdt"}
 
 
 class MiniWebSocket:
@@ -187,7 +199,8 @@ class Writer:
             self._fh = None
 
 
-def run(minutes: float, probe: bool, data_dir: Path) -> int:
+def run(minutes: float, probe: bool, data_dir: Path,
+        all_symbols: bool = False) -> int:
     stop = {"flag": False}
     signal.signal(signal.SIGINT, lambda *_: stop.update(flag=True))
     signal.signal(signal.SIGTERM, lambda *_: stop.update(flag=True))
@@ -228,27 +241,34 @@ def run(minutes: float, probe: bool, data_dir: Path) -> int:
                 if msg is None:
                     continue
                 now = time.time()
+                # A parseable price message = liveness. Update the stall clock on
+                # EVERY tick (even non-BTC symbols we don't store), so the watchdog
+                # tracks the real stream, not just the rows we keep.
                 last_data = now
                 try:
                     parsed = json.loads(msg)
                 except ValueError:
                     parsed = {"raw": msg[:2000]}
-                topic = parsed.get("topic") or ("server_hello" if
-                        parsed.get("raw") == "" else "unknown")
-                counts[topic] = counts.get(topic, 0) + 1
-                writer.write({"recv_ts": round(now, 4), **parsed})
+                payload = parsed.get("payload")
+                symbol = payload.get("symbol") if isinstance(payload, dict) else None
+                if symbol is None:      # server hello / control — skip, don't store
+                    continue
+                if all_symbols or symbol in BTC_SYMBOLS:
+                    counts[symbol] = counts.get(symbol, 0) + 1
+                    writer.write({"recv_ts": round(now, 4), **parsed})
                 if probe:
-                    if probe_left > 0:
+                    if probe_left > 0 and symbol in BTC_SYMBOLS:
                         print(json.dumps(parsed)[:240])
                         probe_left -= 1
                     if now >= probe_deadline:
-                        chain = counts.get("crypto_prices_chainlink", 0)
-                        binance = counts.get("crypto_prices", 0)
-                        print(f"\nprobe census (15s): {counts}")
-                        print(f"  Chainlink (referee) feed: "
-                              f"{'OK, ~%.1f/s' % (chain/15) if chain else 'MISSING'}")
-                        print(f"  Binance (leading) feed:   "
-                              f"{'OK, ~%.1f/s' % (binance/15) if binance else 'MISSING'}")
+                        span = now - (probe_deadline - 15)
+                        chain = counts.get("btc/usd", 0)
+                        binance = counts.get("btcusdt", 0)
+                        print(f"\nprobe census (~{span:.0f}s): {counts}")
+                        print(f"  Chainlink (referee) btc/usd: "
+                              f"{'OK, ~%.1f/s' % (chain/span) if chain else 'MISSING'}")
+                        print(f"  Binance (leading) btcusdt:   "
+                              f"{'OK, ~%.1f/s' % (binance/span) if binance else 'MISSING'}")
                         print("PROBE PASS — run without --probe to record"
                               if chain and binance else
                               "PROBE PARTIAL — send this output to Claude")
@@ -292,8 +312,10 @@ def main() -> int:
     ap.add_argument("--probe", action="store_true",
                     help="connect, print first 5 messages, exit")
     ap.add_argument("--data-dir", type=Path, default=ROOT / "data" / "collect")
+    ap.add_argument("--all-symbols", action="store_true",
+                    help="store every crypto symbol, not just BTC (bigger files)")
     a = ap.parse_args()
-    return run(a.minutes, a.probe, a.data_dir)
+    return run(a.minutes, a.probe, a.data_dir, a.all_symbols)
 
 
 if __name__ == "__main__":
