@@ -1,5 +1,25 @@
 # PROGRESS
 
+## Session 2026-07-08 — RTDS feed fixed; PnL sim + basis harness; durable collection
+
+Branch `claude/fix-rtds-filters-8f2a` (5 commits; PR pending — no `gh` CLI / GitHub MCP / token on this machine, so push + hand user the compare URL).
+
+**RTDS collector fixed — the `filters` format was FALSIFIED.**
+- Root cause of the ~0-byte RTDS logs: the subscription sent a `filters` JSON string (the `[DOC]` format in GROUND_TRUTH). Live testing 2026-07-08 proved `filters` **suppresses the stream** — server returns at most a one-time snapshot (`type:subscribe` backfill) then silence, no `type:update` ticks.
+- Fix (`collect_rtds.py`): subscribe to `crypto_prices_chainlink` + `crypto_prices` with **no filters**; each topic streams per-second `type:update` ticks for all symbols; filter to BTC (`btc/usd` referee + `btcusdt` Binance) client-side (`--all-symbols` keeps everything). Update payload carries `full_accuracy_value` (full-precision strike). Verified: both feeds ~1 Hz, probe passes.
+- GROUND_TRUTH §RTDS updated to the verified filterless format with an explicit ⚠️ FALSIFIED note so a future session can't reintroduce it.
+
+**tape_status.py reporting bugs fixed** — `any(d.glob("books-*") ...)` is always truthy (generators), so RTDS always got the wrong prefix and reported "no rows found" regardless of data; also show KB for sub-MB streams (was rounding to "0 MB"); freshness scans from the file end for the last VALID row so a torn final line no longer masks a live feed.
+
+**PnL simulation tooling added** (`sim_pnl.py` + `build_pnl_page.py` + `_pnl_style.css` → `docs/pnl_sim.html`, an Artifact). Four toy strategies (3 taker + 1 modeled-fill maker) replayed on real books + real Chainlink outcomes + live 0.07 taker fee. **Finding: every apparent edge decays toward zero as the sample grows (122 → 238 trades)** — consistent with the calibration study's no-naive-edge result. Maker fills are modeled (no trade tape) and show adverse selection (fill-conditional hit rate below the taker's). NOT realized PnL — nothing has traded. `sim_pnl.py` appends a run-history log so the decay is tracked across reruns.
+
+**Basis-alignment harness added** (`basis_analysis.py`). Tests the one open hypothesis: does the Binance-vs-Chainlink basis in the final seconds predict the Chainlink settlement BEYOND what the book prices? Strike = Chainlink@window-start; settles Up iff Chainlink@end ≥ strike (ties Up). Reports coverage, a referee sanity check, the basis-lead test, and the marginal edge over the book on contested windows (book Up-prob 0.40–0.60). Verdict enforces a **kill criterion** (principle #1): edge must hold CONSISTENTLY across offsets and exceed a 2·SE noise band — a first cut cherry-picked the best of several offsets and flagged pure noise as signal; caught via synthetic planted-signal-vs-null verification.
+- **Pipeline check on live tape passed:** referee check **100% on 5 strike-computable windows** (strike logic + settlement alignment + "ties resolve Up" all validated on real data). Verdict INCONCLUSIVE — underpowered; continuous RTDS tape only ~45 min old at check time.
+
+**Durable collection** — `run_collectors.ps1` (idempotent starter/watchdog: starts a collector only if not already running → no duplicate writers; recovers reboots, crashes, RTDS server-recycle) + `register_task.ps1` (one-time elevated installer for the `PolyfunnelCollectors` scheduled task: runs the watchdog at logon and every 15 min). Both collectors confirmed RECORDING LIVE; machine on AC (never sleeps; battery would sleep after 15 min → keep plugged in).
+
+**Next:** re-run `basis_analysis.py` in ~1–2 days for a first real verdict (~3 days for regime robustness). Expected prior: NULL (book already prices the basis) — a documented null is the win.
+
 ## Session 2026-07-07 (later) — research integrated: the referee is Chainlink
 
 - User deep-research PDF archived to vault/research/ (load-bearing claims live-verified where possible).
@@ -71,7 +91,7 @@ User go-ahead: focus on the 5-minute BTC up/down series.
 
 ## Phase status
 - [x] Phase 0 recon — COMPLETE 2026-07-06: live universe scan (46,816 markets), fees verified, costs.yaml stamped. Awaiting CHECKPOINT review before Phase 1.
-- [~] Phase 1 data engine — collector built + live-validated 2026-07-07; durable multi-day collection pending (runs on user's machine)
+- [~] Phase 1 data engine — up/down collector live-validated 2026-07-07; RTDS resolution feed fixed + live 2026-07-08 (both feeds ~1 Hz); durable multi-day collection now automated via `PolyfunnelCollectors` scheduled task (logon + 15-min watchdog). Accruing aligned tape for the basis test.
 - [ ] Phase 2 strategy grid
 - [ ] Phase 3 backtest engine
 - [ ] Phase 4 filter gauntlet
