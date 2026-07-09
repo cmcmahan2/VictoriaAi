@@ -1,0 +1,324 @@
+<style>:root {
+  --bg: #f5f6f8; --surface: #ffffff; --surface-2: #eef1f5;
+  --ink: #1a2130; --muted: #5c6675; --hair: #dde2ea;
+  --accent: #3f6fb5;
+  --s-teal: #0f9d8a; --s-amber: #d98a1f; --s-rose: #e0435c; --s-violet: #6d5bd6;
+  --pos: #0f9d8a; --neg: #e0435c;
+  --warn-bg: #fdf4e3; --warn-bd: #e7b866; --warn-ink: #7a531a;
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0c0f14; --surface: #141a22; --surface-2: #1b2330;
+    --ink: #e5e9f0; --muted: #8a93a3; --hair: #263040;
+    --accent: #6ba0e8;
+    --s-teal: #2dd4bf; --s-amber: #f0b74d; --s-rose: #ff6178; --s-violet: #a99cff;
+    --pos: #2dd4bf; --neg: #ff6178;
+    --warn-bg: #241c0d; --warn-bd: #6b4e1e; --warn-ink: #e8c583;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f5f6f8; --surface: #ffffff; --surface-2: #eef1f5;
+  --ink: #1a2130; --muted: #5c6675; --hair: #dde2ea; --accent: #3f6fb5;
+  --s-teal: #0f9d8a; --s-amber: #d98a1f; --s-rose: #e0435c; --s-violet: #6d5bd6;
+  --pos: #0f9d8a; --neg: #e0435c;
+  --warn-bg: #fdf4e3; --warn-bd: #e7b866; --warn-ink: #7a531a;
+}
+:root[data-theme="dark"] {
+  --bg: #0c0f14; --surface: #141a22; --surface-2: #1b2330;
+  --ink: #e5e9f0; --muted: #8a93a3; --hair: #263040; --accent: #6ba0e8;
+  --s-teal: #2dd4bf; --s-amber: #f0b74d; --s-rose: #ff6178; --s-violet: #a99cff;
+  --pos: #2dd4bf; --neg: #ff6178;
+  --warn-bg: #241c0d; --warn-bd: #6b4e1e; --warn-ink: #e8c583;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font-family: var(--sans); line-height: 1.55;
+  -webkit-font-smoothing: antialiased; }
+article { max-width: 880px; margin: 0 auto; padding: 40px 22px 64px; }
+
+.eyebrow { font-family: var(--mono); font-size: 11.5px; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+.hero h1 { font-size: clamp(26px, 4.4vw, 38px); line-height: 1.08;
+  letter-spacing: -.02em; margin: 0 0 12px; text-wrap: balance; }
+.dek { font-size: 16px; color: var(--muted); max-width: 62ch; margin: 0; }
+.dek strong { color: var(--ink); font-weight: 600; }
+
+.warn { margin: 26px 0; padding: 16px 18px; border-radius: 10px;
+  background: var(--warn-bg); border: 1px solid var(--warn-bd);
+  color: var(--warn-ink); }
+.warn-title { font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+.warn p { margin: 0; font-size: 14px; line-height: 1.5; }
+.warn strong, .warn em { color: var(--warn-ink); }
+.warn strong { font-weight: 700; }
+
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+  margin: 26px 0; }
+.tile { background: var(--surface); border: 1px solid var(--hair);
+  border-radius: 12px; padding: 15px 15px 13px; display: flex; flex-direction: column; }
+.tile-maker { border-color: color-mix(in srgb, var(--s-violet) 55%, var(--hair));
+  box-shadow: inset 3px 0 0 var(--s-violet); }
+.tile-head { display: flex; align-items: center; gap: 8px; font-size: 12.5px;
+  font-weight: 600; color: var(--muted); min-height: 32px; line-height: 1.2; }
+.swatch { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+.tile-final { font-family: var(--mono); font-size: 28px; font-weight: 600;
+  letter-spacing: -.02em; margin: 6px 0 12px; font-variant-numeric: tabular-nums; }
+.tile-final.pos { color: var(--pos); }
+.tile-final.neg { color: var(--neg); }
+.tile-stats { display: flex; justify-content: space-between; margin: 0;
+  padding-top: 12px; border-top: 1px solid var(--hair); gap: 6px; }
+.tile-stats div { display: flex; flex-direction: column; gap: 2px; }
+.tile-stats dt { font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--muted); }
+.tile-stats dd { margin: 0; font-family: var(--mono); font-size: 14px;
+  font-variant-numeric: tabular-nums; }
+.tile-stats dd.flag { color: var(--s-violet); font-weight: 600; }
+.tile-note { margin: 10px 0 0; font-size: 10.5px; line-height: 1.35;
+  color: var(--muted); font-style: italic; }
+.ink-violet { color: var(--s-violet); font-weight: 600; font-style: normal; }
+
+.panel { background: var(--surface); border: 1px solid var(--hair);
+  border-radius: 14px; padding: 20px 20px 12px; margin: 20px 0; }
+.panel-head { display: flex; flex-wrap: wrap; align-items: baseline;
+  justify-content: space-between; gap: 10px; }
+.panel-head h2 { font-size: 16px; margin: 0; letter-spacing: -.01em; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; }
+.lg { display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
+  color: var(--muted); }
+.cap { font-size: 13px; color: var(--muted); margin: 6px 0 10px; max-width: 68ch; }
+
+.chart { width: 100%; height: auto; display: block; overflow: visible; }
+.grid { stroke: var(--hair); stroke-width: 1; }
+.axis0 { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; opacity: .7; }
+.ylab, .xlab, .xtitle { fill: var(--muted); font-family: var(--mono);
+  font-size: 11px; font-variant-numeric: tabular-nums; }
+.xtitle { font-size: 11px; letter-spacing: .04em; }
+.ylab { text-anchor: end; }
+
+.decay .cap { max-width: 74ch; }
+.tbl-wrap { overflow-x: auto; margin-top: 6px; }
+.decay-tbl { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+.decay-tbl th, .decay-tbl td { padding: 8px 12px; text-align: left;
+  border-bottom: 1px solid var(--hair); white-space: nowrap; }
+.decay-tbl thead th { font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--muted); font-weight: 600; }
+.decay-tbl td .swatch { display: inline-block; margin-right: 8px; vertical-align: middle; }
+.decay-tbl .num { font-family: var(--mono); font-variant-numeric: tabular-nums;
+  text-align: right; }
+.decay-toward { color: var(--pos); font-weight: 700; }
+.decay-away { color: var(--neg); font-weight: 700; }
+.decay-tbl tbody tr:last-child td { border-bottom: none; }
+
+.methods { margin-top: 30px; }
+.methods h2 { font-size: 15px; margin: 0 0 12px; }
+.methods ul { margin: 0; padding-left: 18px; }
+.methods li { font-size: 13.5px; color: var(--muted); margin-bottom: 7px; }
+.methods li strong { color: var(--ink); font-weight: 600; }
+.methods code, .dek code, .warn code { font-family: var(--mono); font-size: .88em;
+  background: var(--surface-2); padding: 1px 5px; border-radius: 4px; color: var(--ink); }
+.gen { font-family: var(--mono); font-size: 11px; color: var(--muted);
+  margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--hair); }
+
+@media (max-width: 780px) {
+  .tiles { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 460px) {
+  .tiles { grid-template-columns: 1fr; }
+  .tile-final { font-size: 24px; }
+}
+</style>
+<article>
+<header class="hero">
+  <div class="eyebrow">POLYFUNNEL · btc-up-or-down-5m · simulated</div>
+  <h1>Hypothetical PnL &mdash; taker vs. maker toy strategies</h1>
+  <p class="dek">Replayed against <strong>238 real settled markets</strong>
+  (of 261 collected, 2026-07-07 &rarr; 07-08), using the real order books,
+  the real Chainlink settlement outcomes, and the live-verified 0.07 crypto taker fee.
+  Entry is ~60&nbsp;s before each close; each trade stakes a fixed $100 of cost. The
+  <span class="ink-violet">maker</span> variant posts at the favorite's bid and pays zero fees &mdash;
+  the execution mode the project's research says actually has a shot.</p>
+</header>
+
+<aside class="warn" role="note">
+  <div class="warn-title">This is not realized PnL. Nothing traded.</div>
+  <p>No money has ever been at risk &mdash; the live module is disabled (Phase&nbsp;7, ungated).
+  This is a counterfactual replay. Several curves look profitable, but that is the trap this chart exists
+  to show: <strong>n&nbsp;=&nbsp;238 trades over ~2 days</strong>, and it
+  contradicts the project's own n=200 calibration study that found <em>no</em> naive taker edge.
+  The taker edge is best explained by a short trending sample plus an idealized fill
+  (top-of-book ask, any size, no slippage &mdash; unrealistic in the final minute). The
+  <strong>maker curve is the least-grounded of all</strong>: we collect order books, not the trade tape,
+  so its fills are <em>modeled</em>, not observed. Treat the shapes, not the dollars, as the takeaway.</p>
+</aside>
+
+<section class="tiles"><div class="tile">
+  <div class="tile-head"><span class="swatch" style="background:var(--s-teal)"></span>Taker · buy favorite</div>
+  <div class="tile-final pos">+$372</div>
+  <dl class="tile-stats">
+    <div><dt>trades</dt><dd>238</dd></div>
+    <div><dt>hit rate</dt><dd>88.7%</dd></div>
+    <div><dt>avg / trade</dt><dd>+$1.56</dd></div>
+  </dl>
+</div>
+<div class="tile tile-maker">
+  <div class="tile-head"><span class="swatch" style="background:var(--s-violet)"></span>Maker · post favorite bid</div>
+  <div class="tile-final pos">+$6</div>
+  <dl class="tile-stats">
+    <div><dt>trades</dt><dd>139</dd></div>
+    <div><dt>hit · if filled</dt><dd>80.6%</dd></div>
+    <div><dt>fill rate</dt><dd class='flag'>58%</dd></div>
+  </dl><p class="tile-note">modeled fill (no trade tape) · fills only when price ticks to you</p>
+</div>
+<div class="tile">
+  <div class="tile-head"><span class="swatch" style="background:var(--s-amber)"></span>Taker · longshot fade</div>
+  <div class="tile-final pos">+$506</div>
+  <dl class="tile-stats">
+    <div><dt>trades</dt><dd>174</dd></div>
+    <div><dt>hit rate</dt><dd>96.6%</dd></div>
+    <div><dt>avg / trade</dt><dd>+$2.91</dd></div>
+  </dl>
+</div>
+<div class="tile">
+  <div class="tile-head"><span class="swatch" style="background:var(--s-rose)"></span>Taker · coinflip (Up)</div>
+  <div class="tile-final neg">−$5,743</div>
+  <dl class="tile-stats">
+    <div><dt>trades</dt><dd>238</dd></div>
+    <div><dt>hit rate</dt><dd>47.9%</dd></div>
+    <div><dt>avg / trade</dt><dd>−$24.13</dd></div>
+  </dl>
+</div></section>
+
+<section class="panel decay">
+  <div class="panel-head"><h2>Did the edge survive more data?</h2></div>
+  <p class="cap">Per-trade PnL of each strategy the first time this was run
+  (<strong>122 trades</strong>) versus the latest run
+  (<strong>238 trades</strong>, 261 settled markets). As the sample
+  roughly doubled, every apparent taker/maker edge compressed toward zero &mdash; the maker
+  variant most of all. This is the tell that the early numbers were sample/regime noise, not signal.</p>
+  <div class="tbl-wrap"><table class="decay-tbl">
+    <thead><tr><th>strategy</th><th class="num">avg/trade @ 122</th>
+      <th class="num">avg/trade @ 238</th><th class="num">→0</th></tr></thead>
+    <tbody><tr>
+      <td><span class="swatch" style="background:var(--s-teal)"></span>Taker · buy favorite</td>
+      <td class="num">+$6.16</td>
+      <td class="num">+$1.56</td>
+      <td class="num decay-toward">↓</td>
+    </tr><tr>
+      <td><span class="swatch" style="background:var(--s-violet)"></span>Maker · post favorite bid</td>
+      <td class="num">+$6.78</td>
+      <td class="num">+$0.04</td>
+      <td class="num decay-toward">↓</td>
+    </tr><tr>
+      <td><span class="swatch" style="background:var(--s-amber)"></span>Taker · longshot fade</td>
+      <td class="num">+$3.59</td>
+      <td class="num">+$2.91</td>
+      <td class="num decay-toward">↓</td>
+    </tr><tr>
+      <td><span class="swatch" style="background:var(--s-rose)"></span>Taker · coinflip (Up)</td>
+      <td class="num">−$33.98</td>
+      <td class="num">−$24.13</td>
+      <td class="num decay-toward">↓</td>
+    </tr></tbody>
+  </table></div>
+</section>
+<section class="panel">
+  <div class="panel-head">
+    <h2>Equity curves &mdash; full scale</h2>
+    <div class="legend"><span class="lg"><span class="swatch" style="background:var(--s-teal)"></span>Taker · buy favorite</span><span class="lg"><span class="swatch" style="background:var(--s-violet)"></span>Maker · post favorite bid</span><span class="lg"><span class="swatch" style="background:var(--s-amber)"></span>Taker · longshot fade</span><span class="lg"><span class="swatch" style="background:var(--s-rose)"></span>Taker · coinflip (Up)</span></div>
+  </div>
+  <p class="cap">The coinflip null (no skill + equal-dollar stakes + a Down-heavy sample) nose-dives,
+  which flattens the three favorite-buying curves near zero. That contrast is the point.</p>
+  <svg viewBox="0 0 760 340" role="img" preserveAspectRatio="xMidYMid meet" class="chart">
+<line x1="64" y1="336.3" x2="742" y2="336.3" class="grid"/>
+<text x="56" y="339.8" class="ylab">$-8,000</text>
+<line x1="64" y1="268.1" x2="742" y2="268.1" class="grid"/>
+<text x="56" y="271.6" class="ylab">$-6,000</text>
+<line x1="64" y1="199.9" x2="742" y2="199.9" class="grid"/>
+<text x="56" y="203.4" class="ylab">$-4,000</text>
+<line x1="64" y1="131.7" x2="742" y2="131.7" class="grid"/>
+<text x="56" y="135.2" class="ylab">$-2,000</text>
+<line x1="64" y1="63.5" x2="742" y2="63.5" class="axis0"/>
+<text x="56" y="67.0" class="ylab">$0</text>
+<line x1="64" y1="-4.7" x2="742" y2="-4.7" class="grid"/>
+<text x="56" y="-1.2" class="ylab">$2,000</text>
+<text x="64.0" y="328.0" class="xlab" text-anchor="middle">0</text>
+<text x="232.8" y="328.0" class="xlab" text-anchor="middle">59</text>
+<text x="401.6" y="328.0" class="xlab" text-anchor="middle">118</text>
+<text x="573.2" y="328.0" class="xlab" text-anchor="middle">178</text>
+<text x="742.0" y="328.0" class="xlab" text-anchor="middle">237</text>
+<text x="403.0" y="338" class="xtitle" text-anchor="middle">trade number</text>
+<polyline fill="none" stroke="var(--s-teal)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" points="64.0,63.4 66.9,62.6 69.7,61.0 72.6,60.2 75.4,60.2 78.3,60.0 81.2,59.5 84.0,59.5 86.9,59.3 89.7,62.7 92.6,62.3 95.5,65.8 98.3,65.0 101.2,68.5 104.1,66.8 106.9,66.8 109.8,66.5 112.6,70.0 115.5,69.6 118.4,69.0 121.2,68.9 124.1,68.5 126.9,68.4 129.8,67.8 132.7,66.7 135.5,66.5 138.4,65.9 141.2,65.7 144.1,65.6 147.0,65.3 149.8,65.1 152.7,65.0 155.5,63.7 158.4,63.7 161.3,67.1 164.1,66.9 167.0,66.8 169.8,66.2 172.7,65.5 175.6,65.5 178.4,65.4 181.3,64.9 184.2,64.7 187.0,64.6 189.9,62.8 192.7,62.7 195.6,61.0 198.5,60.9 201.3,60.1 204.2,59.8 207.0,59.7 209.9,59.7 212.8,59.7 215.6,59.6 218.5,57.0 221.3,55.8 224.2,55.7 227.1,55.6 229.9,53.8 232.8,53.6 235.6,53.5 238.5,52.5 241.4,51.7 244.2,51.7 247.1,55.2 249.9,55.2 252.8,55.1 255.7,54.0 258.5,54.0 261.4,53.8 264.3,53.8 267.1,53.6 270.0,53.4 272.8,53.4 275.7,53.3 278.6,51.6 281.4,50.8 284.3,50.8 287.1,50.8 290.0,49.7 292.9,49.2 295.7,49.2 298.6,48.5 301.4,48.4 304.3,52.0 307.2,55.5 310.0,54.8 312.9,53.4 315.7,53.4 318.6,53.3 321.5,53.3 324.3,53.2 327.2,53.2 330.1,53.1 332.9,51.0 335.8,54.4 338.6,54.4 341.5,54.0 344.4,53.6 347.2,57.1 350.1,54.5 352.9,52.7 355.8,50.0 358.7,49.4 361.5,48.6 364.4,46.5 367.2,44.0 370.1,43.8 373.0,43.4 375.8,42.3 378.7,42.3 381.5,42.2 384.4,42.2 387.3,42.2 390.1,39.4 393.0,39.3 395.8,39.2 398.7,38.7 401.6,38.7 404.4,38.3 407.3,38.3 410.2,37.9 413.0,41.4 415.9,40.7 418.7,39.9 421.6,38.7 424.5,38.6 427.3,38.1 430.2,38.1 433.0,37.9 435.9,41.4 438.8,44.9 441.6,48.3 444.5,48.3 447.3,48.2 450.2,48.2 453.1,47.0 455.9,47.0 458.8,46.7 461.6,46.7 464.5,46.7 467.4,46.6 470.2,50.2 473.1,49.1 475.9,52.6 478.8,56.1 481.7,56.1 484.5,55.7 487.4,55.0 490.3,58.5 493.1,57.5 496.0,57.4 498.8,57.0 501.7,56.9 504.6,56.2 507.4,59.7 510.3,58.3 513.1,61.8 516.0,61.1 518.9,60.4 521.7,60.3 524.6,59.6 527.4,59.5 530.3,56.7 533.2,56.3 536.0,56.1 538.9,56.1 541.7,59.6 544.6,59.2 547.5,59.1 550.3,58.2 553.2,57.7 556.1,57.6 558.9,57.5 561.8,57.4 564.6,55.7 567.5,55.6 570.4,53.8 573.2,53.7 576.1,50.6 578.9,50.4 581.8,53.9 584.7,51.3 587.5,51.3 590.4,50.8 593.2,50.6 596.1,50.5 599.0,50.5 601.8,49.2 604.7,48.4 607.5,48.3 610.4,47.4 613.3,47.4 616.1,46.7 619.0,46.4 621.8,49.8 624.7,49.8 627.6,49.8 630.4,49.3 633.3,52.7 636.2,52.6 639.0,52.4 641.9,52.3 644.7,52.3 647.6,52.3 650.5,51.1 653.3,49.6 656.2,49.4 659.0,48.8 661.9,48.8 664.8,48.7 667.6,48.6 670.5,52.0 673.3,52.0 676.2,51.8 679.1,51.6 681.9,55.1 684.8,53.8 687.6,53.7 690.5,53.5 693.4,53.3 696.2,53.3 699.1,53.2 701.9,52.8 704.8,56.3 707.7,56.3 710.5,56.0 713.4,55.3 716.3,55.3 719.1,54.4 722.0,54.3 724.8,54.1 727.7,52.7 730.6,52.6 733.4,52.5 736.3,52.5 739.1,51.2 742.0,50.8"/>
+<circle cx="742.0" cy="50.8" r="3.6" fill="var(--s-teal)"/>
+<polyline fill="none" stroke="var(--s-violet)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" points="64.0,61.7 68.9,60.8 73.8,64.2 78.7,63.7 83.7,67.1 88.6,66.2 93.5,69.6 98.4,73.0 103.3,72.3 108.2,72.2 113.1,72.0 118.0,71.3 123.0,70.1 127.9,69.4 132.8,69.2 137.7,69.0 142.6,68.8 147.5,67.4 152.4,70.8 157.3,70.5 162.3,69.9 167.2,67.9 172.1,65.8 177.0,64.9 181.9,64.5 186.8,64.3 191.7,64.3 196.7,62.9 201.6,62.7 206.5,60.7 211.4,60.5 216.3,63.9 221.2,62.7 226.1,62.7 231.0,62.5 236.0,60.7 240.9,59.5 245.8,59.0 250.7,62.4 255.6,65.8 260.5,65.0 265.4,63.5 270.3,63.4 275.3,63.3 280.2,61.0 285.1,64.5 290.0,63.9 294.9,63.6 299.8,67.0 304.7,64.2 309.7,62.2 314.6,59.3 319.5,58.6 324.4,57.7 329.3,55.0 334.2,54.8 339.1,53.6 344.0,50.5 349.0,50.4 353.9,49.8 358.8,49.4 363.7,52.8 368.6,52.0 373.5,51.1 378.4,49.8 383.3,49.6 388.3,48.9 393.2,52.3 398.1,55.7 403.0,59.2 407.9,59.0 412.8,57.7 417.7,57.4 422.7,57.3 427.6,60.7 432.5,59.6 437.4,63.0 442.3,66.4 447.2,66.0 452.1,69.4 457.0,68.4 462.0,67.9 466.9,67.1 471.8,70.5 476.7,68.9 481.6,72.4 486.5,71.3 491.4,70.4 496.3,69.6 501.3,69.1 506.2,68.9 511.1,72.3 516.0,71.8 520.9,70.9 525.8,70.3 530.7,70.1 535.7,68.2 540.6,66.2 545.5,62.8 550.4,66.2 555.3,63.4 560.2,63.1 565.1,63.0 570.0,62.9 575.0,61.6 579.9,60.6 584.8,59.6 589.7,58.6 594.6,58.2 599.5,61.6 604.4,61.6 609.3,61.6 614.3,61.1 619.2,64.5 624.1,64.2 629.0,64.1 633.9,62.4 638.8,62.2 643.7,65.7 648.7,65.4 653.6,65.1 658.5,68.5 663.4,67.1 668.3,66.9 673.2,66.6 678.1,66.5 683.0,66.1 688.0,69.5 692.9,69.5 697.8,69.1 702.7,68.4 707.6,67.4 712.5,67.2 717.4,67.0 722.3,65.4 727.3,65.2 732.2,65.1 737.1,63.8 742.0,63.3"/>
+<circle cx="742.0" cy="63.3" r="3.6" fill="var(--s-violet)"/>
+<polyline fill="none" stroke="var(--s-amber)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" points="64.0,63.4 67.9,62.6 71.8,61.8 75.8,61.8 79.7,61.6 83.6,61.1 87.5,61.1 91.4,60.9 95.4,64.3 99.3,63.9 103.2,63.1 107.1,63.0 111.0,62.8 114.9,62.4 118.9,61.7 122.8,61.6 126.7,61.3 130.6,61.2 134.5,60.5 138.5,60.3 142.4,59.7 146.3,59.6 150.2,59.5 154.1,59.1 158.1,59.0 162.0,58.8 165.9,58.8 169.8,62.2 173.7,62.0 177.7,61.9 181.6,61.3 185.5,60.6 189.4,60.6 193.3,60.5 197.2,60.0 201.2,59.7 205.1,59.7 209.0,59.7 212.9,59.6 216.8,58.8 220.8,58.5 224.7,58.4 228.6,58.4 232.5,58.3 236.4,58.3 240.4,58.2 244.3,58.1 248.2,58.0 252.1,57.8 256.0,57.0 260.0,57.0 263.9,56.9 267.8,56.8 271.7,56.8 275.6,56.7 279.5,56.6 283.5,56.4 287.4,56.3 291.3,56.2 295.2,56.1 299.1,55.3 303.1,55.3 307.0,55.3 310.9,54.8 314.8,54.7 318.7,54.0 322.7,54.0 326.6,53.4 330.5,53.3 334.4,53.3 338.3,53.2 342.3,53.2 346.2,53.2 350.1,53.0 354.0,56.5 357.9,56.4 361.8,56.0 365.8,55.7 369.7,55.1 373.6,54.3 377.5,54.1 381.4,53.7 385.4,53.7 389.3,53.7 393.2,53.6 397.1,53.6 401.0,53.6 405.0,53.5 408.9,53.0 412.8,52.9 416.7,52.5 420.6,52.5 424.6,52.1 428.5,51.4 432.4,51.4 436.3,50.8 440.2,50.8 444.2,50.7 448.1,50.6 452.0,50.5 455.9,50.5 459.8,50.4 463.7,50.2 467.7,50.1 471.6,50.1 475.5,50.1 479.4,50.0 483.3,49.7 487.3,48.9 491.2,48.8 495.1,48.4 499.0,48.3 502.9,47.6 506.9,47.0 510.8,46.2 514.7,46.1 518.6,45.4 522.5,45.4 526.5,44.9 530.4,44.8 534.3,44.7 538.2,44.3 542.1,44.2 546.0,43.7 550.0,43.6 553.9,43.4 557.8,43.4 561.7,43.4 565.6,43.3 569.6,43.1 573.5,43.1 577.4,42.6 581.3,42.4 585.2,42.3 589.2,42.3 593.1,42.3 597.0,42.2 600.9,41.5 604.8,41.2 608.8,44.6 612.7,44.6 616.6,44.6 620.5,44.1 624.4,47.6 628.3,47.4 632.3,47.2 636.2,47.2 640.1,47.1 644.0,47.1 647.9,46.9 651.9,46.4 655.8,46.3 659.7,46.2 663.6,46.1 667.5,46.1 671.5,45.9 675.4,45.6 679.3,45.5 683.2,45.4 687.1,45.1 691.1,45.1 695.0,45.0 698.9,44.7 702.8,48.1 706.7,48.1 710.6,47.8 714.6,47.2 718.5,47.1 722.4,47.0 726.3,46.8 730.2,46.8 734.2,46.7 738.1,46.6 742.0,46.2"/>
+<circle cx="742.0" cy="46.2" r="3.6" fill="var(--s-amber)"/>
+<polyline fill="none" stroke="var(--s-rose)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" points="64.0,67.1 66.9,70.7 69.7,74.3 72.6,77.9 75.4,81.5 78.3,81.3 81.2,80.8 84.0,84.5 86.9,88.1 89.7,91.5 92.6,95.1 95.5,88.1 98.3,87.3 101.2,83.2 104.1,86.8 106.9,90.4 109.8,94.1 112.6,97.6 115.5,101.2 118.4,104.8 121.2,108.4 124.1,108.1 126.9,108.0 129.8,111.6 132.7,110.5 135.5,110.3 138.4,113.9 141.2,117.5 144.1,117.4 147.0,117.1 149.8,120.7 152.7,124.4 155.5,128.0 158.4,131.6 161.3,135.0 164.1,134.8 167.0,138.4 169.8,137.8 172.7,137.2 175.6,137.1 178.4,140.7 181.3,140.2 184.2,143.9 187.0,143.8 189.9,147.4 192.7,151.0 195.6,149.2 198.5,149.2 201.3,152.8 204.2,156.4 207.0,160.1 209.9,160.0 212.8,160.0 215.6,159.9 218.5,163.5 221.3,162.2 224.2,162.1 227.1,162.1 229.9,165.6 232.8,169.3 235.6,169.1 238.5,168.2 241.4,167.4 244.2,167.3 247.1,163.5 249.9,163.4 252.8,167.0 255.7,166.0 258.5,169.6 261.4,173.3 264.3,176.9 267.1,180.5 270.0,184.2 272.8,187.8 275.7,187.7 278.6,186.0 281.4,185.2 284.3,188.9 287.1,188.8 290.0,187.8 292.9,191.4 295.7,191.4 298.6,190.6 301.4,194.3 304.3,197.8 307.2,201.3 310.0,204.9 312.9,208.5 315.7,208.5 318.6,212.1 321.5,212.0 324.3,215.7 327.2,219.3 330.1,223.0 332.9,220.9 335.8,181.9 338.6,185.5 341.5,189.1 344.4,192.8 347.2,181.5 350.1,179.0 352.9,182.5 355.8,179.8 358.7,183.4 361.5,187.0 364.4,184.9 367.2,188.4 370.1,192.0 373.0,195.7 375.8,194.5 378.7,194.5 381.5,194.5 384.4,198.1 387.3,201.8 390.1,199.0 393.0,198.9 395.8,202.6 398.7,202.0 401.6,202.0 404.4,201.6 407.3,205.3 410.2,204.9 413.0,200.8 415.9,200.2 418.7,203.8 421.6,202.6 424.5,206.2 427.3,209.8 430.2,213.5 433.0,217.1 435.9,206.5 438.8,200.3 441.6,203.8 444.5,207.4 447.3,207.3 450.2,211.0 453.1,214.5 455.9,218.2 458.8,217.9 461.6,217.9 464.5,217.9 467.4,221.5 470.2,217.6 473.1,221.2 475.9,224.7 478.8,228.2 481.7,231.9 484.5,235.5 487.4,234.7 490.3,228.6 493.1,227.7 496.0,227.6 498.8,227.1 501.7,230.8 504.6,230.1 507.4,219.4 510.3,218.0 513.1,207.4 516.0,211.0 518.9,210.3 521.7,213.9 524.6,213.2 527.4,216.8 530.3,214.0 533.2,213.6 536.0,217.2 538.9,217.2 541.7,220.7 544.6,220.3 547.5,224.0 550.3,227.6 553.2,227.1 556.1,230.7 558.9,230.6 561.8,234.2 564.6,232.5 567.5,236.1 570.4,239.7 573.2,243.3 576.1,246.8 578.9,246.6 581.8,250.1 584.7,247.6 587.5,251.2 590.4,254.8 593.2,258.5 596.1,262.1 599.0,262.1 601.8,265.7 604.7,269.3 607.5,272.9 610.4,276.5 613.3,276.5 616.1,275.8 619.0,275.4 621.8,278.9 624.7,282.5 627.6,282.5 630.4,286.1 633.3,241.0 636.2,244.7 639.0,248.3 641.9,252.0 644.7,251.9 647.6,255.6 650.5,259.2 653.3,262.7 656.2,266.4 659.0,265.8 661.9,269.4 664.8,269.4 667.6,269.2 670.5,272.7 673.3,276.4 676.2,276.2 679.1,275.9 681.9,270.5 684.8,269.2 687.6,269.1 690.5,272.8 693.4,272.5 696.2,272.5 699.1,272.4 701.9,276.0 704.8,248.6 707.7,248.6 710.5,252.3 713.4,251.6 716.3,251.6 719.1,255.2 722.0,255.0 724.8,258.6 727.7,257.2 730.6,257.1 733.4,257.1 736.3,257.0 739.1,255.7 742.0,259.3"/>
+<circle cx="742.0" cy="259.3" r="3.6" fill="var(--s-rose)"/>
+</svg>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><h2>Zoom &mdash; the favorite-buying curves</h2></div>
+  <p class="cap">Same data, rescaled. All three drift up, but the paths are jagged and thin.
+  The maker curve (violet) has only <strong>139 fills out of
+  238 attempts</strong> (58%),
+  and its win rate <em>conditional on filling</em> is 80.6%
+  &mdash; below the taker's 88.7% on the same favorite.
+  That gap is adverse selection: as a maker you fill precisely when the favorite is ticking down.</p>
+  <svg viewBox="0 0 760 300" role="img" preserveAspectRatio="xMidYMid meet" class="chart">
+<line x1="64" y1="273.7" x2="742" y2="273.7" class="grid"/>
+<text x="56" y="277.2" class="ylab">$-400</text>
+<line x1="64" y1="232.2" x2="742" y2="232.2" class="grid"/>
+<text x="56" y="235.7" class="ylab">$-200</text>
+<line x1="64" y1="190.8" x2="742" y2="190.8" class="axis0"/>
+<text x="56" y="194.3" class="ylab">$0</text>
+<line x1="64" y1="149.3" x2="742" y2="149.3" class="grid"/>
+<text x="56" y="152.8" class="ylab">$200</text>
+<line x1="64" y1="107.9" x2="742" y2="107.9" class="grid"/>
+<text x="56" y="111.4" class="ylab">$400</text>
+<line x1="64" y1="66.4" x2="742" y2="66.4" class="grid"/>
+<text x="56" y="69.9" class="ylab">$600</text>
+<line x1="64" y1="25.0" x2="742" y2="25.0" class="grid"/>
+<text x="56" y="28.5" class="ylab">$800</text>
+<text x="64.0" y="288.0" class="xlab" text-anchor="middle">0</text>
+<text x="232.8" y="288.0" class="xlab" text-anchor="middle">59</text>
+<text x="401.6" y="288.0" class="xlab" text-anchor="middle">118</text>
+<text x="573.2" y="288.0" class="xlab" text-anchor="middle">178</text>
+<text x="742.0" y="288.0" class="xlab" text-anchor="middle">237</text>
+<text x="403.0" y="298" class="xtitle" text-anchor="middle">trade number</text>
+<polyline fill="none" stroke="var(--s-teal)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" points="64.0,190.6 66.9,185.7 69.7,176.0 72.6,171.1 75.4,170.9 78.3,169.4 81.2,166.5 84.0,166.3 86.9,165.3 89.7,186.1 92.6,183.5 95.5,204.6 98.3,199.7 101.2,221.1 104.1,210.9 106.9,210.7 109.8,209.3 112.6,230.7 115.5,228.3 118.4,224.3 121.2,223.7 124.1,221.3 126.9,220.9 129.8,216.9 132.7,210.3 135.5,208.9 138.4,205.4 141.2,204.4 144.1,203.8 147.0,201.9 149.8,200.9 152.7,199.9 155.5,192.2 158.4,192.0 161.3,212.9 164.1,211.4 167.0,211.0 169.8,207.3 172.7,203.3 175.6,202.9 178.4,202.3 181.3,199.2 184.2,197.9 187.0,197.5 189.9,186.4 192.7,186.2 195.6,175.5 198.5,175.4 201.3,170.5 204.2,168.3 207.0,168.1 209.9,167.9 212.8,167.5 215.6,167.3 218.5,151.7 221.3,144.0 224.2,143.2 227.1,143.0 229.9,131.9 232.8,130.9 235.6,129.8 238.5,124.3 241.4,119.4 244.2,119.2 247.1,140.6 249.9,140.2 252.8,139.8 255.7,133.3 258.5,133.3 261.4,132.2 264.3,132.0 267.1,130.8 270.0,129.8 272.8,129.6 275.7,129.0 278.6,118.8 281.4,113.9 284.3,113.7 287.1,113.5 290.0,107.0 292.9,104.1 295.7,103.9 298.6,99.6 301.4,99.4 304.3,120.7 307.2,142.0 310.0,138.0 312.9,129.6 315.7,129.4 318.6,129.2 321.5,128.8 324.3,128.6 327.2,128.4 330.1,127.6 332.9,114.9 335.8,135.7 338.6,135.6 341.5,132.9 344.4,131.0 347.2,152.0 350.1,136.4 352.9,125.2 355.8,108.9 358.7,105.5 361.5,100.6 364.4,87.4 367.2,72.4 370.1,71.3 373.0,68.9 375.8,62.0 378.7,61.8 381.5,61.6 384.4,61.4 387.3,61.3 390.1,44.3 393.0,44.1 395.8,43.5 398.7,40.3 401.6,40.1 404.4,37.7 407.3,37.5 410.2,35.1 413.0,56.5 415.9,52.5 418.7,47.3 421.6,40.0 424.5,39.8 427.3,36.4 430.2,36.3 433.0,35.3 435.9,56.4 438.8,77.6 441.6,98.8 444.5,98.6 447.3,97.8 450.2,97.6 453.1,90.7 455.9,90.5 458.8,88.9 461.6,88.7 464.5,88.6 467.4,88.4 470.2,109.8 473.1,103.6 475.9,124.7 478.8,146.1 481.7,145.8 484.5,143.6 487.4,139.0 490.3,160.2 493.1,154.7 496.0,154.1 498.8,151.4 501.7,151.1 504.6,146.8 507.4,167.8 510.3,159.4 513.1,180.4 516.0,176.4 518.9,171.9 521.7,171.5 524.6,167.2 527.4,166.8 530.3,149.8 533.2,147.1 536.0,146.1 538.9,145.9 541.7,167.3 544.6,164.9 547.5,163.9 550.3,158.7 553.2,155.8 556.1,155.2 558.9,154.2 561.8,154.0 564.6,143.3 567.5,143.1 570.4,132.0 573.2,131.6 576.1,112.4 578.9,111.2 581.8,132.4 584.7,116.8 587.5,116.6 590.4,113.9 593.2,112.7 596.1,111.9 599.0,111.9 601.8,104.2 604.7,99.0 607.5,98.8 610.4,93.3 613.3,93.1 616.1,88.8 619.0,86.9 621.8,107.7 624.7,107.7 627.6,107.7 630.4,104.8 633.3,125.6 636.2,124.8 639.0,123.3 641.9,123.1 644.7,122.9 647.6,122.7 650.5,115.4 653.3,106.2 656.2,105.1 659.0,101.7 661.9,101.3 664.8,100.9 667.6,100.1 670.5,121.2 673.3,121.0 676.2,120.0 679.1,118.3 681.9,139.6 684.8,131.9 687.6,131.3 690.5,130.3 693.4,128.8 696.2,128.6 699.1,128.0 701.9,126.1 704.8,147.0 707.7,147.0 710.5,145.3 713.4,141.3 716.3,141.1 719.1,135.9 722.0,134.9 724.8,133.8 727.7,125.0 730.6,124.8 733.4,124.2 736.3,123.8 739.1,116.1 742.0,113.7"/>
+<circle cx="742.0" cy="113.7" r="3.6" fill="var(--s-teal)"/>
+<polyline fill="none" stroke="var(--s-violet)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" points="64.0,180.1 68.9,174.6 73.8,195.3 78.7,192.2 83.7,213.0 88.6,207.4 93.5,228.2 98.4,248.9 103.3,244.3 108.2,243.5 113.1,242.8 118.0,238.3 123.0,231.0 127.9,227.1 132.8,225.7 137.7,224.2 142.6,222.9 147.5,214.4 152.4,235.1 157.3,233.3 162.3,229.7 167.2,217.5 172.1,204.8 177.0,199.3 181.9,196.7 186.8,196.1 191.7,195.6 196.7,187.2 201.6,186.1 206.5,173.9 211.4,172.6 216.3,193.3 221.2,186.0 226.1,186.0 231.0,185.1 236.0,173.9 240.9,166.7 245.8,163.3 250.7,184.0 255.6,204.7 260.5,200.2 265.4,190.9 270.3,190.2 275.3,189.8 280.2,176.0 285.1,196.7 290.0,193.6 294.9,191.3 299.8,212.1 304.7,195.1 309.7,182.9 314.6,165.3 319.5,161.3 324.4,155.8 329.3,139.5 334.2,138.2 339.1,130.5 344.0,112.2 349.0,111.3 353.9,107.9 358.8,105.1 363.7,125.8 368.6,121.3 373.5,115.4 378.4,107.4 383.3,106.3 388.3,102.3 393.2,123.0 398.1,143.8 403.0,164.5 407.9,163.4 412.8,155.7 417.7,153.7 422.7,153.3 427.6,174.0 432.5,167.1 437.4,187.8 442.3,208.5 447.2,206.0 452.1,226.7 457.0,220.5 462.0,217.4 466.9,212.6 471.8,233.3 476.7,224.0 481.6,244.7 486.5,238.2 491.4,233.0 496.3,228.1 501.3,225.0 506.2,223.7 511.1,244.4 516.0,241.6 520.9,235.7 525.8,232.4 530.7,231.0 535.7,219.4 540.6,207.2 545.5,186.5 550.4,207.2 555.3,190.3 560.2,188.7 565.1,187.6 570.0,187.5 575.0,179.1 579.9,173.2 584.8,167.0 589.7,161.2 594.6,158.9 599.5,179.6 604.4,179.6 609.3,179.5 614.3,176.1 619.2,196.8 624.1,195.0 629.0,194.6 633.9,184.4 638.8,183.3 643.7,204.0 648.7,202.7 653.6,200.7 658.5,221.4 663.4,212.9 668.3,211.6 673.2,209.8 678.1,208.9 683.0,206.6 688.0,227.4 692.9,227.3 697.8,225.2 702.7,220.6 707.6,214.8 712.5,213.5 717.4,212.2 722.3,202.4 727.3,201.5 732.2,200.9 737.1,192.4 742.0,189.6"/>
+<circle cx="742.0" cy="189.6" r="3.6" fill="var(--s-violet)"/>
+<polyline fill="none" stroke="var(--s-amber)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" points="64.0,190.6 67.9,185.7 71.8,180.8 75.8,180.6 79.7,179.1 83.6,176.2 87.5,176.0 91.4,175.0 95.4,195.9 99.3,193.2 103.2,188.3 107.1,188.1 111.0,186.7 114.9,184.3 118.9,180.3 122.8,179.7 126.7,177.3 130.6,176.9 134.5,172.9 138.5,171.4 142.4,168.0 146.3,166.9 150.2,166.4 154.1,164.4 158.1,163.4 162.0,162.4 165.9,162.2 169.8,183.1 173.7,181.6 177.7,181.2 181.6,177.5 185.5,173.5 189.4,173.1 193.3,172.5 197.2,169.3 201.2,168.1 205.1,167.7 209.0,167.5 212.9,167.3 216.8,162.4 220.8,160.3 224.7,160.1 228.6,159.9 232.5,159.5 236.4,159.3 240.4,158.5 244.3,158.3 248.2,157.3 252.1,156.3 256.0,151.4 260.0,151.2 263.9,150.8 267.8,150.4 271.7,150.4 275.6,149.3 279.5,149.1 283.5,147.9 287.4,146.9 291.3,146.7 295.2,146.1 299.1,141.2 303.1,141.0 307.0,140.8 310.9,137.9 314.8,137.7 318.7,133.4 322.7,133.2 326.6,129.2 330.5,129.0 334.4,128.8 338.3,128.5 342.3,128.3 346.2,128.1 350.1,127.3 354.0,148.1 357.9,147.9 361.8,145.2 365.8,143.3 369.7,139.9 373.6,135.0 377.5,134.0 381.4,131.6 385.4,131.4 389.3,131.2 393.2,131.0 397.1,130.8 401.0,130.6 405.0,130.0 408.9,126.8 412.8,126.6 416.7,124.2 420.6,124.0 424.6,121.6 428.5,117.6 432.4,117.4 436.3,114.0 440.2,114.0 444.2,113.0 448.1,112.8 452.0,112.0 455.9,111.8 459.8,111.6 463.7,109.9 467.7,109.7 471.6,109.7 475.5,109.5 479.4,109.1 483.3,106.9 487.3,102.3 491.2,101.7 495.1,99.1 499.0,98.7 502.9,94.4 506.9,90.4 510.8,85.8 514.7,85.4 518.6,81.1 522.5,80.7 526.5,78.1 530.4,77.1 534.3,76.9 538.2,74.5 542.1,73.5 546.0,70.5 550.0,69.9 553.9,68.9 557.8,68.7 561.7,68.5 565.6,68.1 569.6,66.9 573.5,66.7 577.4,64.1 581.3,62.8 585.2,62.0 589.2,62.0 593.1,61.8 597.0,61.6 600.9,57.3 604.8,55.4 608.8,76.2 612.7,76.2 616.6,76.2 620.5,73.3 624.4,94.1 628.3,93.3 632.3,91.8 636.2,91.6 640.1,91.4 644.0,91.2 647.9,90.2 651.9,86.8 655.8,86.4 659.7,86.0 663.6,85.2 667.5,85.0 671.5,84.0 675.4,82.3 679.3,81.7 683.2,80.7 687.1,79.2 691.1,79.0 695.0,78.4 698.9,76.5 702.8,97.4 706.7,97.3 710.6,95.7 714.6,91.7 718.5,91.5 722.4,90.4 726.3,89.4 730.2,89.2 734.2,88.6 738.1,88.2 742.0,85.8"/>
+<circle cx="742.0" cy="85.8" r="3.6" fill="var(--s-amber)"/>
+</svg>
+</section>
+
+<section class="methods">
+  <h2>Assumptions &amp; provenance</h2>
+  <ul>
+    <li><strong>Data:</strong> live-collected order books (1&nbsp;Hz over each market's final 60&nbsp;s)
+      and Chainlink-settled outcomes, <code>data/collect/btc-up-or-down-5m/</code>.</li>
+    <li><strong>Taker entry:</strong> best ask of the chosen side from the snapshot nearest
+      T&minus;60&nbsp;s (&plusmn;45&nbsp;s tolerance); fill assumed at that price, full size.</li>
+    <li><strong>Maker entry &amp; fill proxy:</strong> post a buy at the favorite's best bid at
+      T&minus;60&nbsp;s. With no trade tape collected, the fill is <em>modeled</em>: it counts as
+      filled iff a later in-window snapshot shows the favorite's best bid trading <em>below</em> the
+      posted price (our level got cleared). Unfilled attempts take no position. This is conservative
+      and, being a downward-trade-through, it is exactly where adverse selection bites.</li>
+    <li><strong>Fee:</strong> taker <code>shares &times; 0.07 &times; p &times; (1&minus;p)</code>,
+      crypto_fees_v2, live-verified 2026-07-06 (<code>config/costs.yaml</code>). Maker fee = 0;
+      maker rebates would only help and are deliberately <em>not</em> credited (conservative).</li>
+    <li><strong>Not modeled:</strong> slippage, partial fills, queue position, latency, capital
+      constraints; for the maker, whether a real resting order at that price would truly have filled.
+      All of these push the curves down, not up.</li>
+    <li><strong>Sample:</strong> 238 markets, ~2 days &mdash; far below any
+      threshold for a deflated-Sharpe survivorship claim (Phase&nbsp;4).</li>
+  </ul>
+  <p class="gen">Generated 2026-07-09 00:17 UTC &middot; <code>scripts/sim_pnl.py</code> &rarr; <code>scripts/build_pnl_page.py</code></p>
+</section>
+</article>
