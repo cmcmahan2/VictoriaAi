@@ -128,7 +128,9 @@ def run_backtest(
 
         # ---- settlement (FIRST read of the realized outcome) ----
         pnl = calculate_pnl(fav, hedge, o.outcome, gas_cost=bt_cfg.gas, fee_rate=bt_cfg.fee)
-        costs = bt_cfg.gas + (dec.fav_stake + dec.hedge_stake) * bt_cfg.fee
+        # taker fee per leg = stake·rate·(1−price)  (Fee V2 curve, matches calculate_pnl)
+        costs = bt_cfg.gas + bt_cfg.fee * (
+            dec.fav_stake * (1.0 - fav_price) + dec.hedge_stake * (1.0 - hedge_price))
         bankroll_before = risk.bankroll
         fav_won = int(sig.side == o.outcome)
         risk.update(bool(fav_won), pnl)

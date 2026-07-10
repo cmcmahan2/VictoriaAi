@@ -96,7 +96,11 @@ ALLOWED_HOURS: set[int] = set(range(24))
 # Costs
 # --------------------------------------------------------------------------- #
 GAS_COST = 0.02               # $ per trade, Polygon gas (round trip approx)
-POLYMARKET_FEE = 0.0          # Polymarket charges no trading fee today; keep the knob
+POLYMARKET_FEE = 0.07         # crypto TAKER fee rate, Fee V2 (live-verified 2026-07-06,
+                              # polyfunnel/docs/GROUND_TRUTH.md): fee = shares·rate·p·(1−p),
+                              # takers only, makers pay 0. For a BUY staking S dollars at
+                              # price p this equals S·rate·(1−p). Rate is per-market and has
+                              # changed silently — read feeSchedule live before real trading.
 
 # --------------------------------------------------------------------------- #
 # Misc

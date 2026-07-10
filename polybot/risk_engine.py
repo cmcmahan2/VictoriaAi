@@ -95,7 +95,14 @@ class RiskEngine:
             return SizeDecision(0, 0, 0.5, 0, 0, dd, True, "bad_fav_price")
 
         p = self._win_prob_estimate(signal)
-        b = (1.0 - fav_price) / fav_price            # net odds from token price
+        # Effective taker cost per share includes the Fee V2 curve:
+        # q_eff = q + rate·q·(1−q). Kelly on q_eff makes "no edge" mean
+        # "no edge AFTER fees" — at 50c the bar rises by 1.75 prob points.
+        fee_rate = getattr(self.cfg, "POLYMARKET_FEE", 0.0)
+        q_eff = fav_price + fee_rate * fav_price * (1.0 - fav_price)
+        if not (0.0 < q_eff < 1.0):
+            return SizeDecision(0, 0, p, 0, 0, dd, True, "bad_fav_price")
+        b = (1.0 - q_eff) / q_eff                    # net odds after fees
         f_full = (p * b - (1.0 - p)) / b if b > 0 else 0.0
 
         if f_full <= 0:

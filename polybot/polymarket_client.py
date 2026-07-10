@@ -56,19 +56,21 @@ def calculate_pnl(
     `outcome` ("UP" or "DOWN"). A token pays $1 if its side wins, else $0.
 
       leg_pnl = shares * (1 if side == outcome else 0) - stake
+      leg_fee = shares · fee_rate · p·(1−p)  =  stake · fee_rate · (1−p)
+                (Fee V2 taker curve, live-verified; fee_rate=0 models maker fills)
       total   = fav_pnl + hedge_pnl - fees - gas
     """
     def leg_pnl(f: Fill | None) -> tuple[float, float]:
         if f is None or f.stake <= 0:
             return 0.0, 0.0
         payout = f.shares if f.side == outcome else 0.0
-        return payout - f.stake, f.stake
+        fee = f.stake * fee_rate * (1.0 - f.price)
+        return payout - f.stake - fee, f.stake
 
     fav_pnl, fav_stake = leg_pnl(fav)
     hedge_pnl, hedge_stake = leg_pnl(hedge)
-    fees = (fav_stake + hedge_stake) * fee_rate
     gas = gas_cost if (fav_stake + hedge_stake) > 0 else 0.0
-    return fav_pnl + hedge_pnl - fees - gas
+    return fav_pnl + hedge_pnl - gas
 
 
 class PolymarketClient:

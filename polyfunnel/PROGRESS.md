@@ -1,5 +1,11 @@
 # PROGRESS
 
+## Session 2026-07-09 (cloud) — Strategy v2 consolidated; polybot fee model fixed
+
+- **vault/STRATEGY.md added** — the single working strategy doc: kill list with evidence (naive taker, momentum, basis-lead, last-second snipe), the one survivor (longshot fade, maker-first) with its open question (who fills the maker? → trade tape), v2 architecture, fee-aware breakeven table, and the ordered gates to real money.
+- **polybot cost model corrected** (closes the known issue from 2026-07-07): `POLYMARKET_FEE` 0.0 → 0.07 with Fee V2 semantics; `calculate_pnl` now charges the real taker curve per leg (stake·rate·(1−p); fee_rate=0 models maker fills); backtest `costs` accounting matched; **fee-aware Kelly gate** in `risk_engine.size()` (q_eff = q + rate·q(1−q)) so "no edge" means no edge AFTER fees. polybot no-lookahead tests pass; fee math + gate unit-checked (51%@50c refused, 55% trades).
+- Division of labor: local session owns the trade-tape collector + tape analyses (it has the data); cloud session owns docs/strategy consolidation + polybot alignment. Coordinate through PROGRESS.md and vault/, not chat memory.
+
 ## Session 2026-07-08 — RTDS feed fixed; PnL sim + basis harness; durable collection
 
 Branch `claude/fix-rtds-filters-8f2a` (5 commits; PR pending — no `gh` CLI / GitHub MCP / token on this machine, so push + hand user the compare URL).
