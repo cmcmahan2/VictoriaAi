@@ -63,6 +63,23 @@ minute history):
 - Still one-ish regime, ~2 days, and a post-hoc bucket choice — Phase 4
   deflation applies. Do not size anything on this yet.
 
+## Follow-up 2026-07-11 (~04:40 UTC): n=391 third sample — LONGSHOT EDGE DID NOT PERSIST
+
+Fresh ~33h window (391 markets, different days/regime than the first two):
+
+- **Longshots priced ≤0.15 (avg implied 7.8%) won 7.7%** (n=143, CI
+  [0.04,0.13]) — dead-on fair. Samples 1-2 showed 3.9%-vs-5.8% and
+  2.5%-vs-6.4%; sample 3 shows no gap at all. Pooled (~n=382): ~4.7% vs
+  ~6.4% implied — but the sample-to-sample inconsistency is the signature
+  of regime-dependence/noise, not a stable structural edge.
+- Calibration diagonal holds everywhere; favorite taker again ≈ zero
+  (+0.22c pre-spread, n=371).
+- **Verdict: the unconditional longshot fade FAILS the persistence test.**
+  Do not build on it. A conditional version (e.g., only in trending
+  regimes, only against book-imbalance confirmation) may be examined in
+  Phase 3 with collector book data — as a NEW variant counted in the
+  Phase 4 deflation ledger, not a rescue of this one.
+
 ## Implications for the funnel
 
 - Fee + spread + calibrated prices ⇒ any real edge must come from

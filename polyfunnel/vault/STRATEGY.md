@@ -13,6 +13,15 @@ study; update this file when evidence changes, not chat threads.
 | Binance-leads-Chainlink latency arb | Basis-lead flat ~50% at every offset (n≈190); book already decisive by T-30s in ~65% of windows, only ~9% contested; formal close-out pending n≥30/offset (~2-3 days) | DEAD pending formal NULL |
 | Last-second taker snipe (99¢ residuals) | Fee = ~7% of gross upside at high p + tail risk of final-tick reversal; killed platform-wide Jan 2026 (research + wallet taxonomy) | DEAD by design |
 
+> **UPDATE 2026-07-11:** the longshot fade FAILED its persistence test —
+> third independent sample (n=143 longshots) came back exactly fair (7.7%
+> won vs 7.8% implied) after two samples that showed overpricing. The
+> "survivor" below is demoted to regime-dependent-at-best; do not build on
+> the unconditional version. Details in vault/studies/2026-07-07-t60-
+> calibration.md. Redirect decision: aim the machine at the fee-free
+> segment (see edge_screener.py findings) while the local session closes
+> out the 5m basis/trade-tape questions on the tape.
+
 ## The survivor — one candidate, one open question
 
 **Fade the longshot (equivalently: own the heavy favorite ≥$0.80) near the
