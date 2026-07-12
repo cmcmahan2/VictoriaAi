@@ -36,7 +36,7 @@ def build() -> None:
 
     def arb_rows() -> str:
         if not arbs:
-            return ('<tr><td colspan="6" class="empty">No set arbitrages at scan '
+            return ('<tr><td colspan="8" class="empty">No set arbitrages at scan '
                     'time — normal; they live seconds and are eaten by fast bots. '
                     'The sweep stays in the rotation because checking is free.</td></tr>')
         out = []
@@ -44,12 +44,17 @@ def build() -> None:
             live = h.get("live_check", "")
             cls = ("ok" if live == "CONFIRMED" else
                    "warn" if "GONE" in live or "one-sided" in live else "")
+            depth = h.get("depth_usd")
             out.append(
-                f'<tr><td><a href="https://polymarket.com/event/{esc(h["slug"])}"'
+                f'<tr class="arb" data-ret="{esc(h["ret_pct"])}"'
+                f' data-depth="{esc(depth if depth is not None else "")}">'
+                f'<td><a href="https://polymarket.com/event/{esc(h["slug"])}"'
                 f' target="_blank" rel="noopener">{esc(h["event"])}</a></td>'
                 f'<td class="num">{esc(h["side"])} ×{esc(h["n_outcomes"])}</td>'
                 f'<td class="num">{h["edge_per_set"]*100:+.1f}¢</td>'
                 f'<td class="num">{esc(h["ret_pct"])}%</td>'
+                f'<td class="num">{money(depth) if depth is not None else "—"}</td>'
+                f'<td class="num profit">—</td>'
                 f'<td class="num">{money(h.get("vol24", 0))}</td>'
                 f'<td><span class="pill {cls}">{esc(live)}</span></td></tr>')
         return "".join(out)
@@ -133,6 +138,17 @@ a:hover, a:focus-visible {{ text-decoration:underline; outline:none; }}
 .pill.warn {{ color:var(--warn); }}
 .empty {{ color:var(--muted); font-style:italic; }}
 footer {{ color:var(--muted); font-size:12px; margin-top:26px; }}
+.sizerow {{ display:flex; flex-wrap:wrap; gap:18px; align-items:center; margin-top:10px; }}
+.sizerow label {{ font-size:13px; color:var(--muted); display:flex;
+  align-items:center; gap:8px; }}
+.sizerow input {{ width:90px; font:inherit; font-variant-numeric:tabular-nums;
+  color:var(--ink); background:var(--bg); border:1px solid var(--line);
+  border-radius:4px; padding:5px 8px; }}
+.sizerow input:focus-visible {{ outline:2px solid var(--accent); outline-offset:1px; }}
+.sizeout {{ font-size:13.5px; }}
+.sizeout b {{ font-family:ui-monospace,Consolas,monospace;
+  font-variant-numeric:tabular-nums; color:var(--accent); }}
+td.profit {{ color:var(--good); font-weight:600; }}
 </style>
 <div class="wrap">
 <header>
@@ -142,17 +158,32 @@ footer {{ color:var(--muted); font-size:12px; margin-top:26px; }}
   before placing anything</b>. Manual execution only; nothing here is advice.</p>
 </header>
 
+<section class="sizing">
+  <p class="eyebrow">Sizing</p>
+  <h2>Your numbers</h2>
+  <div class="sizerow">
+    <label>Bankroll $ <input id="bankroll" type="number" min="0" value="500" inputmode="decimal"></label>
+    <label>Max risk per market % <input id="riskpct" type="number" min="0" max="100" value="2" inputmode="decimal"></label>
+    <div class="sizeout">Max single-market position: <b id="maxpos">$10</b></div>
+  </div>
+  <p class="note">The per-market cap exists because of UMA resolution risk — even a
+  "sure thing" here can resolve against you. Arb profit below is capped at the
+  book's real depth AND your bankroll. Nothing is stored or sent anywhere.</p>
+</section>
+
 <section>
   <p class="eyebrow">A · Provable</p>
   <h2>Set arbitrage (negRisk events)</h2>
   <div class="tblwrap"><table>
     <tr><th>Event</th><th class="num">Trade</th><th class="num">Edge/set</th>
-        <th class="num">Return</th><th class="num">Vol 24h</th><th>Live check</th></tr>
+        <th class="num">Return</th><th class="num">Depth</th>
+        <th class="num">Profit @ your size</th><th class="num">Vol 24h</th><th>Live check</th></tr>
     {arb_rows()}
   </table></div>
   <p class="note">Buy every outcome of a mutually-exclusive event for less than $1
-  total (fees included) → locked profit at resolution. Size to the thinnest leg;
-  never leave a set half-filled.</p>
+  total (fees included) → locked profit at resolution. Depth = what the thinnest
+  leg's top-of-book actually holds. Size to that; never leave a set half-filled —
+  a half-filled "arb" is a naked bet.</p>
 </section>
 
 <section>
@@ -184,6 +215,34 @@ footer {{ color:var(--muted); font-size:12px; margin-top:26px; }}
 <span class="num">build_screener_board.py</span> · polyfunnel · refresh = re-run the
 scan and rebuild; ask Claude or run it locally.</footer>
 </div>
+<script>
+(function () {{
+  var bank = document.getElementById('bankroll');
+  var pct = document.getElementById('riskpct');
+  var out = document.getElementById('maxpos');
+  function usd(x) {{
+    return '$' + x.toLocaleString(undefined, {{maximumFractionDigits: 2}});
+  }}
+  function update() {{
+    var b = Math.max(0, parseFloat(bank.value) || 0);
+    var p = Math.min(100, Math.max(0, parseFloat(pct.value) || 0));
+    out.textContent = usd(b * p / 100);
+    document.querySelectorAll('tr.arb').forEach(function (tr) {{
+      var ret = parseFloat(tr.dataset.ret);
+      var depth = parseFloat(tr.dataset.depth);
+      var cell = tr.querySelector('.profit');
+      if (!cell || isNaN(ret)) return;
+      var cap = isNaN(depth) ? b : Math.min(b, depth);
+      cell.textContent = cap > 0
+        ? usd(cap * ret / 100) + ' on ' + usd(cap)
+        : '—';
+    }});
+  }}
+  bank.addEventListener('input', update);
+  pct.addEventListener('input', update);
+  update();
+}})();
+</script>
 """
     DEST.write_text(page)
     print(f"wrote {DEST} ({len(page):,} bytes; {len(arbs)} arbs, "

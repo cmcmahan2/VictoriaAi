@@ -150,6 +150,16 @@ def set_arbs(events: list[dict], clob: ClobPublic) -> list[dict]:
                            by_tok.get(t, {}).get("bids") for t in toks)
             h["live_sum_ask"] = round(la, 4) if complete else None
             h["live_sum_bid"] = round(lb, 4) if complete else None
+            if complete:
+                # honest capacity: the thinnest leg's top-of-book size caps
+                # how many full sets are fillable without walking the book
+                lvl = "asks" if h["side"] == "BUY-ALL-YES" else "bids"
+                sets_fillable = min(
+                    float(by_tok[t][lvl][-1]["size"]) for t in toks)
+                per_set = la if h["side"] == "BUY-ALL-YES" else \
+                    sum(1 - float(by_tok[t]["bids"][-1]["price"]) for t in toks)
+                h["depth_sets"] = round(sets_fillable, 1)
+                h["depth_usd"] = round(sets_fillable * per_set, 2)
             h["live_check"] = ("CONFIRMED" if complete and
                                (la < 1.0 or lb > 1.0) else
                                "GONE at live books" if complete else
