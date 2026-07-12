@@ -1,0 +1,103 @@
+<title>Polyfunnel Edge Board</title>
+<style>
+:root {
+  --bg:#F5F7F6; --surface:#FFFFFF; --ink:#1A2422; --muted:#5A6A66;
+  --line:#DDE5E2; --accent:#0E7C66; --good:#1E7B34; --warn:#B0730E;
+  --pillbg:#EDF3F1;
+}
+@media (prefers-color-scheme: dark) { :root {
+  --bg:#10161A; --surface:#182126; --ink:#E4ECE9; --muted:#8DA19B;
+  --line:#26333A; --accent:#34C6A4; --good:#4EC46A; --warn:#D89A3C;
+  --pillbg:#1F2B31;
+} }
+:root[data-theme="dark"] {
+  --bg:#10161A; --surface:#182126; --ink:#E4ECE9; --muted:#8DA19B;
+  --line:#26333A; --accent:#34C6A4; --good:#4EC46A; --warn:#D89A3C;
+  --pillbg:#1F2B31;
+}
+:root[data-theme="light"] {
+  --bg:#F5F7F6; --surface:#FFFFFF; --ink:#1A2422; --muted:#5A6A66;
+  --line:#DDE5E2; --accent:#0E7C66; --good:#1E7B34; --warn:#B0730E;
+  --pillbg:#EDF3F1;
+}
+body { background:var(--bg); color:var(--ink);
+  font:15px/1.55 system-ui,'Segoe UI',sans-serif; margin:0; padding:32px 20px; }
+.wrap { max-width:1000px; margin:0 auto; }
+header h1 { font-size:26px; letter-spacing:-0.02em; margin:0 0 4px; }
+.meta { color:var(--muted); font-size:13px; margin-bottom:28px; }
+.meta b { color:var(--ink); font-weight:600; }
+section { background:var(--surface); border:1px solid var(--line);
+  border-radius:6px; padding:20px 22px; margin-bottom:22px; }
+.eyebrow { text-transform:uppercase; letter-spacing:0.09em; font-size:11px;
+  color:var(--accent); font-weight:700; margin:0 0 2px; }
+h2 { font-size:18px; margin:0 0 4px; letter-spacing:-0.01em; }
+.note { color:var(--muted); font-size:12.5px; margin:10px 0 0; }
+.tblwrap { overflow-x:auto; margin-top:12px; }
+table { border-collapse:collapse; width:100%; font-size:13.5px; }
+th { text-align:left; color:var(--muted); font-weight:600; font-size:11.5px;
+  text-transform:uppercase; letter-spacing:0.06em; padding:6px 10px;
+  border-bottom:1px solid var(--line); white-space:nowrap; }
+td { padding:7px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+tr:last-child td { border-bottom:none; }
+td.num { font-family:ui-monospace,'Cascadia Mono',Consolas,monospace;
+  font-variant-numeric:tabular-nums; white-space:nowrap; text-align:right; }
+th.num { text-align:right; }
+a { color:var(--accent); text-decoration:none; }
+a:hover, a:focus-visible { text-decoration:underline; outline:none; }
+.pill { background:var(--pillbg); border-radius:999px; padding:2px 9px;
+  font-size:11.5px; white-space:nowrap; }
+.pill.ok { color:var(--good); font-weight:600; }
+.pill.warn { color:var(--warn); }
+.empty { color:var(--muted); font-style:italic; }
+footer { color:var(--muted); font-size:12px; margin-top:26px; }
+</style>
+<div class="wrap">
+<header>
+  <h1>Polyfunnel Edge Board</h1>
+  <p class="meta">Scan <b>2026-07-12T05:07:00Z</b> · 400 top events swept ·
+  page built 2026-07-12 05:08 UTC · quotes are cached ~30–60s — <b>always verify the live book
+  before placing anything</b>. Manual execution only; nothing here is advice.</p>
+</header>
+
+<section>
+  <p class="eyebrow">A · Provable</p>
+  <h2>Set arbitrage (negRisk events)</h2>
+  <div class="tblwrap"><table>
+    <tr><th>Event</th><th class="num">Trade</th><th class="num">Edge/set</th>
+        <th class="num">Return</th><th class="num">Vol 24h</th><th>Live check</th></tr>
+    <tr><td><a href="https://polymarket.com/event/what-will-the-median-home-value-in-miami-be-on-september-30-20260630172328034" target="_blank" rel="noopener">What will the median home value in Miami be on September 30?</a></td><td class="num">BUY-ALL-YES ×7</td><td class="num">+3.9¢</td><td class="num">4.24%</td><td class="num">$8,692</td><td><span class="pill warn">GONE at live books</span></td></tr><tr><td><a href="https://polymarket.com/event/reserve-bank-of-australia-decision-in-august" target="_blank" rel="noopener">Reserve Bank of Australia Decision in August</a></td><td class="num">BUY-ALL-YES ×5</td><td class="num">+0.3¢</td><td class="num">0.28%</td><td class="num">$7,024</td><td><span class="pill ok">CONFIRMED</span></td></tr>
+  </table></div>
+  <p class="note">Buy every outcome of a mutually-exclusive event for less than $1
+  total (fees included) → locked profit at resolution. Size to the thinnest leg;
+  never leave a set half-filled.</p>
+</section>
+
+<section>
+  <p class="eyebrow">B · Structural</p>
+  <h2>Maker yield — widest paid spreads</h2>
+  <div class="tblwrap"><table>
+    <tr><th>Market</th><th class="num">Bid / Ask</th><th class="num">Spread</th>
+        <th class="num">Vol 24h</th><th class="num">Score</th><th class="num">Fee / rebate</th></tr>
+    <tr><td><a href="https://polymarket.com/market/will-argentina-reach-the-2026-fifa-world-cup-final" target="_blank" rel="noopener">Will Argentina reach the 2026 FIFA World Cup final?</a></td><td class="num">0.445 / 0.470</td><td class="num">2.5¢</td><td class="num">$147,161</td><td class="num">$3,679</td><td class="num">0.05 / 0.15</td></tr><tr><td><a href="https://polymarket.com/market/0-ships-transit-hormuz-on-any-date-by-july-14-20260626172559969" target="_blank" rel="noopener">0 ships transit Hormuz on any date by July 14?</a></td><td class="num">0.117 / 0.249</td><td class="num">13.2¢</td><td class="num">$25,004</td><td class="num">$3,300</td><td class="num">0</td></tr><tr><td><a href="https://polymarket.com/market/strait-of-hormuz-traffic-returns-to-normal-by-august-31-20260702154212320" target="_blank" rel="noopener">Strait of Hormuz traffic returns to normal by August 31?</a></td><td class="num">0.180 / 0.200</td><td class="num">2.0¢</td><td class="num">$163,743</td><td class="num">$3,275</td><td class="num">0</td></tr><tr><td><a href="https://polymarket.com/market/will-anthropic-extend-claude-fable-5-paid-plan-access-again-by-july-12-20260707201153015" target="_blank" rel="noopener">Will Anthropic extend Claude Fable 5 paid-plan access again by July 12?</a></td><td class="num">0.360 / 0.450</td><td class="num">9.0¢</td><td class="num">$20,334</td><td class="num">$1,830</td><td class="num">0.04 / 0.25</td></tr><tr><td><a href="https://polymarket.com/market/iran-full-airspace-closure-by-july-31-20260625195254150" target="_blank" rel="noopener">Iran full airspace closure by July 31?</a></td><td class="num">0.210 / 0.230</td><td class="num">2.0¢</td><td class="num">$91,432</td><td class="num">$1,829</td><td class="num">0</td></tr><tr><td><a href="https://polymarket.com/market/will-knight-win-msi-finals-mvp-20260625193044837" target="_blank" rel="noopener">Will knight Win MSI Finals MVP</a></td><td class="num">0.410 / 0.570</td><td class="num">16.0¢</td><td class="num">$10,229</td><td class="num">$1,637</td><td class="num">0.05 / 0.15</td></tr><tr><td><a href="https://polymarket.com/market/iran-military-action-against-a-gulf-state-on-july-9-20260708212322934" target="_blank" rel="noopener">Iran military action against a Gulf State on July 9?</a></td><td class="num">0.141 / 0.180</td><td class="num">3.9¢</td><td class="num">$40,508</td><td class="num">$1,580</td><td class="num">0</td></tr><tr><td><a href="https://polymarket.com/market/will-bitcoin-reach-65k-in-july-2026" target="_blank" rel="noopener">Will Bitcoin reach $65,000 in July?</a></td><td class="num">0.830 / 0.850</td><td class="num">2.0¢</td><td class="num">$78,332</td><td class="num">$1,567</td><td class="num">0.07 / 0.2</td></tr><tr><td><a href="https://polymarket.com/market/iran-military-action-against-a-gulf-state-on-july-12-20260708212322937" target="_blank" rel="noopener">Iran military action against a Gulf State on July 12?</a></td><td class="num">0.700 / 0.790</td><td class="num">9.0¢</td><td class="num">$15,428</td><td class="num">$1,388</td><td class="num">0</td></tr><tr><td><a href="https://polymarket.com/market/highest-temperature-in-shanghai-on-july-12-2026-30c" target="_blank" rel="noopener">Will the highest temperature in Shanghai be 30°C on July 12?</a></td><td class="num">0.730 / 0.800</td><td class="num">7.0¢</td><td class="num">$15,438</td><td class="num">$1,081</td><td class="num">0.05 / 0.25</td></tr><tr><td><a href="https://polymarket.com/market/highest-temperature-in-hong-kong-on-july-12-2026-33c" target="_blank" rel="noopener">Will the highest temperature in Hong Kong be 33°C on July 12?</a></td><td class="num">0.110 / 0.210</td><td class="num">10.0¢</td><td class="num">$10,721</td><td class="num">$1,072</td><td class="num">0.05 / 0.25</td></tr><tr><td><a href="https://polymarket.com/market/will-donald-trump-publicly-insult-someone-on-july-10-2026-20260630182730888" target="_blank" rel="noopener">Will Donald Trump publicly insult someone on July 10, 2026?</a></td><td class="num">0.068 / 0.107</td><td class="num">3.9¢</td><td class="num">$22,606</td><td class="num">$882</td><td class="num">0.04 / 0.25</td></tr><tr><td><a href="https://polymarket.com/market/will-bitcoin-reach-66k-july-6-12-2026" target="_blank" rel="noopener">Will Bitcoin reach $66,000 July 6-12?</a></td><td class="num">0.030 / 0.050</td><td class="num">2.0¢</td><td class="num">$41,970</td><td class="num">$839</td><td class="num">0.07 / 0.2</td></tr><tr><td><a href="https://polymarket.com/market/will-russia-capture-kostyantynivka-by-september-30-256-333" target="_blank" rel="noopener">Will Russia capture Kostyantynivka by September 30?</a></td><td class="num">0.900 / 0.930</td><td class="num">3.0¢</td><td class="num">$25,424</td><td class="num">$763</td><td class="num">0</td></tr><tr><td><a href="https://polymarket.com/market/highest-temperature-in-shanghai-on-july-12-2026-31c" target="_blank" rel="noopener">Will the highest temperature in Shanghai be 31°C on July 12?</a></td><td class="num">0.230 / 0.300</td><td class="num">7.0¢</td><td class="num">$10,001</td><td class="num">$700</td><td class="num">0.05 / 0.25</td></tr><tr><td><a href="https://polymarket.com/market/will-40-ships-transit-the-strait-of-hormuz-on-any-day-by-july-31-2026" target="_blank" rel="noopener">Will 40 ships transit the Strait of Hormuz on any day by July 31, 2026?</a></td><td class="num">0.380 / 0.430</td><td class="num">5.0¢</td><td class="num">$13,691</td><td class="num">$685</td><td class="num">0</td></tr><tr><td><a href="https://polymarket.com/market/will-the-us-announce-a-blockade-on-iran-by-december-31-20260622191116913-141" target="_blank" rel="noopener">Will the US announce a blockade on Iran by December 31?</a></td><td class="num">0.590 / 0.610</td><td class="num">2.0¢</td><td class="num">$33,521</td><td class="num">$670</td><td class="num">0</td></tr><tr><td><a href="https://polymarket.com/market/cs2-tyloo-lvg-2026-07-12-map-handicap-away-1pt5" target="_blank" rel="noopener">Map Handicap: TYLOO (-1.5) vs Lynn Vision (+1.5)</a></td><td class="num">0.430 / 0.480</td><td class="num">5.0¢</td><td class="num">$12,974</td><td class="num">$649</td><td class="num">0.05 / 0.15</td></tr><tr><td><a href="https://polymarket.com/market/strait-of-hormuz-traffic-returns-to-normal-by-september-30-20260702154339440" target="_blank" rel="noopener">Strait of Hormuz traffic returns to normal by September 30?</a></td><td class="num">0.320 / 0.340</td><td class="num">2.0¢</td><td class="num">$31,237</td><td class="num">$625</td><td class="num">0</td></tr><tr><td><a href="https://polymarket.com/market/iran-charges-hormuz-fees-by-july-15-20260625175039061" target="_blank" rel="noopener">Iran charges Hormuz fees by July 15?</a></td><td class="num">0.046 / 0.069</td><td class="num">2.3¢</td><td class="num">$24,176</td><td class="num">$556</td><td class="num">0</td></tr>
+  </table></div>
+  <p class="note">Score = spread × 24h volume (quoting-revenue proxy, not PnL).
+  Risk is adverse selection on news — know why the spread is wide before quoting
+  into it. Untested as a strategy (candidate F3).</p>
+</section>
+
+<section>
+  <p class="eyebrow">C · Hunting ground</p>
+  <h2>Fee-free board — no taker fee at all</h2>
+  <div class="tblwrap"><table>
+    <tr><th>Market</th><th class="num">Bid / Ask</th><th class="num">Vol 24h</th>
+        <th class="num">Liquidity</th></tr>
+    <tr><td><a href="https://polymarket.com/market/will-demeke-mekonnen-be-the-next-prime-minister-of-ethiopia" target="_blank" rel="noopener">Will Demeke Mekonnen be the next Prime Minister of Ethiopia?</a></td><td class="num">0.003 / 0.005</td><td class="num">$3,637,259</td><td class="num">$31,416</td></tr><tr><td><a href="https://polymarket.com/market/will-adanech-abiebie-be-the-next-prime-minister-of-ethiopia" target="_blank" rel="noopener">Will Adanech Abiebie be the next Prime Minister of Ethiopia?</a></td><td class="num">0.002 / 0.003</td><td class="num">$1,261,792</td><td class="num">$31,268</td></tr><tr><td><a href="https://polymarket.com/market/strait-of-hormuz-traffic-returns-to-normal-by-july-31" target="_blank" rel="noopener">Strait of Hormuz traffic returns to normal by July 31?</a></td><td class="num">0.040 / 0.050</td><td class="num">$1,228,766</td><td class="num">$628,122</td></tr><tr><td><a href="https://polymarket.com/market/will-mohammad-khatami-be-head-of-state-in-iran-end-of-2026" target="_blank" rel="noopener">Will Mohammad Khatami be head of state in Iran end of 2026?</a></td><td class="num">0.001 / 0.002</td><td class="num">$607,813</td><td class="num">$54,099</td></tr><tr><td><a href="https://polymarket.com/market/strait-of-hormuz-traffic-returns-to-normal-by-july-15" target="_blank" rel="noopener">Strait of Hormuz traffic returns to normal by July 15?</a></td><td class="num">0.004 / 0.005</td><td class="num">$457,474</td><td class="num">$251,906</td></tr><tr><td><a href="https://polymarket.com/market/iran-full-airspace-closure-by-july-15-20260625195254149" target="_blank" rel="noopener">Iran full airspace closure by July 15?</a></td><td class="num">0.083 / 0.103</td><td class="num">$425,661</td><td class="num">$42,717</td></tr><tr><td><a href="https://polymarket.com/market/will-the-us-invade-iran-before-2027" target="_blank" rel="noopener">Will the U.S. invade Iran before 2027?</a></td><td class="num">0.170 / 0.180</td><td class="num">$372,108</td><td class="num">$338,706</td></tr><tr><td><a href="https://polymarket.com/market/will-the-us-announce-a-blockade-on-iran-by-july-31-20260622191116912" target="_blank" rel="noopener">Will the US announce a blockade on Iran by July 31?</a></td><td class="num">0.400 / 0.410</td><td class="num">$278,297</td><td class="num">$61,845</td></tr><tr><td><a href="https://polymarket.com/market/kharg-island-no-longer-under-iranian-control-by-july-31" target="_blank" rel="noopener">Kharg Island no longer under Iranian control by July 31?</a></td><td class="num">0.026 / 0.028</td><td class="num">$224,593</td><td class="num">$105,320</td></tr><tr><td><a href="https://polymarket.com/market/iran-commits-not-to-attack-ships-in-hormuz-by-sunday-20260710215434348" target="_blank" rel="noopener">Iran commits not to attack ships in Hormuz by Sunday?</a></td><td class="num">0.022 / 0.028</td><td class="num">$186,096</td><td class="num">$38,666</td></tr><tr><td><a href="https://polymarket.com/market/strait-of-hormuz-traffic-returns-to-normal-by-august-31-20260702154212320" target="_blank" rel="noopener">Strait of Hormuz traffic returns to normal by August 31?</a></td><td class="num">0.180 / 0.200</td><td class="num">$163,743</td><td class="num">$153,448</td></tr><tr><td><a href="https://polymarket.com/market/strait-of-hormuz-traffic-returns-to-normal-by-december-31" target="_blank" rel="noopener">Strait of Hormuz traffic returns to normal by December 31?</a></td><td class="num">0.630 / 0.640</td><td class="num">$143,923</td><td class="num">$284,268</td></tr><tr><td><a href="https://polymarket.com/market/kharg-island-no-longer-under-iranian-control-by-august-31" target="_blank" rel="noopener">Kharg Island no longer under Iranian control by August 31?</a></td><td class="num">0.051 / 0.059</td><td class="num">$142,671</td><td class="num">$92,886</td></tr><tr><td><a href="https://polymarket.com/market/mojtaba-khamenei-seen-in-public-by-july-15-155" target="_blank" rel="noopener">Mojtaba Khamenei seen in public by July 15?</a></td><td class="num">0.020 / 0.023</td><td class="num">$116,102</td><td class="num">$60,924</td></tr><tr><td><a href="https://polymarket.com/market/will-iran-announce-withdrawal-from-mou-negotiations-by-july-31-20260622191733846-586-829-787" target="_blank" rel="noopener">Will Iran announce withdrawal from MOU negotiations by July 31?</a></td><td class="num">0.180 / 0.190</td><td class="num">$97,483</td><td class="num">$120,421</td></tr><tr><td><a href="https://polymarket.com/market/iran-full-airspace-closure-by-july-31-20260625195254150" target="_blank" rel="noopener">Iran full airspace closure by July 31?</a></td><td class="num">0.210 / 0.230</td><td class="num">$91,432</td><td class="num">$23,828</td></tr><tr><td><a href="https://polymarket.com/market/us-iran-final-nuclear-deal-by-august-18-2026-20260621201255153" target="_blank" rel="noopener">US-Iran Final Nuclear Deal by August 18, 2026?</a></td><td class="num">0.070 / 0.080</td><td class="num">$87,654</td><td class="num">$373,723</td></tr><tr><td><a href="https://polymarket.com/market/will-united-russia-er-gain-the-most-seats-in-the-next-russian-parliamentary-election" target="_blank" rel="noopener">Will United Russia (ER) gain the most seats in the next Russian parliamentary election?</a></td><td class="num">0.530 / 0.540</td><td class="num">$86,148</td><td class="num">$346,169</td></tr><tr><td><a href="https://polymarket.com/market/israel-closes-its-airspace-by-july-15-182" target="_blank" rel="noopener">Israel closes its airspace by July 15?</a></td><td class="num">0.035 / 0.046</td><td class="num">$75,898</td><td class="num">$68,886</td></tr><tr><td><a href="https://polymarket.com/market/will-trump-acquire-greenland-before-2027" target="_blank" rel="noopener">Will Trump acquire Greenland before 2027?</a></td><td class="num">0.042 / 0.043</td><td class="num">$75,630</td><td class="num">$236,950</td></tr>
+  </table></div>
+  <p class="note">The segment the pivot targets: real volume, zero fee wall, UMA
+  resolution risk applies (size accordingly). Collector #3 records these books.</p>
+</section>
+
+<footer>Generated by <span class="num">scripts/edge_screener.py</span> →
+<span class="num">build_screener_board.py</span> · polyfunnel · refresh = re-run the
+scan and rebuild; ask Claude or run it locally.</footer>
+</div>

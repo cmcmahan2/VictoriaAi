@@ -1,0 +1,194 @@
+#!/usr/bin/env python3
+"""Build docs/edge_screener.html (the Edge Board) from docs/edge_screener.json.
+
+Run after scripts/edge_screener.py:
+  python3 scripts/build_screener_board.py
+Self-contained page (inline CSS, no external requests) — publishable as a
+claude.ai Artifact and committable to docs/. Light/dark via token-level
+theming; every row deep-links to Polymarket for manual placement.
+"""
+from __future__ import annotations
+
+import datetime as dt
+import html
+import json
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "docs" / "edge_screener.json"
+DEST = ROOT / "docs" / "edge_screener.html"
+
+
+def esc(s) -> str:
+    return html.escape(str(s if s is not None else ""))
+
+
+def money(x) -> str:
+    return f"${x:,.0f}"
+
+
+def build() -> None:
+    data = json.loads(SRC.read_text())
+    gen = data.get("generated", "?")
+    arbs = data.get("set_arbs", [])
+    makers = data.get("maker_yield", [])
+    free = data.get("fee_free", [])
+
+    def arb_rows() -> str:
+        if not arbs:
+            return ('<tr><td colspan="6" class="empty">No set arbitrages at scan '
+                    'time — normal; they live seconds and are eaten by fast bots. '
+                    'The sweep stays in the rotation because checking is free.</td></tr>')
+        out = []
+        for h in arbs:
+            live = h.get("live_check", "")
+            cls = ("ok" if live == "CONFIRMED" else
+                   "warn" if "GONE" in live or "one-sided" in live else "")
+            out.append(
+                f'<tr><td><a href="https://polymarket.com/event/{esc(h["slug"])}"'
+                f' target="_blank" rel="noopener">{esc(h["event"])}</a></td>'
+                f'<td class="num">{esc(h["side"])} ×{esc(h["n_outcomes"])}</td>'
+                f'<td class="num">{h["edge_per_set"]*100:+.1f}¢</td>'
+                f'<td class="num">{esc(h["ret_pct"])}%</td>'
+                f'<td class="num">{money(h.get("vol24", 0))}</td>'
+                f'<td><span class="pill {cls}">{esc(live)}</span></td></tr>')
+        return "".join(out)
+
+    def maker_rows() -> str:
+        out = []
+        for r in makers:
+            rebate = r.get("rebate_rate")
+            out.append(
+                f'<tr><td><a href="https://polymarket.com/market/{esc(r["slug"])}"'
+                f' target="_blank" rel="noopener">{esc(r["question"])}</a></td>'
+                f'<td class="num">{r["bid"]:.3f} / {r["ask"]:.3f}</td>'
+                f'<td class="num">{r["spread"]*100:.1f}¢</td>'
+                f'<td class="num">{money(r["vol24"])}</td>'
+                f'<td class="num">{money(r["score"])}</td>'
+                f'<td class="num">{esc(r.get("fee_rate", 0) or "0")}'
+                f'{f" / {rebate}" if rebate else ""}</td></tr>')
+        return "".join(out)
+
+    def free_rows() -> str:
+        out = []
+        for r in free:
+            out.append(
+                f'<tr><td><a href="https://polymarket.com/market/{esc(r["slug"])}"'
+                f' target="_blank" rel="noopener">{esc(r["question"])}</a></td>'
+                f'<td class="num">{r["bid"]:.3f} / {r["ask"]:.3f}</td>'
+                f'<td class="num">{money(r["vol24"])}</td>'
+                f'<td class="num">{money(r["liq"])}</td></tr>')
+        return "".join(out)
+
+    built = dt.datetime.now(dt.UTC).strftime("%Y-%m-%d %H:%M UTC")
+    page = f"""<title>Polyfunnel Edge Board</title>
+<style>
+:root {{
+  --bg:#F5F7F6; --surface:#FFFFFF; --ink:#1A2422; --muted:#5A6A66;
+  --line:#DDE5E2; --accent:#0E7C66; --good:#1E7B34; --warn:#B0730E;
+  --pillbg:#EDF3F1;
+}}
+@media (prefers-color-scheme: dark) {{ :root {{
+  --bg:#10161A; --surface:#182126; --ink:#E4ECE9; --muted:#8DA19B;
+  --line:#26333A; --accent:#34C6A4; --good:#4EC46A; --warn:#D89A3C;
+  --pillbg:#1F2B31;
+}} }}
+:root[data-theme="dark"] {{
+  --bg:#10161A; --surface:#182126; --ink:#E4ECE9; --muted:#8DA19B;
+  --line:#26333A; --accent:#34C6A4; --good:#4EC46A; --warn:#D89A3C;
+  --pillbg:#1F2B31;
+}}
+:root[data-theme="light"] {{
+  --bg:#F5F7F6; --surface:#FFFFFF; --ink:#1A2422; --muted:#5A6A66;
+  --line:#DDE5E2; --accent:#0E7C66; --good:#1E7B34; --warn:#B0730E;
+  --pillbg:#EDF3F1;
+}}
+body {{ background:var(--bg); color:var(--ink);
+  font:15px/1.55 system-ui,'Segoe UI',sans-serif; margin:0; padding:32px 20px; }}
+.wrap {{ max-width:1000px; margin:0 auto; }}
+header h1 {{ font-size:26px; letter-spacing:-0.02em; margin:0 0 4px; }}
+.meta {{ color:var(--muted); font-size:13px; margin-bottom:28px; }}
+.meta b {{ color:var(--ink); font-weight:600; }}
+section {{ background:var(--surface); border:1px solid var(--line);
+  border-radius:6px; padding:20px 22px; margin-bottom:22px; }}
+.eyebrow {{ text-transform:uppercase; letter-spacing:0.09em; font-size:11px;
+  color:var(--accent); font-weight:700; margin:0 0 2px; }}
+h2 {{ font-size:18px; margin:0 0 4px; letter-spacing:-0.01em; }}
+.note {{ color:var(--muted); font-size:12.5px; margin:10px 0 0; }}
+.tblwrap {{ overflow-x:auto; margin-top:12px; }}
+table {{ border-collapse:collapse; width:100%; font-size:13.5px; }}
+th {{ text-align:left; color:var(--muted); font-weight:600; font-size:11.5px;
+  text-transform:uppercase; letter-spacing:0.06em; padding:6px 10px;
+  border-bottom:1px solid var(--line); white-space:nowrap; }}
+td {{ padding:7px 10px; border-bottom:1px solid var(--line); vertical-align:top; }}
+tr:last-child td {{ border-bottom:none; }}
+td.num {{ font-family:ui-monospace,'Cascadia Mono',Consolas,monospace;
+  font-variant-numeric:tabular-nums; white-space:nowrap; text-align:right; }}
+th.num {{ text-align:right; }}
+a {{ color:var(--accent); text-decoration:none; }}
+a:hover, a:focus-visible {{ text-decoration:underline; outline:none; }}
+.pill {{ background:var(--pillbg); border-radius:999px; padding:2px 9px;
+  font-size:11.5px; white-space:nowrap; }}
+.pill.ok {{ color:var(--good); font-weight:600; }}
+.pill.warn {{ color:var(--warn); }}
+.empty {{ color:var(--muted); font-style:italic; }}
+footer {{ color:var(--muted); font-size:12px; margin-top:26px; }}
+</style>
+<div class="wrap">
+<header>
+  <h1>Polyfunnel Edge Board</h1>
+  <p class="meta">Scan <b>{esc(gen)}</b> · {esc(data.get("n_events"))} top events swept ·
+  page built {built} · quotes are cached ~30–60s — <b>always verify the live book
+  before placing anything</b>. Manual execution only; nothing here is advice.</p>
+</header>
+
+<section>
+  <p class="eyebrow">A · Provable</p>
+  <h2>Set arbitrage (negRisk events)</h2>
+  <div class="tblwrap"><table>
+    <tr><th>Event</th><th class="num">Trade</th><th class="num">Edge/set</th>
+        <th class="num">Return</th><th class="num">Vol 24h</th><th>Live check</th></tr>
+    {arb_rows()}
+  </table></div>
+  <p class="note">Buy every outcome of a mutually-exclusive event for less than $1
+  total (fees included) → locked profit at resolution. Size to the thinnest leg;
+  never leave a set half-filled.</p>
+</section>
+
+<section>
+  <p class="eyebrow">B · Structural</p>
+  <h2>Maker yield — widest paid spreads</h2>
+  <div class="tblwrap"><table>
+    <tr><th>Market</th><th class="num">Bid / Ask</th><th class="num">Spread</th>
+        <th class="num">Vol 24h</th><th class="num">Score</th><th class="num">Fee / rebate</th></tr>
+    {maker_rows()}
+  </table></div>
+  <p class="note">Score = spread × 24h volume (quoting-revenue proxy, not PnL).
+  Risk is adverse selection on news — know why the spread is wide before quoting
+  into it. Untested as a strategy (candidate F3).</p>
+</section>
+
+<section>
+  <p class="eyebrow">C · Hunting ground</p>
+  <h2>Fee-free board — no taker fee at all</h2>
+  <div class="tblwrap"><table>
+    <tr><th>Market</th><th class="num">Bid / Ask</th><th class="num">Vol 24h</th>
+        <th class="num">Liquidity</th></tr>
+    {free_rows()}
+  </table></div>
+  <p class="note">The segment the pivot targets: real volume, zero fee wall, UMA
+  resolution risk applies (size accordingly). Collector #3 records these books.</p>
+</section>
+
+<footer>Generated by <span class="num">scripts/edge_screener.py</span> →
+<span class="num">build_screener_board.py</span> · polyfunnel · refresh = re-run the
+scan and rebuild; ask Claude or run it locally.</footer>
+</div>
+"""
+    DEST.write_text(page)
+    print(f"wrote {DEST} ({len(page):,} bytes; {len(arbs)} arbs, "
+          f"{len(makers)} maker rows, {len(free)} fee-free rows)")
+
+
+if __name__ == "__main__":
+    build()
