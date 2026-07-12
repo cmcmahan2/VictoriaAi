@@ -1,5 +1,12 @@
 # PROGRESS
 
+## Session 2026-07-12 (cloud) — geo-block confirmed; product path opened; paper trading begins
+
+- Live trading BLOCKED for the user (Polymarket restricted region — if Ontario: OSC settlement bans trading until >=Apr 2027; IP-enforced; NO circumvention). $7.65 remains withdrawable. Execution plans redirect to legal expressions.
+- **New direction (user's): license the tooling to Juiced Bets** (friend's Whop community: +EV sports betting Discord, ~$49.99/mo, thousands of members, Pikkit-verified track record; founder's origin story literally starts with OddsJam). Product = prediction-market edge intelligence (screener/board/alerts) as a NEW vertical for a community that already buys +EV tooling. Caveat logged: most members likely US -> actionable venues are Kalshi / Polymarket US; cross-venue price-gap detection is the killer feature to build toward.
+- **Paper trading LIVE: $1,000 virtual bankroll.** `scripts/paper_trader.py`: append-only git-committed ledger (vault/paper/ledger.ndjson), entries stamped with live bid/ask (refuses paper fills better than the book; maker orders logged as resting until genuinely fillable), Fee V2 charged where applicable, mark-to-market + per-strategy report. First trade: NO x21 @ 0.953 on israel-closes-airspace-july-15 (F1-lite, 2% cap — initial 100-share entry violated the cap and was corrected ON the ledger, not erased).
+- Two-week target for the Trevor pitch: verifiable ledger + screener board + honest metrics (opportunities flagged/day, actionability window, paper PnL WITH error bars). Sell the machine and the discipline, not a hot streak.
+
 ## Session 2026-07-11/12 (cloud) — PIVOT: fee-free segment; 5m longshot falsified
 
 - Third calibration sample (n=391 fresh, different regime): longshots ≤0.15 won 7.7% vs 7.8% implied — **dead-on fair; the longshot fade FAILED persistence** (samples 1-2 had shown ~3% vs ~6%). Logged in vault study + STRATEGY.md demotion note. 5m BTC scoreboard: five candidates, five dead/dying, $0 lost.
