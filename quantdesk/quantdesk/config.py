@@ -23,7 +23,17 @@ DEFAULT_CONFIG_PATH = Path("config.yaml")
 DEFAULT_DB_PATH = Path("quantdesk.db")
 
 # Curated liquid seed watchlist (Phase 2 expands to ~150 names).
+#
+# Canadian names are included via their US cross-listings: Wealthsimple
+# supports US-listed options only, and yfinance carries no Montreal
+# Exchange chains, so the NYSE listings of TSX companies are the
+# tradeable path for Canadian exposure.
 DEFAULT_WATCHLIST: list[str] = [
+    # Canada via US listings
+    "SHOP", "RY", "TD", "BMO", "BNS", "CM",
+    "ENB", "TRP", "SU", "CNQ",
+    "CP", "CNI", "BCE", "MFC", "NTR", "AEM", "CCJ", "BN", "EWC",
+    # US broad market + sectors
     "SPY", "QQQ", "IWM", "DIA",
     "XLF", "XLE", "XLK", "XLV", "XLI", "XLP", "XLU", "XLY", "XLB", "XLRE", "XLC",
     "AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA", "TSLA", "AMD",
@@ -41,9 +51,12 @@ DEFAULT_WATCHLIST: list[str] = [
 
 
 class AccountConfig(StrictModel):
-    currency: str = "USD"
-    # TODO(user): set your real deployable capital.
-    size: float = Field(default=10_000.0, gt=0)
+    # Account size is in CAD (user's home currency); collateral math for
+    # US options is USD. Phase 4 sizing converts via a live CADUSD=X
+    # quote from the provider — never a hardcoded rate.
+    currency: str = "CAD"
+    # User-confirmed starting capital (2026-07); expected to grow.
+    size: float = Field(default=100.0, gt=0)
     # tfsa | margin — gates strategy availability. Credit spreads are
     # hidden for TFSA (registered-account strategy limits, plus CRA
     # business-income caution for high-frequency option writing).
@@ -79,7 +92,9 @@ class StrategyConfig(StrictModel):
 
 
 class CostsConfig(StrictModel):
-    # TODO(user): confirm Wealthsimple's actual current per-contract fee.
+    # Wealthsimple Core tier, charged in USD (US-listed options only).
+    # TODO(user): still pending final confirmation against WS fee page;
+    # Premium/Generation tiers advertise reduced options fees.
     per_contract_fee: float = Field(default=0.75, ge=0)
     commission: float = Field(default=0.0, ge=0)
 

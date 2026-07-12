@@ -164,4 +164,4 @@ class TestConfigShow:
         assert result.exit_code == 0
         assert cfg.exists()
         loaded = QuantDeskConfig.model_validate(yaml.safe_load(cfg.read_text()))
-        assert loaded.account.size == 10_000.0
+        assert loaded.account.size == 100.0

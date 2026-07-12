@@ -32,15 +32,37 @@ quantdesk quote AAPL
 quantdesk regime
 ```
 
-Then open `config.yaml` and set:
+Then open `config.yaml` and check:
 
-1. `account.size` — your real deployable capital (default 10,000 is a placeholder).
+1. `account.size` — deployable capital in CAD (starts at the confirmed $100;
+   update it as the account grows — sizing caps scale off this number).
 2. `account.account_type` — `tfsa` or `margin`. TFSA hides credit spreads
    (registered-account strategy limits, plus CRA business-income caution for
    high-frequency option writing).
-3. `costs.per_contract_fee` — confirm Wealthsimple's current options fee
-   schedule; the US$0.75/contract default is a placeholder.
-4. `watchlist` — add/remove names. Ships with ~60 liquid large caps and ETFs.
+3. `costs.per_contract_fee` — US$0.75/contract (Wealthsimple Core tier;
+   still to be double-checked against their fee page — Premium/Generation
+   advertise reduced options fees).
+4. `watchlist` — add/remove names. Ships with ~75 liquid names: US large
+   caps, major ETFs, and Canadian companies via their US cross-listings.
+
+## Canadian trader specifics
+
+- **Wealthsimple supports US-listed options only**, and yfinance carries no
+  Montreal Exchange chains. TSX exposure therefore comes through the US
+  cross-listings of Canadian names (SHOP, RY, TD, BMO, BNS, ENB, CNQ, SU,
+  CP, CNI, AEM, CCJ, BN, …), which the default watchlist includes. Pure
+  TSX-only tickers (`.TO`) can still be quoted for spot/realized-vol, but
+  have no tradeable chains here.
+- **Currency:** account size is tracked in CAD; option collateral and
+  premiums are USD. Phase 4 sizing converts with a live CADUSD quote from
+  the provider rather than a hardcoded rate.
+- **Small-account honesty:** at $100 CAD (~$73 USD) no cash-secured put is
+  affordable — the cheapest realistic CSP collateral is several hundred
+  dollars. The screener will correctly return *zero* affordable candidates
+  rather than pretending. Until the account grows, the productive daily
+  habit is running `quantdesk quote` on the watchlist to build IV history,
+  and (once Phase 5 lands) paper-journaling proposals to validate the
+  process.
 
 ## The weekly operating loop
 

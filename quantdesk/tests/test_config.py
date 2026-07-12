@@ -13,7 +13,8 @@ from quantdesk.config import QuantDeskConfig, load_config, save_config
 class TestDefaults:
     def test_spec_defaults(self) -> None:
         cfg = QuantDeskConfig()
-        assert cfg.account.size == 10_000.0
+        assert cfg.account.size == 100.0  # user-confirmed starting capital
+        assert cfg.account.currency == "CAD"
         assert cfg.account.account_type == "tfsa"
         assert cfg.risk.max_position_pct == 0.05
         assert cfg.risk.max_deployed_pct == 0.20
@@ -24,6 +25,9 @@ class TestDefaults:
         assert cfg.strategy.exits.time_exit_dte == 21
         assert cfg.strategy.earnings_blackout is True
         assert "SPY" in cfg.watchlist and "QQQ" in cfg.watchlist
+        # Canadian exposure via US cross-listings (Wealthsimple trades
+        # US-listed options only; no Montreal Exchange data in yfinance).
+        assert "SHOP" in cfg.watchlist and "RY" in cfg.watchlist
 
 
 class TestLoadSave:
