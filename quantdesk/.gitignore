@@ -1,0 +1,14 @@
+# Personal config (contains your real account size) — generated on first run
+config.yaml
+
+# Local data
+quantdesk.db
+reports/
+
+# Python
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+build/
+dist/

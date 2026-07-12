@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quantdesk"
+version = "0.1.0"
+description = "Personal quant options analysis terminal — research, screening, structuring, sizing, backtesting, journaling. No execution."
+requires-python = ">=3.11"
+dependencies = [
+    "yfinance>=0.2.40",
+    "pandas>=2.0",
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "sqlalchemy>=2.0",
+    "typer>=0.12",
+    "rich>=13.0",
+    "pydantic>=2.5",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "mypy>=1.8", "types-PyYAML"]
+dashboard = ["streamlit>=1.30", "plotly>=5.18"]
+
+[project.scripts]
+quantdesk = "quantdesk.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["quantdesk*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.mypy]
+strict = true
+python_version = "3.11"
+files = ["quantdesk"]
+
+[[tool.mypy.overrides]]
+module = ["yfinance.*", "scipy.*", "pandas.*"]
+ignore_missing_imports = true
