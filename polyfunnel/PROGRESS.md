@@ -1,5 +1,14 @@
 # PROGRESS
 
+## Session 2026-07-11/12 (cloud) — PIVOT: fee-free segment; 5m longshot falsified
+
+- Third calibration sample (n=391 fresh, different regime): longshots ≤0.15 won 7.7% vs 7.8% implied — **dead-on fair; the longshot fade FAILED persistence** (samples 1-2 had shown ~3% vs ~6%). Logged in vault study + STRATEGY.md demotion note. 5m BTC scoreboard: five candidates, five dead/dying, $0 lost.
+- **Edge screener v0 built + first live scan** (`scripts/edge_screener.py` → docs/edge_screener.json): negRisk set-arb sweep (0 hits at scan cadence — arbs live ~2.7s, not our race), maker-yield board (#1: fee-free geopolitics market, $4M/day, 2.5c spread), fee-free board ($16M+/day in the Ethiopia-PM family alone).
+- **Pivot decision (user + evidence agree): aim the machine at the fee-free segment.** vault/STRATEGY-feefree.md: candidates F1 (long-horizon favorite-longshot bias — historical backtest possible NOW), F2 (date-ladder coherence violations — model-free), F3 (maker quoting wide fee-free books — needs tape), F4 (news-lag fade — parked); hazard ledger (UMA resolution risk, capital lockup, silent fee changes).
+- `scripts/collect_feefree.py` added (books every 20s hash-deduped for top-60 fee-free markets, hourly outcome sweep; reuses collect_updown writer) — smoke-tested live (15 markets, 79 rows/2min). Runs as a third collector window on the user's PC.
+- Execution policy re-affirmed: manual placement while testing; automation only after paper-trading gates.
+- 5m collectors: keep until local session closes basis/trade-tape questions, then write the null study and wind down.
+
 ## Session 2026-07-09 (cloud) — Strategy v2 consolidated; polybot fee model fixed
 
 - **vault/STRATEGY.md added** — the single working strategy doc: kill list with evidence (naive taker, momentum, basis-lead, last-second snipe), the one survivor (longshot fade, maker-first) with its open question (who fills the maker? → trade tape), v2 architecture, fee-aware breakeven table, and the ordered gates to real money.
