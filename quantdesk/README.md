@@ -69,7 +69,7 @@ Then open `config.yaml` and check:
 | When | What | Command |
 |------|------|---------|
 | Sunday | Scan the universe for rich premium | `quantdesk scan --strategy csp` |
-| Sunday | Structure the best candidates | `quantdesk propose csp XYZ` *(Phase 3)* |
+| Sunday | Structure the best candidates | `quantdesk propose csp XYZ` |
 | Sunday | Size them; the risk engine blocks rule violations | *(Phase 4)* |
 | Monday | **You** execute manually at the broker | — |
 | Same day | Journal the fill | `quantdesk journal open ...` *(Phase 5)* |
@@ -88,7 +88,13 @@ Then open `config.yaml` and check:
   with live-FX CAD→USD caps, freefall exclusion), composite z-scored
   opportunity ranking, `scan --strategy csp` with fully queryable
   exclusions via `scan --explain SYMBOL`.
-- [ ] Phase 3 — Strategy engine (CSP, covered call, credit spreads, wheel)
+- [x] **Phase 3 — Strategy engine**: TradeProposal cards with legs,
+  credit, max profit/loss, collateral, breakevens, dual POP estimates
+  (delta approx + lognormal), entry Greeks in trader units, plain-English
+  thesis, and a mechanical exit plan (50% take-profit / 21 DTE / 2x-credit
+  stop) on every card. CSP, covered call (cost-basis aware), put credit
+  spreads (margin-gated, min credit >= 1/3 width), and the wheel state
+  machine with exact effective-cost-basis accounting.
 - [ ] Phase 4 — Risk engine (Kelly sizing, portfolio Greeks, hard rules)
 - [ ] Phase 5 — Backtester + journal
 - [ ] Phase 6 — Streamlit dashboard

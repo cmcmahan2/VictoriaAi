@@ -85,8 +85,16 @@ class ExitConfig(StrictModel):
     stop_loss_credit_multiple: float = 2.0
 
 
+class SpreadStrategyConfig(StrictModel):
+    width: float = Field(default=5.0, gt=0)
+    # Minimum credit as a fraction of width (spec: >= 1/3). Selling
+    # spreads for less is picking up pennies without the pay.
+    min_credit_fraction: float = Field(default=1 / 3, gt=0, lt=1)
+
+
 class StrategyConfig(StrictModel):
     csp: CspStrategyConfig = CspStrategyConfig()
+    spreads: SpreadStrategyConfig = SpreadStrategyConfig()
     exits: ExitConfig = ExitConfig()
     earnings_blackout: bool = True
 

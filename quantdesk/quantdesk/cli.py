@@ -10,7 +10,10 @@ from __future__ import annotations
 
 import datetime as dt
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import TYPE_CHECKING, Annotated, Optional
+
+if TYPE_CHECKING:
+    from quantdesk.strategies.base import TradeProposal
 
 import typer
 from rich import box
@@ -249,6 +252,113 @@ def _explain_symbol(
         f"RV20 {metrics.rv_20d:.1%} | VRP {metrics.vrp:+.1%} | "
         f"IV rank {metrics.iv_rank:.0f} ({metrics.iv_rank_source}) | "
         f"{strike_line}[/dim]"
+    )
+
+
+@app.command()
+def propose(
+    strategy: Annotated[str, typer.Argument(help="csp | covered-call | put-credit-spread")],
+    symbol: Annotated[str, typer.Argument(help="Underlying ticker")],
+    top: Annotated[int, typer.Option("--top", help="Proposals to show")] = 3,
+    cost_basis: Annotated[
+        Optional[float],
+        typer.Option("--cost-basis", help="Your share cost basis (covered calls)"),
+    ] = None,
+    config_path: Annotated[
+        Optional[Path], typer.Option("--config", help="Path to config.yaml")
+    ] = None,
+) -> None:
+    """Structure ranked trade proposals with full risk numbers and exit plan."""
+    from quantdesk.screener.universe import select_expiry
+    from quantdesk.strategies.base import Strategy
+    from quantdesk.strategies.covered_call import CoveredCall
+    from quantdesk.strategies.credit_spreads import PutCreditSpread
+    from quantdesk.strategies.csp import CashSecuredPut
+
+    config = load_config(config_path)
+    symbol = symbol.upper()
+
+    strategies: dict[str, Strategy] = {
+        "csp": CashSecuredPut(),
+        "covered-call": CoveredCall(cost_basis=cost_basis),
+        "cc": CoveredCall(cost_basis=cost_basis),
+        "put-credit-spread": PutCreditSpread(),
+        "pcs": PutCreditSpread(),
+    }
+    strat = strategies.get(strategy)
+    if strat is None:
+        console.print(f"[red]Unknown strategy '{strategy}'.[/red] "
+                      "Available: csp, covered-call, put-credit-spread")
+        raise typer.Exit(1)
+    if strat.name == "put-credit-spread" and config.account.account_type == "tfsa":
+        console.print(
+            "[red]BLOCKED:[/red] credit spreads need a margin account. Your "
+            "config says account_type=tfsa — registered accounts can't hold "
+            "spread positions, and CRA treats high-frequency option writing "
+            "in registered accounts unkindly. Switch config to 'margin' if "
+            "that's actually what you trade."
+        )
+        raise typer.Exit(1)
+
+    provider = _provider(config)
+    div_yield = provider.get_dividend_yield(symbol)
+    csp_cfg = config.strategy.csp
+    expiry = select_expiry(
+        provider.get_expirations(symbol), csp_cfg.dte_min, csp_cfg.dte_max
+    )
+    if expiry is None:
+        console.print(
+            f"[red]No expiry in the {csp_cfg.dte_min}-{csp_cfg.dte_max} DTE band "
+            f"for {symbol}.[/red]"
+        )
+        raise typer.Exit(1)
+    chain = provider.get_option_chain(symbol, expiry)
+
+    proposals = strat.propose(chain, config, div_yield)
+    if not proposals:
+        console.print(
+            f"[yellow]No {strat.name} setup qualifies on {symbol} {expiry} — "
+            "no strike meets the delta band / credit requirements.[/yellow]"
+        )
+        raise typer.Exit(0)
+    for i, p in enumerate(proposals[:top], start=1):
+        _print_proposal_card(i, p)
+
+
+def _print_proposal_card(rank: int, p: TradeProposal) -> None:
+    legs = "\n".join(
+        f"  {leg.action.upper():4s} 1x {leg.contract.contract_symbol} "
+        f"@ ~{leg.price:.2f}"
+        for leg in p.legs
+    )
+    lines = [
+        f"[bold]{legs}[/bold]",
+        "",
+        f"net credit [bold]{p.net_credit:.2f}[/bold]   "
+        f"max profit ${p.max_profit:,.0f}   max loss ${p.max_loss:,.0f}   "
+        f"collateral ${p.collateral:,.0f}",
+        f"breakeven {', '.join(f'{b:,.2f}' for b in p.breakevens)}   "
+        f"POP {p.pop_delta:.0%} (delta) / {p.pop_model:.0%} (model — estimates)   "
+        f"ann. yield {p.annualized_yield_on_collateral:.1%}",
+        f"greeks: Δ {p.greeks.delta_shares:+.0f} sh   "
+        f"Γ {p.greeks.gamma_shares:+.1f} sh/$   "
+        f"θ {p.greeks.theta_usd_day:+.2f} $/day   "
+        f"vega {p.greeks.vega_usd_pt:+.2f} $/pt",
+        "",
+        "[bold]Exit plan[/bold]",
+        *[f"  • {r}" for r in p.exit_plan.rules],
+        "",
+        p.thesis,
+    ]
+    if p.requires_margin_account:
+        lines.insert(0, "[red bold]MARGIN ACCOUNT REQUIRED[/red bold]")
+    for w in p.warnings:
+        lines.insert(0, f"[yellow]⚠ {w}[/yellow]")
+    console.print(
+        Panel(
+            "\n".join(lines),
+            title=f"#{rank}  {p.underlying} {p.strategy}  {p.expiry} ({p.dte} DTE)",
+        )
     )
 
 
