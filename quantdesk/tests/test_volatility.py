@@ -15,6 +15,7 @@ from quantdesk.analytics.volatility import (
     iv_percentile,
     iv_rank,
     parkinson_vol,
+    rolling_cc_vol_series,
     realized_vol_suite,
     straddle_implied_move,
     vrp,
@@ -135,6 +136,25 @@ class TestSuite:
         suite = realized_vol_suite(closes, closes, closes, closes)
         assert "cc_20d" in suite and "cc_30d" in suite
         assert "cc_60d" not in suite and "cc_90d" not in suite
+
+
+class TestRollingSeries:
+    def test_alternating_series_flat_distribution(self) -> None:
+        # Every 20-return window of an alternating series has identical std.
+        a = math.log(1.02)
+        closes = [100.0 * math.exp(a * (i % 2)) for i in range(60)]
+        series = rolling_cc_vol_series(closes, 20)
+        assert len(series) == 59 - 20 + 1  # n_returns - window + 1
+        assert max(series) == pytest.approx(min(series), rel=1e-9)
+
+    def test_last_element_matches_point_estimate(self) -> None:
+        rng = np.random.default_rng(3)
+        closes = list(100 * np.exp(np.cumsum(rng.normal(0, 0.01, 80))))
+        series = rolling_cc_vol_series(closes, 20)
+        assert series[-1] == pytest.approx(close_to_close_vol(closes, 20), rel=1e-12)
+
+    def test_short_input_empty(self) -> None:
+        assert rolling_cc_vol_series([100.0] * 10, 20) == []
 
 
 class TestIVStats:

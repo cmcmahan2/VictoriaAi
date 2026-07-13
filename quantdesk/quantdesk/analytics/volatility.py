@@ -121,6 +121,24 @@ def realized_vol_suite(
     return out
 
 
+def rolling_cc_vol_series(closes: Sequence[float], window: int) -> list[float]:
+    """Rolling close-to-close vol: one annualized estimate per day.
+
+    Element i covers the ``window`` returns ending at close i. Used to
+    bootstrap IV rank against a realized-vol distribution while our own
+    IV history is still immature. Returns empty list if data is short.
+    """
+    if len(closes) < window + 1:
+        return []
+    arr = np.asarray(closes, dtype=float)
+    log_returns = np.diff(np.log(arr))
+    out: list[float] = []
+    for i in range(window, len(log_returns) + 1):
+        chunk = log_returns[i - window : i]
+        out.append(float(np.std(chunk, ddof=1) * math.sqrt(TRADING_DAYS)))
+    return out
+
+
 def iv_rank(current_iv: float, iv_history: Sequence[float]) -> float:
     """IV Rank: where current IV sits in its trailing range, 0-100.
 

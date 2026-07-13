@@ -99,6 +99,28 @@ class CostsConfig(StrictModel):
     commission: float = Field(default=0.0, ge=0)
 
 
+class ScreenerWeights(StrictModel):
+    """Composite-score weights (z-scored components)."""
+
+    vrp: float = 0.30
+    iv_rank: float = 0.30
+    liquidity: float = 0.20
+    premium_yield: float = 0.20
+
+
+class ScreenerConfig(StrictModel):
+    min_open_interest: int = Field(default=500, ge=0)
+    min_option_volume: int = Field(default=1, ge=0)
+    max_spread_pct: float = Field(default=0.05, gt=0)
+    iv_rank_min: float = Field(default=50.0, ge=0, le=100)
+    freefall_dma_ratio: float = Field(default=0.85, gt=0, le=1)
+    # Below this many own-IV observations, IV rank is bootstrapped from
+    # the rolling realized-vol distribution and labeled as such.
+    own_iv_history_min_days: int = Field(default=60, ge=1)
+    max_workers: int = Field(default=8, ge=1)
+    weights: ScreenerWeights = ScreenerWeights()
+
+
 class DataConfig(StrictModel):
     risk_free_rate: float = 0.04  # annualized; used by BS when no curve
     chain_cache_ttl_seconds: float = 15 * 60
@@ -110,6 +132,7 @@ class QuantDeskConfig(StrictModel):
     account: AccountConfig = AccountConfig()
     risk: RiskConfig = RiskConfig()
     strategy: StrategyConfig = StrategyConfig()
+    screener: ScreenerConfig = ScreenerConfig()
     costs: CostsConfig = CostsConfig()
     data: DataConfig = DataConfig()
     watchlist: list[str] = Field(default_factory=lambda: list(DEFAULT_WATCHLIST))

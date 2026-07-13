@@ -7,95 +7,15 @@ is verified against numbers we control.
 
 from __future__ import annotations
 
-import datetime as dt
-import math
 from pathlib import Path
 
 import pytest
 import yaml
 from typer.testing import CliRunner
 
-from quantdesk.analytics.black_scholes import bs_price
+from fake_provider import RATE, FakeProvider
 from quantdesk.cli import app
 from quantdesk.config import QuantDeskConfig
-from quantdesk.data.models import (
-    Bar,
-    OptionChain,
-    OptionContract,
-    OptionType,
-    PriceHistory,
-    Quote,
-)
-from quantdesk.data.provider import DataProvider
-
-TRUE_SIGMA = 0.25
-SPOT = 100.0
-RATE = 0.04
-
-
-class FakeProvider(DataProvider):
-    """Deterministic provider: GBM-ish history, BS-priced chain at 25% vol."""
-
-    def get_quote(self, symbol: str) -> Quote:
-        price = 20.0 if symbol.startswith("^") else SPOT  # ^VIX -> 20
-        return Quote(symbol=symbol, price=price, timestamp=dt.datetime.now())
-
-    def get_price_history(self, symbol: str, years: int = 5) -> PriceHistory:
-        # Alternating +/- daily log return sized for ~20% annualized CC vol.
-        a = 0.20 / math.sqrt(252)
-        bars: list[Bar] = []
-        price = SPOT
-        start = dt.date.today() - dt.timedelta(days=200)
-        for i in range(130):
-            price *= math.exp(a if i % 2 else -a)
-            bars.append(
-                Bar(
-                    date=start + dt.timedelta(days=i),
-                    open=price,
-                    high=price * 1.005,
-                    low=price * 0.995,
-                    close=price,
-                    volume=1e6,
-                )
-            )
-        return PriceHistory(symbol=symbol, bars=bars)
-
-    def get_expirations(self, symbol: str) -> list[dt.date]:
-        return [dt.date.today() + dt.timedelta(days=d) for d in (7, 30, 60)]
-
-    def get_option_chain(self, symbol: str, expiry: dt.date) -> OptionChain:
-        t = (expiry - dt.date.today()).days / 365.0
-        strikes = [90.0, 95.0, 100.0, 105.0, 110.0]
-
-        def contract(opt_type: OptionType, strike: float) -> OptionContract:
-            fair = bs_price(opt_type, SPOT, strike, t, RATE, TRUE_SIGMA)
-            return OptionContract(
-                contract_symbol=f"{symbol}-{opt_type}-{strike}",
-                underlying=symbol,
-                option_type=opt_type,
-                strike=strike,
-                expiry=expiry,
-                bid=fair - 0.01,
-                ask=fair + 0.01,
-                last=fair,
-                volume=1000,
-                open_interest=5000,
-            )
-
-        return OptionChain(
-            underlying=symbol,
-            spot=SPOT,
-            expiry=expiry,
-            calls=[contract("call", k) for k in strikes],
-            puts=[contract("put", k) for k in strikes],
-            fetched_at=dt.datetime.now(dt.timezone.utc),
-        )
-
-    def get_dividend_yield(self, symbol: str) -> float:
-        return 0.0
-
-    def get_next_earnings(self, symbol: str) -> dt.date | None:
-        return dt.date.today() + dt.timedelta(days=50)
 
 
 @pytest.fixture()

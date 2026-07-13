@@ -52,7 +52,11 @@ _iv_history_table = Table(
 
 def _engine_for(db_path: Path) -> Engine:
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    engine = create_engine(f"sqlite:///{db_path}")
+    # timeout: parallel screener workers write through one SQLite file;
+    # wait for locks instead of raising "database is locked".
+    engine = create_engine(
+        f"sqlite:///{db_path}", connect_args={"timeout": 30}
+    )
     _metadata.create_all(engine)
     return engine
 

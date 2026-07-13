@@ -68,7 +68,7 @@ Then open `config.yaml` and check:
 
 | When | What | Command |
 |------|------|---------|
-| Sunday | Scan the universe for rich premium | `quantdesk scan --strategy csp` *(Phase 2)* |
+| Sunday | Scan the universe for rich premium | `quantdesk scan --strategy csp` |
 | Sunday | Structure the best candidates | `quantdesk propose csp XYZ` *(Phase 3)* |
 | Sunday | Size them; the risk engine blocks rule violations | *(Phase 4)* |
 | Monday | **You** execute manually at the broker | — |
@@ -83,7 +83,11 @@ Then open `config.yaml` and check:
   vol suite (close-to-close, Parkinson, Yang-Zhang), IV rank with home-grown
   IV history, VRP estimate, expected move, POP/prob-of-touch, VIX regime
   classifier, `quote`/`regime`/`config-show` CLI.
-- [ ] Phase 2 — Screener (universe, filter pipeline, composite score)
+- [x] **Phase 2 — Screener**: watchlist universe, composable filter
+  pipeline (liquidity, vol richness, earnings blackout, affordability
+  with live-FX CAD→USD caps, freefall exclusion), composite z-scored
+  opportunity ranking, `scan --strategy csp` with fully queryable
+  exclusions via `scan --explain SYMBOL`.
 - [ ] Phase 3 — Strategy engine (CSP, covered call, credit spreads, wheel)
 - [ ] Phase 4 — Risk engine (Kelly sizing, portfolio Greeks, hard rules)
 - [ ] Phase 5 — Backtester + journal
