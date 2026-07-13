@@ -76,12 +76,12 @@ class MiniWebSocket:
     """Just enough RFC 6455 for RTDS: client handshake, masked sends,
     text/ping/pong/close frames, fragment reassembly."""
 
-    def __init__(self, host: str, timeout: float = 10.0):
+    def __init__(self, host: str, timeout: float = 10.0, path: str = "/"):
         raw = socket.create_connection((host, 443), timeout=timeout)
         ctx = ssl.create_default_context()
         self.sock = ctx.wrap_socket(raw, server_hostname=host)
         key = base64.b64encode(os.urandom(16)).decode()
-        req = (f"GET / HTTP/1.1\r\nHost: {host}\r\n"
+        req = (f"GET {path} HTTP/1.1\r\nHost: {host}\r\n"
                "Upgrade: websocket\r\nConnection: Upgrade\r\n"
                f"Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n")
         self.sock.sendall(req.encode())

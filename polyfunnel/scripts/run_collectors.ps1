@@ -34,3 +34,4 @@ function Ensure-Collector($script) {
 
 Ensure-Collector 'collect_updown.py'
 Ensure-Collector 'collect_rtds.py'
+Ensure-Collector 'collect_trades.py'
