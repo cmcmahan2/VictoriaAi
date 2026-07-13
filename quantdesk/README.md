@@ -95,7 +95,13 @@ Then open `config.yaml` and check:
   stop) on every card. CSP, covered call (cost-basis aware), put credit
   spreads (margin-gated, min credit >= 1/3 width), and the wheel state
   machine with exact effective-cost-basis accounting.
-- [ ] Phase 4 — Risk engine (Kelly sizing, portfolio Greeks, hard rules)
+- [x] **Phase 4 — Risk engine**: fractional-Kelly sizing estimated from
+  POP + the exit-plan payoff, always bounded by fixed-fraction hard caps
+  and the VIX-regime multiplier (halve >30, freeze >40); portfolio
+  aggregation (dollar Greeks, beta-weighted delta to SPY, sector counts,
+  pairwise 90d correlations); hard rule engine (position cap, deployment
+  cap, sector concentration, correlation warning, VIX freeze) with
+  BLOCK/WARN severities. `propose` now ends with a sizing panel.
 - [ ] Phase 5 — Backtester + journal
 - [ ] Phase 6 — Streamlit dashboard
 

@@ -323,6 +323,50 @@ def propose(
         raise typer.Exit(0)
     for i, p in enumerate(proposals[:top], start=1):
         _print_proposal_card(i, p)
+    _print_sizing(provider, config, proposals[0])
+
+
+def _print_sizing(
+    provider: DataProvider, config: QuantDeskConfig, p: TradeProposal
+) -> None:
+    """Risk-engine sizing for the top proposal (Phase 4)."""
+    from quantdesk.risk.sizing import recommend_size
+    from quantdesk.screener.universe import account_usd
+
+    try:
+        vix = provider.get_quote("^VIX").price
+    except Exception:
+        console.print("[yellow]No VIX quote — sizing skipped.[/yellow]")
+        return
+    usd, fx_note = account_usd(provider, config)
+    if p.collateral <= 0:  # e.g. covered call: shares already owned
+        console.print(
+            "[dim]Sizing: no new collateral required (covered by shares).[/dim]"
+        )
+        return
+    stop_loss_usd = (
+        p.exit_plan.stop_loss_buyback - p.net_credit
+    ) * 100.0  # loss if the stop is hit
+    rec = recommend_size(
+        account_usd=usd,
+        collateral_per_contract=p.collateral,
+        pop=p.pop_model,
+        win_per_contract=p.net_credit * 100.0,
+        loss_per_contract=stop_loss_usd,
+        vix=vix,
+        config=config,
+    )
+    lines = [
+        f"account ${usd:,.0f} USD ({fx_note})   VIX {vix:.1f} "
+        f"(multiplier {rec.regime_multiplier:.0%})",
+        f"Kelly {rec.kelly_raw:.1%} raw → {rec.kelly_applied:.1%} at "
+        f"{config.risk.kelly_fraction:.0%}-Kelly → final {rec.final_fraction:.1%} "
+        f"of account",
+        f"[bold]Recommended size: {rec.contracts} contract(s)[/bold] "
+        f"(${rec.collateral_total:,.0f} collateral)",
+        *[f"[yellow]• {n}[/yellow]" for n in rec.notes],
+    ]
+    console.print(Panel("\n".join(lines), title="Sizing (top proposal)"))
 
 
 def _print_proposal_card(rank: int, p: TradeProposal) -> None:

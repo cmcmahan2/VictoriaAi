@@ -35,27 +35,35 @@ def universe_symbols(config: QuantDeskConfig) -> list[str]:
     return out
 
 
-def usd_budget_per_position(
+def account_usd(
     provider: DataProvider, config: QuantDeskConfig
 ) -> tuple[float, str]:
-    """Per-position collateral cap in USD, converted from account currency.
+    """Account size in USD, converted from the account currency.
 
-    Returns (cap_usd, note). Uses a live FX quote (e.g. CADUSD=X) — never
-    a hardcoded rate. If FX is unavailable, falls back to parity with a
+    Returns (usd, note). Uses a live FX quote (e.g. CADUSD=X) — never a
+    hardcoded rate. If FX is unavailable, falls back to parity with a
     loud note rather than silently inventing a number.
     """
-    cap_native = config.account.size * config.risk.max_position_pct
+    size = config.account.size
     currency = config.account.currency.upper()
     if currency == "USD":
-        return cap_native, "account already in USD"
+        return size, "account already in USD"
     try:
         fx = provider.get_quote(f"{currency}USD=X").price
-        return cap_native * fx, f"{currency}USD={fx:.4f} (live)"
+        return size * fx, f"{currency}USD={fx:.4f} (live)"
     except Exception:
-        return cap_native, (
+        return size, (
             f"WARNING: no {currency}USD quote — treating {currency} as USD 1:1; "
             "position caps are overstated"
         )
+
+
+def usd_budget_per_position(
+    provider: DataProvider, config: QuantDeskConfig
+) -> tuple[float, str]:
+    """Per-position collateral cap in USD (max_position_pct of the account)."""
+    usd, note = account_usd(provider, config)
+    return usd * config.risk.max_position_pct, note
 
 
 def select_expiry(
