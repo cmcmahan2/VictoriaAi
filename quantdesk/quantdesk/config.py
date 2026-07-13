@@ -129,6 +129,14 @@ class ScreenerConfig(StrictModel):
     weights: ScreenerWeights = ScreenerWeights()
 
 
+class BacktestConfig(StrictModel):
+    # IV proxy = RV20 x richness. 1.15 approximates the long-run VRP
+    # (implied ~15% above realized); recalibrate against your own
+    # measured VRP as IV history accumulates.
+    iv_richness: float = Field(default=1.15, gt=0)
+    report_dir: Path = Path("reports")
+
+
 class DataConfig(StrictModel):
     risk_free_rate: float = 0.04  # annualized; used by BS when no curve
     chain_cache_ttl_seconds: float = 15 * 60
@@ -141,6 +149,7 @@ class QuantDeskConfig(StrictModel):
     risk: RiskConfig = RiskConfig()
     strategy: StrategyConfig = StrategyConfig()
     screener: ScreenerConfig = ScreenerConfig()
+    backtest: BacktestConfig = BacktestConfig()
     costs: CostsConfig = CostsConfig()
     data: DataConfig = DataConfig()
     watchlist: list[str] = Field(default_factory=lambda: list(DEFAULT_WATCHLIST))

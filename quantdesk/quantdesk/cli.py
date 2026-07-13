@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Optional
 
 if TYPE_CHECKING:
+    from quantdesk.journal.models import Journal
     from quantdesk.strategies.base import TradeProposal
 
 import typer
@@ -404,6 +405,262 @@ def _print_proposal_card(rank: int, p: TradeProposal) -> None:
             title=f"#{rank}  {p.underlying} {p.strategy}  {p.expiry} ({p.dte} DTE)",
         )
     )
+
+
+@app.command()
+def backtest(
+    mode: Annotated[str, typer.Argument(help="csp | wheel | covered-call")],
+    symbol: Annotated[str, typer.Argument(help="Underlying ticker")],
+    years: Annotated[int, typer.Option("--years")] = 6,
+    walk_forward_split: Annotated[
+        Optional[str],
+        typer.Option("--walk-forward", help="Split date YYYY-MM-DD: fit before, validate after"),
+    ] = None,
+    config_path: Annotated[
+        Optional[Path], typer.Option("--config", help="Path to config.yaml")
+    ] = None,
+) -> None:
+    """Backtest a strategy on daily history with SYNTHETIC option pricing."""
+    from quantdesk.backtest.engine import BacktestMode, run_backtest, walk_forward
+    from quantdesk.backtest.metrics import summarize_equity, trade_stats
+    from quantdesk.backtest.report import save_equity_report
+    from quantdesk.backtest.synthetic import SYNTHETIC_WARNING
+
+    config = load_config(config_path)
+    symbol = symbol.upper()
+    if mode not in ("csp", "wheel", "covered-call"):
+        console.print(f"[red]Unknown mode '{mode}'.[/red] Use csp | wheel | covered-call")
+        raise typer.Exit(1)
+    bt_mode: BacktestMode = mode  # type: ignore[assignment]
+    provider = _provider(config)
+    history = provider.get_price_history(symbol, years=years)
+
+    console.print(f"[yellow bold]⚠ {SYNTHETIC_WARNING}[/yellow bold]\n")
+
+    if walk_forward_split is not None:
+        split = dt.date.fromisoformat(walk_forward_split)
+        wf = walk_forward(history, bt_mode, config, split)
+        style = "red bold" if wf.overfit_flag else "green"
+        console.print(Panel(f"[{style}]{wf.detail}[/{style}]", title="Walk-forward"))
+        return
+
+    result = run_backtest(history, bt_mode, config)
+    strat_summary = summarize_equity(
+        f"{mode}", result.equity, result.dates
+    )
+    # Benchmark: buy-and-hold the same capital in the underlying.
+    closes = [b.close for b in history.bars if b.date >= result.dates[0]]
+    bh = [result.initial_capital * c / closes[0] for c in closes[: len(result.dates)]]
+    bh_summary = summarize_equity(f"B&H {symbol}", bh, result.dates)
+    summaries = [strat_summary, bh_summary]
+    benchmarks = {f"B&H {symbol}": bh}
+    try:
+        spy_hist = provider.get_price_history("SPY", years=years)
+        by_date = {b.date: b.close for b in spy_hist.bars}
+        aligned = [by_date.get(d) for d in result.dates]
+        if aligned[0] and all(a is not None for a in aligned):
+            spy = [result.initial_capital * a / aligned[0] for a in aligned]  # type: ignore[operator]
+            benchmarks["B&H SPY"] = spy
+            summaries.append(summarize_equity("B&H SPY", spy, result.dates))
+    except Exception:
+        console.print("[dim]SPY benchmark unavailable — skipped.[/dim]")
+
+    table = Table(title=f"{symbol} {mode} backtest (net of costs)", box=box.SIMPLE)
+    table.add_column("series", justify="right", no_wrap=True)
+    for col in ("CAGR", "vol", "Sharpe", "Sortino", "maxDD", "DDd",
+                "ulcer", "CVaR95"):
+        table.add_column(col, justify="right")
+    for s in summaries:
+        table.add_row(
+            s.label, f"{s.cagr:.1%}", f"{s.annualized_vol:.1%}", f"{s.sharpe:.2f}",
+            f"{s.sortino:.2f}", f"{s.max_drawdown:.1%}", str(s.max_drawdown_days),
+            f"{s.ulcer:.2f}", f"{s.cvar_95:.2%}",
+        )
+    console.print(table)
+
+    stats = trade_stats([t.pnl for t in result.trades], result.gross_premium)
+    console.print(
+        f"trades {stats.n_trades}  win rate {stats.win_rate:.0%}  "
+        f"avg win {stats.avg_win:,.0f}  avg loss {stats.avg_loss:,.0f}  "
+        f"premium capture {stats.premium_capture:.0%}  "
+        f"total costs ${result.total_costs:,.0f}"
+    )
+    path = save_equity_report(
+        result, summaries, benchmarks, config.backtest.report_dir
+    )
+    console.print(f"[dim]report saved: {path}[/dim]")
+
+
+journal_app = typer.Typer(help="Trade journal: open, adjust, close, assign, review.")
+app.add_typer(journal_app, name="journal")
+
+
+def _journal(config_path: Optional[Path]) -> tuple[Journal, QuantDeskConfig]:
+    from quantdesk.journal.models import Journal as JournalImpl
+
+    config = load_config(config_path)
+    return JournalImpl(config.db_path), config
+
+
+@journal_app.command("open")
+def journal_open(
+    symbol: Annotated[str, typer.Argument()],
+    strategy: Annotated[str, typer.Option("--strategy")] = "csp",
+    strike: Annotated[float, typer.Option("--strike")] = 0.0,
+    expiry: Annotated[str, typer.Option("--expiry", help="YYYY-MM-DD")] = "",
+    credit: Annotated[float, typer.Option("--credit", help="Per share")] = 0.0,
+    contracts: Annotated[int, typer.Option("--contracts")] = 1,
+    fees: Annotated[float, typer.Option("--fees", help="Total $ fees")] = 0.0,
+    iv: Annotated[Optional[float], typer.Option("--iv", help="IV sold, e.g. 0.32")] = None,
+    override: Annotated[bool, typer.Option("--override")] = False,
+    why: Annotated[Optional[str], typer.Option("--why", help="Override justification")] = None,
+    config_path: Annotated[Optional[Path], typer.Option("--config")] = None,
+) -> None:
+    """Log a fill you executed at the broker. QuantDesk never traded it."""
+    from quantdesk.journal.models import JournalLeg, JournalTrade
+
+    if strike <= 0 or not expiry or credit <= 0:
+        console.print("[red]--strike, --expiry and --credit are required.[/red]")
+        raise typer.Exit(1)
+    if override and not why:
+        console.print(
+            "[red]--override requires --why. Overrides are recorded forever.[/red]"
+        )
+        raise typer.Exit(1)
+    journal, _ = _journal(config_path)
+    option_type = "call" if strategy == "covered-call" else "put"
+    trade = JournalTrade(
+        symbol=symbol.upper(),
+        strategy=strategy,
+        opened_at=dt.date.today(),
+        legs=[
+            JournalLeg(
+                action="sell",
+                option_type=option_type,  # type: ignore[arg-type]
+                strike=strike,
+                expiry=dt.date.fromisoformat(expiry),
+                contracts=contracts,
+                entry_price=credit,
+            )
+        ],
+        credit_total=credit * 100.0 * contracts,
+        fees_total=fees,
+        override_used=override,
+        override_justification=why,
+        iv_at_entry=iv,
+    )
+    trade_id = journal.open_trade(trade)
+    flag = "  [red bold](OVERRIDE — recorded permanently)[/red bold]" if override else ""
+    console.print(f"[green]Trade #{trade_id} opened.[/green]{flag}")
+
+
+@journal_app.command("close")
+def journal_close(
+    trade_id: Annotated[int, typer.Argument()],
+    cost: Annotated[float, typer.Option("--cost", help="Total $ paid to close")] = 0.0,
+    reason: Annotated[str, typer.Option("--reason")] = "take-profit",
+    rv: Annotated[Optional[float], typer.Option("--rv", help="Realized vol over hold")] = None,
+    config_path: Annotated[Optional[Path], typer.Option("--config")] = None,
+) -> None:
+    """Close a trade; P&L is computed, not typed."""
+    journal, _ = _journal(config_path)
+    trade = journal.close_trade(trade_id, dt.date.today(), cost, reason, rv)
+    assert trade.realized_pnl is not None
+    color = "green" if trade.realized_pnl >= 0 else "red"
+    console.print(
+        f"Trade #{trade_id} closed ({reason}): "
+        f"[{color}]P&L {trade.realized_pnl:+,.2f}[/{color}]"
+    )
+
+
+@journal_app.command("assign")
+def journal_assign(
+    trade_id: Annotated[int, typer.Argument()],
+    config_path: Annotated[Optional[Path], typer.Option("--config")] = None,
+) -> None:
+    """Record assignment: credit kept, shares acquired (start a new chapter)."""
+    journal, _ = _journal(config_path)
+    trade = journal.assign(trade_id, dt.date.today())
+    console.print(
+        f"Trade #{trade_id} assigned. Credit kept: {trade.realized_pnl:+,.2f}. "
+        "Log the share position's covered calls as new trades."
+    )
+
+
+@journal_app.command("note")
+def journal_note(
+    trade_id: Annotated[int, typer.Argument()],
+    text: Annotated[str, typer.Argument()],
+    config_path: Annotated[Optional[Path], typer.Option("--config")] = None,
+) -> None:
+    """Attach a note to a trade."""
+    journal, _ = _journal(config_path)
+    journal.add_note(trade_id, dt.date.today(), text)
+    console.print(f"Noted on #{trade_id}.")
+
+
+@journal_app.command("list")
+def journal_list(
+    config_path: Annotated[Optional[Path], typer.Option("--config")] = None,
+) -> None:
+    """All trades, open first."""
+    journal, _ = _journal(config_path)
+    trades = journal.list_trades()
+    table = Table(box=box.SIMPLE)
+    for col in ("id", "symbol", "strategy", "status", "opened", "closed",
+                "credit", "P&L", "exit", "ovr"):
+        table.add_column(col, justify="right")
+    for t in sorted(trades, key=lambda x: (x.status.value != "open", x.id or 0)):
+        table.add_row(
+            str(t.id), t.symbol, t.strategy, t.status.value,
+            t.opened_at.isoformat(),
+            t.closed_at.isoformat() if t.closed_at else "—",
+            f"{t.credit_total:,.0f}",
+            f"{t.realized_pnl:+,.2f}" if t.realized_pnl is not None else "—",
+            t.exit_reason or "—",
+            "[red]YES[/red]" if t.override_used else "",
+        )
+    console.print(table)
+
+
+@app.command()
+def review(
+    month: Annotated[
+        Optional[str], typer.Option("--month", help="YYYY-MM (default: current)")
+    ] = None,
+    config_path: Annotated[Optional[Path], typer.Option("--config")] = None,
+) -> None:
+    """The monthly review: adherence, IV-sold vs realized, worst-trade autopsy."""
+    from quantdesk.journal.models import Journal
+    from quantdesk.journal.review import monthly_review
+
+    config = load_config(config_path)
+    if month:
+        year_s, month_s = month.split("-")
+        year, mon = int(year_s), int(month_s)
+    else:
+        today = dt.date.today()
+        year, mon = today.year, today.month
+    r = monthly_review(Journal(config.db_path), year, mon)
+
+    def fmt(v: float | None, spec: str = "+.2f") -> str:
+        return format(v, spec) if v is not None else "—"
+
+    lines = [
+        f"opened {r.n_opened}   closed {r.n_closed}   "
+        f"P&L {r.total_pnl:+,.2f}   fees {r.total_fees:,.2f}",
+        f"win rate {fmt(r.win_rate, '.0%')}   "
+        f"premium capture {fmt(r.premium_capture, '.0%')}",
+        f"rule adherence {fmt(r.rule_adherence_pct, '.0%')}"
+        + (f"   [red]{len(r.overrides)} override(s)[/red]" if r.overrides else ""),
+        *[f"  [red]• {o}[/red]" for o in r.overrides],
+        f"IV sold {fmt(r.avg_iv_sold, '.1%')} vs realized {fmt(r.avg_rv_realized, '.1%')} "
+        f"→ VRP captured {fmt(r.vrp_captured, '+.1%')} (your closing-line value)",
+    ]
+    if r.worst is not None:
+        lines += ["", f"[bold]Worst position:[/bold] #{r.worst.trade_id} "
+                  f"{r.worst.symbol} {r.worst.pnl:+,.2f}", r.worst.autopsy]
+    console.print(Panel("\n".join(lines), title=f"Monthly review — {year}-{mon:02d}"))
 
 
 @app.command()

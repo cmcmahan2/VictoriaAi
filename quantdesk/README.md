@@ -72,9 +72,11 @@ Then open `config.yaml` and check:
 | Sunday | Structure the best candidates | `quantdesk propose csp XYZ` |
 | Sunday | Size them; the risk engine blocks rule violations | *(Phase 4)* |
 | Monday | **You** execute manually at the broker | — |
-| Same day | Journal the fill | `quantdesk journal open ...` *(Phase 5)* |
+| Same day | Journal the fill | `quantdesk journal open SHOP --strike 95 --expiry ... --credit 0.90` |
 | Daily | Check exits: 50% profit / 21 DTE / 2× credit stop | on every proposal card |
-| Monthly | Review: rule adherence, IV-sold vs realized, autopsy | `quantdesk review` *(Phase 5)* |
+| At exit | Close/assign in the journal (P&L computed for you) | `quantdesk journal close 1 --cost 30 --reason take-profit` |
+| Monthly | Review: rule adherence, IV-sold vs realized, autopsy | `quantdesk review --month 2026-07` |
+| Anytime | Validate the strategy on history (synthetic pricing) | `quantdesk backtest wheel SPY --years 6` |
 
 ## Build status
 
@@ -102,7 +104,16 @@ Then open `config.yaml` and check:
   pairwise 90d correlations); hard rule engine (position cap, deployment
   cap, sector concentration, correlation warning, VIX freeze) with
   BLOCK/WARN severities. `propose` now ends with a sizing panel.
-- [ ] Phase 5 — Backtester + journal
+- [x] **Phase 5 — Backtester + journal**: event-driven daily loop for
+  CSP/wheel/covered-call with synthetic BS pricing (RV20 x richness IV
+  proxy — every report screams the limitation), punitive cost model
+  (per-contract fees + moneyness/DTE-scaled spread slippage), full
+  metrics panel (CAGR, Sharpe, Sortino, max DD + duration, ulcer,
+  CVaR95, win rate, premium capture) vs buy-and-hold and SPY, plotly
+  HTML reports to `reports/`, walk-forward validation with an overfit
+  flag; SQLite journal (open/adjust/close/assign, computed P&L,
+  permanent override records) and the monthly review (rule adherence,
+  IV-sold vs realized "closing-line value", worst-trade autopsy).
 - [ ] Phase 6 — Streamlit dashboard
 
 ## Development
