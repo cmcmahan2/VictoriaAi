@@ -39,5 +39,5 @@ python_version = "3.11"
 files = ["quantdesk"]
 
 [[tool.mypy.overrides]]
-module = ["yfinance.*", "scipy.*", "pandas.*", "plotly.*"]
+module = ["yfinance.*", "scipy.*", "pandas.*", "plotly.*", "streamlit.*"]
 ignore_missing_imports = true

@@ -714,6 +714,24 @@ def config_show(
 
 
 @app.command()
+def dashboard() -> None:
+    """Launch the read-only Streamlit dashboard (CLI stays the workhorse)."""
+    import shutil
+    import subprocess
+    from pathlib import Path as P
+
+    if shutil.which("streamlit") is None:
+        console.print(
+            "[red]streamlit not installed.[/red] Run: pip install 'quantdesk[dashboard]'"
+        )
+        raise typer.Exit(1)
+    app_path = P(__file__).parent / "dashboard.py"
+    raise typer.Exit(
+        subprocess.call(["streamlit", "run", str(app_path)])
+    )
+
+
+@app.command()
 def version() -> None:
     """Print QuantDesk version."""
     console.print(f"quantdesk {__version__}")

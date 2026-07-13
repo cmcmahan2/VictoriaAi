@@ -30,6 +30,9 @@ quantdesk quote AAPL
 
 # Where are we in the vol cycle, and what's the sizing multiplier?
 quantdesk regime
+
+# Browser dashboard (read-only; needs `pip install -e ".[dashboard]"`):
+quantdesk dashboard
 ```
 
 Then open `config.yaml` and check:
@@ -114,7 +117,14 @@ Then open `config.yaml` and check:
   flag; SQLite journal (open/adjust/close/assign, computed P&L,
   permanent override records) and the monthly review (rule adherence,
   IV-sold vs realized "closing-line value", worst-trade autopsy).
-- [ ] Phase 6 — Streamlit dashboard
+- [x] **Phase 6 — Streamlit dashboard**: `quantdesk dashboard` serves a
+  read-only browser UI over the same SQLite DB — Scanner (ranked table +
+  click-through proposals), Portfolio (open positions, deployment gauge,
+  90d correlation heatmap), Journal (cumulative P&L curve, trade table,
+  monthly review), Regime (VIX level/term structure, sizing multiplier,
+  1y chart). Each tab has its own error boundary, so being offline
+  degrades a tab instead of killing the page; the Journal tab is fully
+  offline. The CLI remains the workhorse.
 
 ## Development
 
