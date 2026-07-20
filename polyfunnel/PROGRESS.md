@@ -1,5 +1,13 @@
 # PROGRESS
 
+## Session 2026-07-20 (local) — 5m questions CLOSED; trade-tape maker study; collectors wound down
+
+Local session's assignment (basis + trade-tape, per 2026-07-11/12 note) — done. Both NULL. Study: `vault/studies/2026-07-20-basis-and-maker-tape.md`. Scripts: `analyze_trades.py` (new), `basis_analysis.py`. Scoreboard: five 5m candidates, five dead, **$0 lost.**
+
+- **Basis → NULL (conclusive).** 638 strike-computable windows (settlement model 100%/638). Basis-lead flat ~50% at every offset (49.7/49.5/51.3/52.9%, n≈630) — the Binance feed carries no independent signal about the Chainlink settlement. Edge-vs-book stayed underpowered (contested-late ≈9%; books died 07-11) but moot given no lead.
+- **Maker fills → NULL for a strategy, but the failure mode is "no edge," NOT "adverse selection."** 989,301 trades joined to winners. Measured maker-BUY fills are NOT toxic — every price bin edge ≥0 (favorites ≥0.80: win 96.0% at px 94.8%, +1.26c/sh). This **contradicts the pessimistic modeled-fill sim** (which had collapsed maker to ~$0.04/trade). But the +1.26c favorite signal is weak (~1.8 SE), regime-bound (07-10/11), and already falsified by calibration sample 3 (longshots fair). Zero fees × no persistent mispricing = zero. → Useful for the fee-free F3 (maker-quoting): Polymarket crypto maker fills aren't inherently adverse, so maker strategies are viable *where a real edge exists*.
+- **Collector-infra reality check:** the `PolyfunnelCollectors` scheduled task was NEVER actually registered (`Get-ScheduledTask` → not found) — so there was no watchdog. `collect_updown` died 07-11 with nothing to revive it (books/outcomes frozen there); RTDS + trades limped on their own internal reconnect. Machine up 52 days (no reboot). 5m collectors now winding down per plan; if the fee-free collectors are to be durable, `register_task.ps1` still needs one elevated run.
+
 ## Session 2026-07-12 (cloud) — geo-block confirmed; product path opened; paper trading begins
 
 - Live trading BLOCKED for the user (Polymarket restricted region — if Ontario: OSC settlement bans trading until >=Apr 2027; IP-enforced; NO circumvention). $7.65 remains withdrawable. Execution plans redirect to legal expressions.
