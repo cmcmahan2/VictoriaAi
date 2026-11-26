@@ -56,6 +56,15 @@ npm run dev              # localhost:3001
 npx drizzle-kit studio   # DB GUI
 ```
 
+### PocketPlan (`/finance`)
+Personal finance PWA (iPhone-first). Next.js 14 static export, React 18, plain CSS, no backend — all data in localStorage with JSON backup. See `finance/README.md`.
+
+```
+cd finance
+npm run dev              # localhost:3002
+npm run build            # static ./out
+```
+
 ## Claude Models
 
 | Model | Use case |
